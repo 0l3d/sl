@@ -5,8 +5,9 @@
 #include <string.h>
 
 #define SPECIAL_TOKENS "$()+-/*%^&|=<>"
+#define OPERATORS "*/+-%><&|^"
 
-int 
+int
 lexer_special_tokens_ex(char *special_tokens, char letter)
 {
 	for (int i = 0; i < strlen(special_tokens); i++) {
@@ -17,7 +18,7 @@ lexer_special_tokens_ex(char *special_tokens, char letter)
 	return 0;
 }
 
-int 
+int
 init_sl_lexer(char *bufin, char *bufout[], int max_count, char *special_tokens)
 {
 	if (bufin == NULL)
@@ -81,7 +82,7 @@ init_sl_lexer(char *bufin, char *bufout[], int max_count, char *special_tokens)
 	return token_count;
 }
 
-struct SL_Variable 
+struct SL_Variable
 getvar_from_sl(struct SL_Code code, const char *name)
 {
 	for (int i = 0; code.vars[i].name != NULL; i++) {
@@ -101,7 +102,7 @@ enum ConditionTYPE {
 	EQUALORLESS,
 };
 
-int 
+int
 check_number(const char *s)
 {
 	char           *endptr;
@@ -117,7 +118,7 @@ check_number(const char *s)
 	return 0;
 }
 
-int 
+int
 string_checker(char *word)
 {
 	if (word[0] == '"') {
@@ -149,7 +150,7 @@ string_getter(char *word)
 }
 
 
-enum SL_Types 
+enum SL_Types
 type_analyzer(char *word)
 {
 	if (strchr(word, '"')) {
@@ -171,7 +172,7 @@ type_analyzer(char *word)
 }
 
 
-struct SL_Variable 
+struct SL_Variable
 sl_word_to_var_converter(char *word)
 {
 	struct SL_Variable v;
@@ -210,7 +211,7 @@ sl_word_to_var_converter(char *word)
 	return v;
 }
 
-struct SL_Variable 
+struct SL_Variable
 expression_solver(struct SL_Variable left_side, char op, struct SL_Variable right_side, int current_line)
 {
 	if (left_side.type != right_side.type) {
@@ -433,9 +434,7 @@ struct SL_Math_Splitter {
 	int 		op_pos;
 };
 
-#define OPERATORS "*/+-%><&|^"
-
-int 
+int
 operator_checker(char *expressions[], int start, int end)
 {
 	char           *operators = OPERATORS;
@@ -497,7 +496,7 @@ prec_priority(char op)
 	}
 	return 0;
 }
-struct SL_Math_Splitter 
+struct SL_Math_Splitter
 expression_parser_splitter(char *expression[], int current_token, int max_tokens, int current_line)
 {
 	int 		depth = 0;
@@ -534,7 +533,7 @@ expression_parser_splitter(char *expression[], int current_token, int max_tokens
 	return tree;
 }
 
-struct SL_Variable 
+struct SL_Variable
 expression_parser_solver(char *expression[], int *current_token, int max_tokens, int current_line)
 {
 	while (expression[*current_token][0] == '(' &&
@@ -587,7 +586,7 @@ expression_parser_solver(char *expression[], int *current_token, int max_tokens,
 	return result;
 }
 
-int 
+int
 is_has_token(char *token, char *tokens[], int current_position, int max_tokens)
 {
 	for (int i = current_position; i < max_tokens; i++) {
@@ -598,20 +597,20 @@ is_has_token(char *token, char *tokens[], int current_position, int max_tokens)
 	return -1;
 }
 
-int 
+int
 sl_condition_parser(char *tokens[], int *current_token)
 {
 	enum ConditionTYPE condition_1;
 	enum ConditionTYPE condition_2;
 }
 
-int 
+int
 sl_if_parser(char *tokens[], int *current_token)
 {
 	return 0;
 }
 
-int 
+int
 init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 {
 	int 		line = 0;
