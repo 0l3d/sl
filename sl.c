@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SPECIAL_TOKENS "$()+-/*%^&|=<>"
+#define SPECIAL_TOKENS "$()+-/*%^&|=<>,."
 #define OPERATORS "*/+-%><&|^"
 
 int
@@ -424,6 +424,28 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		}
 		break;
+	case '%':
+		switch (left_side.type) {
+		case INTEGER:
+			expression_result.vali = left_side.vali % right_side.vali;
+			break;
+		case DOUBLE:
+			fprintf(stderr, "Doubles cannot mod each other. Line: %d\n", current_line);
+			break;
+		case STRING:
+			fprintf(stderr, "Strings cannot mod each other. Line: %d\n", current_line);
+			break;
+		case BOOLEAN:
+			fprintf(stderr, "Booleans cannot mod each other. Line: %d\n", current_line);
+			break;
+		case CHAR:
+			fprintf(stderr, "Chars cannot mod each other. Line: %d\n", current_line);
+		case LONG:
+			expression_result.valh = left_side.valh % right_side.valh;
+		default:
+			break;
+		}
+		break;
 	}
 	return expression_result;
 }
@@ -448,32 +470,6 @@ operator_checker(char *expressions[], int start, int end)
 	return 0;
 }
 
-char
-if_it_is_operator_then_return(char *word)
-{
-	switch (word[0]) {
-		case '+':
-		return '+';
-	case '-':
-		return '-';
-	case '|':
-		return '|';
-	case '^':
-		return '^';
-	case '&':
-		return '&';
-	case '>':
-		return '>';
-	case '<':
-		return '<';
-	case '*':
-		return '*';
-	case '/':
-		return '/';
-	}
-	return 0;
-}
-
 int
 prec_priority(char op)
 {
@@ -492,6 +488,7 @@ prec_priority(char op)
 		return 5;
 	case '*':
 	case '/':
+	case '%':
 		return 6;
 	}
 	return 0;
@@ -515,13 +512,13 @@ expression_parser_splitter(char *expression[], int current_token, int max_tokens
 			current_token++;
 			continue;
 		}
-		char 		op = if_it_is_operator_then_return(expression[current_token]);
-		if (op != 0) {
+		char op = expression[current_token][0];
+		int op_prec = prec_priority(op);
+		if (op_prec != 0) {
 			if (tree.op == 0) {
 				tree.op = op;
 				tree.op_pos = current_token;
 			}
-			int 		op_prec = prec_priority(op);
 
 			if (op_prec <= prec_priority(tree.op) && op_prec != 0) {
 				tree.op = op;
@@ -561,6 +558,10 @@ expression_parser_solver(char *expression[], int *current_token, int max_tokens,
 	struct SL_Variable right;
 	struct SL_Variable result;
 	struct SL_Math_Splitter tree = expression_parser_splitter(expression, *current_token, max_tokens, current_line);
+	if (tree.op == 0) {
+		result = sl_word_to_var_converter(expression[*current_token]);
+		return result;
+	}
 
 	int 		left_pos_start = *current_token;
 	int 		left_pos_end = tree.op_pos;
@@ -584,6 +585,57 @@ expression_parser_solver(char *expression[], int *current_token, int max_tokens,
 	result = expression_solver(left, tree.op, right, current_line);
 	*current_token = max_tokens;
 	return result;
+}
+
+struct SL_Variable_Creator {
+	int total_variables;
+	struct SL_Variable *variable;
+};
+
+int
+multi_variable_checker(char *tokens[], int current_token, int max_tokens) {
+	for (int i = current_token; i < max_tokens; i++) {
+		if (tokens[i][0] == ',') {
+			return i;
+		}
+	}
+	return -1;
+}
+
+struct SL_Variable_Creator 
+variable_parser(char *tokens[], int*current_token, int max_tokens) {
+	struct SL_Variable_Creator variables;
+	variables.variable = malloc(sizeof(struct SL_Variable) * 1024);
+	variables.total_variables  = 0;
+	while (current_token != NULL && *current_token < max_tokens) {
+		if (strcmp(tokens[*current_token], ",") == 0) {
+			if (tokens[(*current_token) - 2] != NULL && strcmp(tokens[(*current_token) - 2], "=") != 0) {
+				variables.variable[variables.total_variables++].name = strdup(tokens[(*current_token) - 1]);
+			}
+		}
+		if (tokens[(*current_token) + 1] == NULL && max_tokens < 3) {
+			if (tokens[*current_token] != NULL) {
+				variables.variable[variables.total_variables++].name = strdup(tokens[(*current_token)]);
+			}
+		}
+		if (strcmp(tokens[*current_token], "=") == 0) {
+			int equal_start = *current_token + 1;	
+			int value_end = 0;
+			int out = multi_variable_checker(tokens, *current_token, max_tokens);
+			if (out != -1) {
+				value_end = out;
+			} else {
+				value_end = max_tokens;
+			}
+			struct SL_Variable result = expression_parser_solver(tokens, &equal_start, value_end, 0);
+			variables.variable[variables.total_variables] = result;
+			variables.variable[variables.total_variables++].name = strdup(tokens[(*current_token) - 1]);
+			*current_token = value_end;
+		}
+		// printf("TOKEN: %s\n", tokens[*current_token]);
+		(*current_token)++;
+	}
+	return variables;
 }
 
 int
@@ -618,8 +670,17 @@ init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 		char           *tokens[max_token];
 		int 		t_tokens = init_sl_lexer(code_s.code[line], tokens, max_token, SPECIAL_TOKENS);
 		for (int current_token = 0; current_token < t_tokens; current_token++) {
-			struct SL_Variable result = expression_parser_solver(tokens, &current_token, t_tokens, line + 1);
-			printf("%d\n", result.vali);
+
+			if (strcmp(tokens[current_token], "var") == 0) {
+				current_token++;
+				struct SL_Variable_Creator vars = variable_parser(tokens, &current_token, t_tokens);
+				for (int i = 0; i < vars.total_variables; i++) {
+					printf("NAME: %s and TYPE: %d, VALUE INT: %d\n", vars.variable[i].name, vars.variable[i].type, vars.variable[i].vali);
+				}
+			} else {
+				struct SL_Variable result = expression_parser_solver(tokens, &current_token, t_tokens, line + 1);
+				printf("%d\n", result.vali);
+			}
 		}
 
 		line++;
