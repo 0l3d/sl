@@ -11,6 +11,7 @@
 # 100 - 20 - 10 * 2 / 4 + (35 ^ 15 & 6 | 8) << 1 >> (4 - 2)
 var first1, first11, first12, first2 = 5, first3 = 120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15, first = 50, second = 50 / 5
 var firstend = 10 + 10
-var firststart 
+var firststart
+$firststart = $firstend = 10
 # (120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15) % 10
 # 5

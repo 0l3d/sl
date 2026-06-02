@@ -34,7 +34,9 @@ struct SL_Function {
 struct SL_Code {
 	char          **code;
 	struct SL_Variable *vars;
+	int total_vars;
 	struct SL_Function *funcs;
+	int total_funcs;
 };
 
 int 		add_func_to_sl(struct SL_Code * code, struct SL_Function * func);

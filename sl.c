@@ -85,7 +85,7 @@ init_sl_lexer(char *bufin, char *bufout[], int max_count, char *special_tokens)
 struct SL_Variable
 getvar_from_sl(struct SL_Code code, const char *name)
 {
-	for (int i = 0; code.vars[i].name != NULL; i++) {
+	for (int i = 0; i < code.total_vars; i++) {
 		if (strcmp(code.vars[i].name, name) == 0) {
 			return code.vars[i];
 		}
@@ -603,7 +603,7 @@ multi_variable_checker(char *tokens[], int current_token, int max_tokens) {
 }
 
 struct SL_Variable_Creator 
-variable_parser(char *tokens[], int*current_token, int max_tokens) {
+variable_parser(char *tokens[], int*current_token, int max_tokens, int current_line) {
 	struct SL_Variable_Creator variables;
 	variables.variable = malloc(sizeof(struct SL_Variable) * 1024);
 	variables.total_variables  = 0;
@@ -627,7 +627,7 @@ variable_parser(char *tokens[], int*current_token, int max_tokens) {
 			} else {
 				value_end = max_tokens;
 			}
-			struct SL_Variable result = expression_parser_solver(tokens, &equal_start, value_end, 0);
+			struct SL_Variable result = expression_parser_solver(tokens, &equal_start, value_end, current_line);
 			variables.variable[variables.total_variables] = result;
 			variables.variable[variables.total_variables++].name = strdup(tokens[(*current_token) - 1]);
 			*current_token = value_end;
@@ -637,6 +637,48 @@ variable_parser(char *tokens[], int*current_token, int max_tokens) {
 	}
 	return variables;
 }
+
+int
+getvar_index_from_sl(struct SL_Code code, const char *name)
+{
+	for (int i = 0; i < code.total_vars; i++) {
+		if (strcmp(code.vars[i].name, name) == 0) {
+			return i;
+		}
+	}
+	return 0;
+}
+
+
+
+struct SL_Variable
+standalone_variable_change(struct SL_Code code_s,char* tokens[], int *current_token, int max_tokens, int current_line) {
+	struct SL_Variable error_var;
+	while (current_token != NULL && *current_token < max_tokens) {
+		if (tokens[*current_token][0] == '$') {
+			(*current_token)++;
+			if (tokens[*current_token][0] == '=') {
+				error_var.vali = -2;
+				break;
+			}
+			int index = getvar_index_from_sl(code_s, tokens[*current_token]);
+			printf("INDEX: %d, VALUE: %d, NAME:%s\n", index, code_s.vars[index].vali, code_s.vars[index].name);
+			struct SL_Variable vars = code_s.vars[index];
+			(*current_token)++;
+			if (tokens[*current_token][0] != '=') return vars;
+			else if (tokens[*current_token][0] == '=') {
+				(*current_token)++;
+				struct SL_Variable value_index = standalone_variable_change(code_s, tokens, current_token, max_tokens, current_line);
+
+			}
+		} else {
+			struct SL_Variable value = sl_word_to_var_converter(tokens[*current_token]);
+		}
+
+		(*current_token)++;
+	}
+	return error_var;
+} 
 
 int
 is_has_token(char *token, char *tokens[], int current_position, int max_tokens)
@@ -666,6 +708,7 @@ int
 init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 {
 	int 		line = 0;
+	code_s.total_vars = 0;
 	while (line < max_line) {
 		char           *tokens[max_token];
 		int 		t_tokens = init_sl_lexer(code_s.code[line], tokens, max_token, SPECIAL_TOKENS);
@@ -673,14 +716,22 @@ init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 
 			if (strcmp(tokens[current_token], "var") == 0) {
 				current_token++;
-				struct SL_Variable_Creator vars = variable_parser(tokens, &current_token, t_tokens);
+				struct SL_Variable_Creator vars = variable_parser(tokens, &current_token, t_tokens, line);
 				for (int i = 0; i < vars.total_variables; i++) {
-					printf("NAME: %s and TYPE: %d, VALUE INT: %d\n", vars.variable[i].name, vars.variable[i].type, vars.variable[i].vali);
+					code_s.vars[i] = vars.variable[i];
+					code_s.total_vars++;
+				}
+			} else if (strcmp(tokens[current_token], "$") == 0) {
+				struct SL_Variable out = standalone_variable_change(code_s, tokens, &current_token, t_tokens, line);
+				if (out.vali == -2) {
+					fprintf(stderr, "$ in no name, example usage: $<name of variable>, your usage: $<no name>");
+					return -1;
 				}
 			} else {
 				struct SL_Variable result = expression_parser_solver(tokens, &current_token, t_tokens, line + 1);
 				printf("%d\n", result.vali);
 			}
+			// printf("TOKEN: %s\n", tokens[current_token]);
 		}
 
 		line++;
