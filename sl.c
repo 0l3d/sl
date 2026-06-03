@@ -676,7 +676,14 @@ standalone_variable_change(struct SL_Code code_s,char* tokens[], int *current_to
 			int variable_pos = last_pos - 1;
 			int value = last_pos + 1;
 			int index = getvar_index_from_sl(code_s, tokens[variable_pos]);
-			struct SL_Variable eq_value = sl_word_to_var_converter(tokens[value]);
+			struct SL_Variable eq_value = {0};
+			if (tokens[value][0] == '$') {
+				int name_pos = value + 1;
+				int val_index = getvar_index_from_sl(code_s, tokens[name_pos]);
+				eq_value = code_s.vars[val_index];	
+			} else {
+				eq_value = sl_word_to_var_converter(tokens[value]);
+			}
 			eq_value.name = code_s.vars[index].name;
 			code_s.vars[index] = eq_value;
 			printf("INDEX: %d, VALUE: %d, NAME:%s\n", index, code_s.vars[index].vali, code_s.vars[index].name);
