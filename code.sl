@@ -12,6 +12,6 @@
 var first1, first11, first12, first2 = 5, first3 = 120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15, first = 50, second = 50 / 5
 var firstend = 10 + 10
 var firststart
-$firststart = $firstend = 10
+$firststart = $firstend = 40
 # (120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15) % 10
 # 5

@@ -22,9 +22,9 @@ main()
 	while (fgets(buf, sizeof(buf), code)) {
 		code_lines[total_lines++] = strdup(buf);
 	}
-	struct SL_Code 	code_s = {code_lines, vars, funcs};
+	struct SL_Code 	code_s = {code_lines, vars, 0, funcs, 0};
 	if (init_sl_parser(code_s, total_lines, 1024) == -1) {
-		fprintf(stderr, "Failed to start sl parser.");
+		fprintf(stderr, "sl_parser failed \n");
 		return -1;
 	};
 
