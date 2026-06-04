@@ -15,11 +15,22 @@
 # $firststart = $firstend = 40
 # (120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15) % 10
 # 5
-var firstvariable = 10
-var second_var = 20
-$second_var = $firstvariable = $second_var = $firstvariable = 10
-$second_var = 20
-$firstvariable = $second_var
-var goodvar = 30 / 3
-expr ($firstvariable + $second_var) / $goodvar + 10
-# expr is only works for debug, its not an keyword in future. 
+# var firstvariable = 10
+# var second_var = 20
+# $second_var = $firstvariable = $second_var = $firstvariable = 10
+# $second_var = 20
+# $firstvariable = $second_var
+# var goodvar = 30 / 3
+# ($firstvariable + $second_var) / $goodvar + 10
+
+var number1 = 10
+var number2 = 20 
+
+$number1 = $number1 + 15
+$number2 = $number1 + $number2
+$number1
+$number2
+
+($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+
+
