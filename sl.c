@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SPECIAL_TOKENS "$()+-/*%^&|=<>,."
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,."
 #define OPERATORS "*/+-%><&|^"
 
 int
@@ -118,6 +118,8 @@ check_number(const char *s)
 	return 0;
 }
 
+
+
 int
 string_checker(char *word)
 {
@@ -153,7 +155,7 @@ string_getter(char *word)
 enum SL_Types
 type_analyzer(char *word)
 {
-	if (strchr(word, '"')) {
+	if (string_checker(word) == 1) {
 		return STRING;
 	} else if (word[0] == '0' && word[1] == 'x') {
 		return LONG;
@@ -165,7 +167,7 @@ type_analyzer(char *word)
 		return BOOLEAN;
 	} else if (strchr(word, '\'')) {
 		return CHAR;
-	} else if (check_number(word) == 0 && !strchr(word, '"')) {
+	} else if (check_number(word) == 0 && string_checker(word) != 1) {
 		return RETURN;
 	}
 	return -1;
@@ -191,7 +193,8 @@ sl_word_to_var_converter(char *word)
 	} else if (v.type == CHAR) {
 		v.valc = word[0];
 	} else if (v.type == RETURN) {
-
+		v.type = RETURN;
+		v.vals = strdup(word);
 	} else if (v.type == LONG) {
 		int 		base = 0;
 		if (word[0] == '0') {
@@ -530,8 +533,26 @@ expression_parser_splitter(char *expression[], int current_token, int max_tokens
 	return tree;
 }
 
+int
+getvar_index_from_sl(struct SL_Code code, const char *name)
+{
+	for (int i = 0; i < code.total_vars; i++) {
+		if (strcmp(code.vars[i].name, name) == 0) {
+			return i;
+		}
+	}
+	return 0;
+}
+
+char* raw_var_name(char *word) {
+	const char *starting = word + 1;
+	char *return_val = strdup(starting);
+	return return_val;
+}
+
+
 struct SL_Variable
-expression_parser_solver(char *expression[], int *current_token, int max_tokens, int current_line)
+expression_parser_solver(struct SL_Code code_s, char *expression[], int *current_token, int max_tokens, int current_line)
 {
 	while (expression[*current_token][0] == '(' &&
 	       expression[max_tokens - 1][0] == ')') {
@@ -566,9 +587,15 @@ expression_parser_solver(char *expression[], int *current_token, int max_tokens,
 	int 		left_pos_start = *current_token;
 	int 		left_pos_end = tree.op_pos;
 	if (operator_checker(expression, left_pos_start, left_pos_end) != 0) {
-		left = expression_parser_solver(expression, &left_pos_start, left_pos_end, current_line);
+		left = expression_parser_solver(code_s, expression, &left_pos_start, left_pos_end, current_line);
 	} else {
 		left = sl_word_to_var_converter(expression[left_pos_start]);
+		if (left.type == RETURN) {
+			if (left.vals[0] == '$') {	
+				int index = getvar_index_from_sl(code_s, raw_var_name(left.vals));
+				left = code_s.vars[index];
+			}
+		}
 	}
 
 	if (expression[left_pos_start][0] == '(' &&
@@ -577,9 +604,15 @@ expression_parser_solver(char *expression[], int *current_token, int max_tokens,
 	int 		right_pos_start = tree.op_pos + 1;
 	int 		right_pos_end = max_tokens;
 	if (operator_checker(expression, right_pos_start, right_pos_end) != 0) {
-		right = expression_parser_solver(expression, &right_pos_start, right_pos_end, current_line);
+		right = expression_parser_solver(code_s, expression, &right_pos_start, right_pos_end, current_line);
 	} else {
 		right = sl_word_to_var_converter(expression[right_pos_start]);
+		if (right.type == RETURN) {
+			if (right.vals[0] == '$') {	
+				int index = getvar_index_from_sl(code_s, raw_var_name(right.vals));
+				right = code_s.vars[index];
+			}
+		}
 	}
 
 	result = expression_solver(left, tree.op, right, current_line);
@@ -603,7 +636,7 @@ multi_variable_checker(char *tokens[], int current_token, int max_tokens) {
 }
 
 struct SL_Variable_Creator 
-variable_parser(char *tokens[], int*current_token, int max_tokens, int current_line) {
+variable_parser(struct SL_Code code_s, char *tokens[], int*current_token, int max_tokens, int current_line) {
 	struct SL_Variable_Creator variables;
 	variables.variable = malloc(sizeof(struct SL_Variable) * 1024);
 	variables.total_variables  = 0;
@@ -627,7 +660,7 @@ variable_parser(char *tokens[], int*current_token, int max_tokens, int current_l
 			} else {
 				value_end = max_tokens;
 			}
-			struct SL_Variable result = expression_parser_solver(tokens, &equal_start, value_end, current_line);
+			struct SL_Variable result = expression_parser_solver(code_s, tokens, &equal_start, value_end, current_line);
 			variables.variable[variables.total_variables] = result;
 			variables.variable[variables.total_variables++].name = strdup(tokens[(*current_token) - 1]);
 			*current_token = value_end;
@@ -637,19 +670,6 @@ variable_parser(char *tokens[], int*current_token, int max_tokens, int current_l
 	}
 	return variables;
 }
-
-int
-getvar_index_from_sl(struct SL_Code code, const char *name)
-{
-	for (int i = 0; i < code.total_vars; i++) {
-		if (strcmp(code.vars[i].name, name) == 0) {
-			return i;
-		}
-	}
-	return 0;
-}
-
-
 
 int
 get_last_pos_of_equal_for_expreions(char **tokens, int current_token, int max_tokens) {
@@ -675,11 +695,12 @@ standalone_variable_change(struct SL_Code code_s,char* tokens[], int *current_to
 			}
 			int variable_pos = last_pos - 1;
 			int value = last_pos + 1;
-			int index = getvar_index_from_sl(code_s, tokens[variable_pos]);
+			int index = getvar_index_from_sl(code_s, raw_var_name(tokens[variable_pos]));
+			printf("NAME: %s\n", raw_var_name(tokens[variable_pos]));
 			struct SL_Variable eq_value = {0};
-			if (tokens[value][0] == '$') {
-				int name_pos = value + 1;
-				int val_index = getvar_index_from_sl(code_s, tokens[name_pos]);
+			if ((tokens[value])[0] == '$') {
+				int name_pos = value;
+				int val_index = getvar_index_from_sl(code_s, raw_var_name(tokens[name_pos]));
 				eq_value = code_s.vars[val_index];	
 			} else {
 				eq_value = sl_word_to_var_converter(tokens[value]);
@@ -731,18 +752,19 @@ init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 
 			if (strcmp(tokens[current_token], "var") == 0) {
 				current_token++;
-				struct SL_Variable_Creator vars = variable_parser(tokens, &current_token, t_tokens, line);
+				struct SL_Variable_Creator vars = variable_parser(code_s, tokens, &current_token, t_tokens, line);
 				for (int i = 0; i < vars.total_variables; i++) {\
 					code_s.vars[code_s.total_vars++] = vars.variable[i];
 				}
-			} else if (strcmp(tokens[current_token], "$") == 0) {
+			} else if (tokens[current_token][0] == '$') {
 				struct SL_Variable out = standalone_variable_change(code_s, tokens, &current_token, t_tokens, line);
 				if (out.vali == -2) {
 					fprintf(stderr, "$ in no name, example usage: $<name of variable>, your usage: $<no name>\n");
 					return -1;
 				}
-			} else {
-				struct SL_Variable result = expression_parser_solver(tokens, &current_token, t_tokens, line + 1);
+			} else if (strcmp(tokens[current_token], "expr") == 0){
+				current_token++;
+				struct SL_Variable result = expression_parser_solver(code_s, tokens, &current_token, t_tokens, line + 1);
 				printf("%d\n", result.vali);
 			}
 			// printf("TOKEN: %s\n", tokens[current_token]);

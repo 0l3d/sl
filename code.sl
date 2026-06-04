@@ -18,3 +18,8 @@
 var firstvariable = 10
 var second_var = 20
 $second_var = $firstvariable = $second_var = $firstvariable = 10
+$second_var = 20
+$firstvariable = $second_var
+var goodvar = 30 / 3
+expr ($firstvariable + $second_var) / $goodvar + 10
+# expr is only works for debug, its not an keyword in future. 
