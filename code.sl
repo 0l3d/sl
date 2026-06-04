@@ -1,10 +1,11 @@
-# var number1 = 10
-# var number2 = 20 
-# print($number1 + $number2)
+# $number1 + $number2
 # def testfunc -> arg1, arg2
-#    print($arg1 + $arg2)
+#    $arg1 + $arg2
 # end
 # testfunc(10, 10)
+# PLANNED
+# ---- -- - - -- - - - -- 
+# WORKING FEATURES: 
 # (10 + (20 / 20 + 10)) + (29 - 13) + 14 * 10
 # 20 * 10 + (15 - (10 + 2)) / 2 + 1000 / 300 * (20 * 20)
 # 4 + 4 * 9 + 10
@@ -22,15 +23,27 @@
 # $firstvariable = $second_var
 # var goodvar = 30 / 3
 # ($firstvariable + $second_var) / $goodvar + 10
+# var number1 = 10
+# var number2 = 20 
+# $number1 = $number1 + 15
+# $number2 = $number1 + $number2
+# $number1
+# $number2
+# ($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+# 10.2 + 10
+# 'A'
+# "Hello, World!"
+# var number1 = 10, number2 = 20, number3 = 30
+# $number1 + $number2 + $number3
+# - -- - - - --- -- -- - - -
 
-var number1 = 10
-var number2 = 20 
 
-$number1 = $number1 + 15
-$number2 = $number1 + $number2
-$number1
-$number2
 
-($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+
+
+
+
+
+
 
 

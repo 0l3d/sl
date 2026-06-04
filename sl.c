@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SPECIAL_TOKENS "()+-/*%^&|=<>,."
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,"
 #define OPERATORS "*/+-%><&|^"
 
 int
@@ -191,7 +191,7 @@ sl_word_to_var_converter(char *word)
 		if (strcmp(word, "true") == 0)
 			v.valb = 1;
 	} else if (v.type == CHAR) {
-		v.valc = word[0];
+		v.valc = word[1];
 	} else if (v.type == RETURN) {
 		v.type = RETURN;
 		v.vals = strdup(word);
@@ -217,6 +217,13 @@ sl_word_to_var_converter(char *word)
 struct SL_Variable
 expression_solver(struct SL_Variable left_side, char op, struct SL_Variable right_side, int current_line)
 {
+
+	if ((left_side.type == DOUBLE && right_side.type == INTEGER) || (left_side.type == INTEGER && right_side.type == DOUBLE)) {
+		left_side.type = DOUBLE;
+		right_side.type = DOUBLE;
+		right_side.valf = right_side.vali;
+	}
+
 	if (left_side.type != right_side.type) {
 		fprintf(stderr, "Expression types are not equal! Line: %d\n", current_line);
 		exit(1);
@@ -251,6 +258,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot add each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh + right_side.valh;
 		default:
@@ -273,6 +281,9 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot sub each other. Line: %d\n", current_line);
+			break;
+		case LONG:
+			expression_result.valh = left_side.valh - right_side.valh;
 		default:
 			break;
 		}
@@ -293,6 +304,9 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot mul each other. Line: %d\n", current_line);
+			break;
+		case LONG:
+			expression_result.valh = left_side.valh * right_side.valh;
 		default:
 			break;
 		}
@@ -313,6 +327,9 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot div each other. Line: %d\n", current_line);
+			break;
+		case LONG:
+			expression_result.valh = left_side.valh / right_side.valh;
 		default:
 			break;
 		}
@@ -333,6 +350,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot shift right each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh >> right_side.valh;
 		default:
@@ -355,6 +373,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot shift left each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh << right_side.valh;
 		default:
@@ -377,6 +396,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot and each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh & right_side.valh;
 		default:
@@ -399,6 +419,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot or each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh | right_side.valh;
 		default:
@@ -421,6 +442,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot xor each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh ^ right_side.valh;
 		default:
@@ -443,6 +465,7 @@ expression_solver(struct SL_Variable left_side, char op, struct SL_Variable righ
 			break;
 		case CHAR:
 			fprintf(stderr, "Chars cannot mod each other. Line: %d\n", current_line);
+			break;
 		case LONG:
 			expression_result.valh = left_side.valh % right_side.valh;
 		default:
@@ -770,7 +793,28 @@ init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 					}
 				} else {
 					struct SL_Variable result = expression_parser_solver(code_s, tokens, &current_token, t_tokens, line + 1);
-					printf("%d\n", result.vali);
+					switch (result.type) {
+					case INTEGER:
+						printf("%d", result.vali);
+						break;
+					case DOUBLE:
+						printf("%f", result.valf);
+						break;
+					case STRING:
+						printf("%s", string_getter(result.vals));
+						break;
+					case BOOLEAN:
+						printf("%d", result.valb);
+						break;
+					case CHAR:
+						printf("%c", result.valc);
+						break;
+					case LONG:
+						printf("%lu", result.valh);
+						break;
+					default:
+						break;
+					}
 				}
 			}
 			// printf("TOKEN: %s\n", tokens[current_token]);

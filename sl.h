@@ -2,14 +2,14 @@
 #define SL_H
 
 enum SL_Types {
-	INIT,
-	INTEGER,
-	DOUBLE,
-	CHAR,
-	STRING,
-	BOOLEAN,
-	RETURN,
-	LONG,
+	INIT = 0,
+	INTEGER = 1,
+	DOUBLE = 2,
+	CHAR = 3,
+	STRING = 4,
+	BOOLEAN = 5,
+	RETURN = 6,
+	LONG = 7,
 };
 
 struct SL_Variable {
