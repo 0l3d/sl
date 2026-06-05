@@ -124,12 +124,12 @@ int
 string_checker(char *word)
 {
 	if (word[0] == '"') {
-		int 		i = 0;
-		while (word[i] != '"')
-			i++;
-
-		if (word[i] == '"')
-			return 1;
+		int size = strlen(word);
+		for (int i = 1; i < size; i++) {
+			if (word[i] == '"') {
+				return 1;
+			}
+		}
 	}
 	return 0;
 }
@@ -144,8 +144,21 @@ string_getter(char *word)
 	int 		size = strlen(word);
 	int 		new_size = size - 2;
 	char           *our_word = malloc(new_size);
-	for (int i = 0; i < size; i++) {
-		our_word[i] = word[i + 1];
+	int j = 0; 
+	for (int i = 1; i < size; i++) {
+		if (word[i + 1] == '"') break;
+		if (word[i] == '\\') {
+			switch(word[i + 1]) {
+				case 'n':
+					our_word[j] = '\n';
+					break;
+				default:
+					break;
+			}
+		} else {
+			our_word[j] = word[i];
+			j++;
+		}
 	}
 	our_word[new_size] = '\0';
 	return our_word;
@@ -801,7 +814,10 @@ init_sl_parser(struct SL_Code code_s, int max_line, int max_token)
 						printf("%f", result.valf);
 						break;
 					case STRING:
-						printf("%s", string_getter(result.vals));
+						if (strchr(result.vals, '"')) 
+							printf("%s", string_getter(result.vals));
+						else 
+							printf("%s", result.vals);
 						break;
 					case BOOLEAN:
 						printf("%d", result.valb);

@@ -35,15 +35,23 @@
 # "Hello, World!"
 # var number1 = 10, number2 = 20, number3 = 30
 # $number1 + $number2 + $number3
+# "Hello, " + "World!"
 # - -- - - - --- -- -- - - -
+"Expression: \n"
+"VAR1: var number1 = 10 \n"
+var number1 = 10 
+"VAR2 : var number2 = 20 \n"
+var number2 = 20 
+"VAR1 = VAR1 + 15\n"
+$number1 = $number1 + 15
+"VAR2 = VAR1 + VAR2\n" 
+$number2 = $number1 + $number2
+"VAR1 (value): "
+$number1
+"\n"
+"VAR2 (value): "
+$number2
+"\n"
 
-
-
-
-
-
-
-
-
-
-
+# ($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+#
