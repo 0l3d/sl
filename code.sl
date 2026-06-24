@@ -1,4 +1,3 @@
-# $number1 + $number2
 # def testfunc -> arg1, arg2
 #    $arg1 + $arg2
 # end
@@ -37,21 +36,34 @@
 # $number1 + $number2 + $number3
 # "Hello, " + "World!"
 # - -- - - - --- -- -- - - -
-"Expression: \n"
-"VAR1: var number1 = 10 \n"
-var number1 = 10 
-"VAR2 : var number2 = 20 \n"
-var number2 = 20 
-"VAR1 = VAR1 + 15\n"
-$number1 = $number1 + 15
-"VAR2 = VAR1 + VAR2\n" 
-$number2 = $number1 + $number2
-"VAR1 (value): "
-$number1
-"\n"
-"VAR2 (value): "
-$number2
-"\n"
-
-# ($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+# "Expression: \n"
+# "VAR1: var number1 = 10 \n"
+# var number1 = 10 
+# "VAR2 : var number2 = 20 \n"
+# var number2 = 20 
+# "VAR1 = VAR1 + 15\n"
+# $number1 = $number1 + 15
+# "VAR2 = VAR1 + VAR2\n" 
+# $number2 = $number1 + $number2
+# "VAR1 (value): "
+# $number1
+# "\n"
+# "VAR2 (value): "
+# $number2
+# "\n"
+#($number2 / 5) + $number1 + ($number1 / 5) * ($number2 + $number1)
+#"\n"
 #
+# var a = 10
+# var b = 20 
+
+# 10 + 10
+
+#var c = a and b
+# if ($a + $b) equ ($b + $a) and 1 equ 2 then
+
+if (0 equ 0) and (1 equ 1) then
+# A: 1 (debug)
+0 equ 1
+# 0 
+"\n"
