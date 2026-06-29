@@ -59,11 +59,17 @@
 
 # 10 + 10
 
-#var c = a and b
-# if ($a + $b) equ ($b + $a) and 1 equ 2 then
+var c = a and b
 
-if (0 equ 0) and (1 equ 1) then
-# A: 1 (debug)
-0 equ 1
-# 0 
-"\n"
+if ($a + $b) equ ($b + $a) or 1 < 2 then
+    if 1 equ 1 then 
+        10 + 10 
+    end 
+
+    10 + 10 
+
+    if 1 neq 1 then 
+        20 + 20 
+    end
+    "Hello World\n"
+end 
