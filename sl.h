@@ -52,7 +52,7 @@ int add_func_to_sl(struct SL_Code *code, struct SL_Function *func);
 int add_var_to_sl(struct SL_Code *code, struct SL_Variable *var);
 struct SL_Variable getvar_from_sl(struct SL_Code code, const char *name);
 struct SL_Function getfunc_from_sl(struct SL_Code code, const char *name);
-int init_sl_lexer(int malloc_size, char* file_name, char **bufout, char *special_tokens);
+int init_sl_lexer(int malloc_size, char* file_name, char ***bufout, char *special_tokens);
 int init_sl_parser(struct SL_Code code_s);
 int use_custom_sl_parser();
 

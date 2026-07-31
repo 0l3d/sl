@@ -15,7 +15,7 @@ int
 main()
 {	
 	char **code_array;
-	int count = init_sl_lexer(SL_INIT, "./code.sl", code_array, SPECIAL_TOKENS);
+	int count = init_sl_lexer(SL_INIT, "./code.sl", &code_array, SPECIAL_TOKENS);
 	if (count <= 0) {
 		fprintf(stderr, "sl_lexer failed\n");
 		return -1;

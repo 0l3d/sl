@@ -94,7 +94,7 @@ LEXER(char *bufin, char *bufout[], int max_count, char *special_tokens,
 
 
 int
-init_sl_lexer(int malloc_size, char *file_name, char **bufout,
+init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
               char *special_tokens)
 {
     FILE *code_file = fopen(file_name, "r");
@@ -138,7 +138,7 @@ init_sl_lexer(int malloc_size, char *file_name, char **bufout,
         LEXER(code_string, code_array, strlen(code_string), special_tokens,
               1024);
 
-    bufout = code_array;
+    *bufout = code_array;
 
     fclose(code_file);
     return count;
