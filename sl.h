@@ -2,8 +2,6 @@
 #define SL_H
 
 #define SL_INIT 1024
-
-
 enum SL_Types
 {
     INIT = 0,

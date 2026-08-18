@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define SPECIAL_TOKENS "()+-/*%^&|=<>,"
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,;"
 #define OPERATORS "*/+-%><&|^"
 
 int
@@ -121,7 +121,7 @@ init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
 
         if (character_pos != NULL)
             index = character_pos - buf;
-
+        
         if (strlen(code_string) + index + 2 > total_allocations) {
             total_allocations += malloc_size;
             code_string = realloc(code_string, total_allocations);
@@ -144,7 +144,6 @@ init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
     return count;
 }
 
-/*
 struct SL_Variable
 getvar_from_sl(struct SL_Code code, const char *name)
 {
@@ -1071,6 +1070,16 @@ expression_parser_solver(struct SL_Code code_s,
     return result;
 }
 
+int
+find_maxt_expr(char**code, int starting, int max) {
+    for (int i = 0; i < max; i++) {
+        if (strcmp(code[i], "if") == 0 || strcmp(code[i], "var") == 0) {
+            return i;
+        }
+    }
+    return max;
+}
+
 struct SL_Variable_Creator
 {
     int total_variables;
@@ -1241,33 +1250,43 @@ sl_if_parser(struct SL_Code code_s, char *tokens[],
     return expr;
 }
 
+
+
 int
 init_sl_parser(struct SL_Code code_s)
 {
 
     for (int current_token = 0; current_token < code_s.token_count;
          current_token++) {
-        if (strcmp(tokens[current_token], "var") == 0) {
+
+        int max_tokens = 0;
+        int end = find_maxt_expr(code_s.code, current_token, code_s.token_count);
+        
+
+        if (strcmp(code_s.code[current_token], "var") == 0) {
+            /*
             current_token++;
             struct SL_Variable_Creator vars =
                 variable_parser(code_s, tokens, &current_token, t_tokens,
                                 line);
             for (int i = 0; i < vars.total_variables; i++) {
                 code_s.vars[code_s.total_vars++] = vars.variable[i];
-            }
+            }*/
         }
-        else if (strcmp(tokens[current_token], "if") == 0) {
+        else if (strcmp(code_s.code[current_token], "if") == 0) {
+            /*
             current_token++;
             struct SL_Variable out_boolean =
                 sl_if_parser(code_s, tokens, &current_token,
                              current_token,
                              t_tokens, line, max_line);
+            */
         }
         else {
-            if (is_has_token("=", tokens, current_token, t_tokens) == 1) {
+            if (is_has_token("=", code_s.code, current_token, code_s.token_count) == 1) {
                 struct SL_Variable out =
-                    assignment_parser(code_s, tokens, &current_token,
-                                      t_tokens, line);
+                    assignment_parser(code_s, code_s.code, &current_token,
+                                      end, 0);
                 if (out.vali == -2) {
                     fprintf(stderr,
                             "$ in no name, example usage: $<name of variable>, "
@@ -1277,9 +1296,9 @@ init_sl_parser(struct SL_Code code_s)
             }
             else {
                 struct SL_Variable result =
-                    expression_parser_solver(code_s, tokens,
-                                             &current_token, t_tokens,
-                                             line + 1);
+                    expression_parser_solver(code_s, code_s.code,
+                                             &current_token, end,
+                                             0);
                 switch (result.type) {
                 case INTEGER:
                     printf("%d", result.vali);
@@ -1312,4 +1331,3 @@ init_sl_parser(struct SL_Code code_s)
 
     return 1;
 }
-*/

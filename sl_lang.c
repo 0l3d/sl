@@ -20,14 +20,10 @@ main()
 		fprintf(stderr, "sl_lexer failed\n");
 		return -1;
 	}
-	printf("TOKEN [0]: %s", code_array[0]);
 
-	
-
-	/*
 	struct SL_Code code_s = {code_array, count,vars, 0, funcs, 0};
 	if (init_sl_parser(code_s) == -1) {
 		fprintf(stderr, "sl_parser failed \n");
 		return -1;
-	};*/
+	};
 }
