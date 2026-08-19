@@ -2,6 +2,11 @@
 #define SL_H
 
 #define SL_INIT 1024
+#define END_LINE_MODIFIER ";"
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,;"
+#define OPERATORS "*/+-%><&|^"
+
+
 enum SL_Types
 {
     INIT = 0,
