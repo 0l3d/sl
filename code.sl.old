@@ -1,16 +1,11 @@
-10 + 
-10 + 20 "Wello" + "Cello" 
+def add -> number1, number2 then 
+    return $number1 + $number2
+end
 
-var a = 120 / 4 * 3 - (20 + 10) >> 1 << 2 ^ 45 & 25 | 15
-var b = 100
-$b = 127 $a = 127
+add(10 + 10, 10) + add(100 - 10, 10) + add(100 - 100, 20) + 100
 
-if 10 + 10 equ 10 or $a equ $b then
-    if 10 + 10 equ 20 then
-        if (20 + 20) + 10 equ 50 then 
-            "Hello guys!"
-        end
-        20 + 20
-    end 
-    10 + 10
+# 10 + 10 + 10 + 10
+
+if add(10, 10) equ 20 then 
+    "Hello guys!\n"
 end

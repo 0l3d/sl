@@ -1180,7 +1180,7 @@ expression_parser_solver(struct SL_Code code_s,
                 result = result_side_fn;
             }
         }
-
+        *current_token = max_tokens;
         return result;
     }
 
@@ -1250,11 +1250,12 @@ find_maxt_expr(char**code, int starting, int max) {
             i++;
             continue;
         } else {
-            isitfunc = is_it_function_or_not(code, i + 1, max); 
-            if (isitfunc != -1) {
-                continue;
-            } 
-            
+            if (operator_checker(code, i, i) == 1) {
+                isitfunc = is_it_function_or_not(code, i + 1, max); 
+                if (isitfunc != -1) {
+                    continue;
+                } 
+            }
             if (code[i][0] == '(' 
                     || code[i][0] == ')' 
                     || code[i + 1][0] == '(' 
@@ -1472,13 +1473,16 @@ sl_define_parser(struct SL_Code code_s, char* tokens[], int *current_token, int 
        int end_depth = 0; 
        int code_length = 0;
        while (current < max_tokens) {
-           if (end_depth > 0) continue;
 
            if (strcmp(tokens[current], "if") == 0 || strcmp(tokens[current], "def") == 0)
                end_depth++;
             
-           if (strcmp(tokens[current], "end") == 0 && end_depth > 0)
+           if (strcmp(tokens[current], "end") == 0 && end_depth > 0) {
                 end_depth--; 
+                current++;
+                code_length++;
+                continue;
+           }
 
            if (strcmp(tokens[current], "end") == 0 && end_depth == 0)
                 break;
@@ -1496,7 +1500,6 @@ sl_define_parser(struct SL_Code code_s, char* tokens[], int *current_token, int 
        }
 	}
     
-
     *current_token = current;
     return function;
 }
@@ -1590,7 +1593,6 @@ init_sl_parser(struct SL_Code code_s)
                 struct SL_Variable out =
                     assignment_parser(code_s, code_s.code, &current_token,
                                      end, 0);
-                printf("out: %d\n", out.vali);
                 if (out.vali == -2) {
                   fprintf(stderr,
                       "$ in no name, example usage: $<name of variable>, "

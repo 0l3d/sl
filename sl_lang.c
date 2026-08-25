@@ -28,7 +28,7 @@ main(int argc, char**argv)
 	
 	if (console == 1) {
 		FILE* sl_code = fopen(code, "a+");
-		printf("                     SL_LANG Console by 0l3d Under No License (only for testing.)\n                     Copyright (C) 0l3d (Do not Copy/distribute without permission)\n");
+		printf("SL_LANG Console by 0l3d Under No License (only for testing.)\nCopyright (C) 0l3d (Do not Copy/distribute without permission)\n");
 
 		while (console == 1) {
 			printf("\n]");
