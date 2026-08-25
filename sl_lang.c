@@ -43,7 +43,9 @@ main(int argc, char**argv)
 					return -1;
 				}
 				struct SL_Code code_s = {code_array, count,vars, 0, funcs, 0};
-				if (init_sl_parser(code_s) == -1) {
+				struct SL_Variable init = init_sl_parser(code_s);
+
+				if (init.type == ERROR) {
 					fprintf(stderr, "sl_parser failed \n");
 					return -1;
 				};
@@ -78,13 +80,14 @@ main(int argc, char**argv)
 	}
 	
 	
-	//for (int i = 0; i < count; i++) {
-	//	printf("TOKEN[%d]: %s\n", i, code_array[i]);
+	// for (int i = 0; i < count; i++) {
+	// 	printf("TOKEN[%d]: %s\n", i, code_array[i]);
 	//} 
 	
 	
 	struct SL_Code code_s = {code_array, count,vars, 0, funcs, 0};
-	if (init_sl_parser(code_s) == -1) {
+	struct SL_Variable init = init_sl_parser(code_s);
+	if (init.type == ERROR) {
 		fprintf(stderr, "sl_parser failed \n");
 		return -1;
 	};

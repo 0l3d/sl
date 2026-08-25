@@ -2,8 +2,7 @@
 #define SL_H
 
 #define SL_INIT 1024
-#define END_LINE_MODIFIER ";"
-#define SPECIAL_TOKENS "()+-/*%^&|=<>,;"
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,;:"
 #define OPERATORS "*/+-%><&|^"
 
 
@@ -17,6 +16,7 @@ enum SL_Types
     BOOLEAN = 5,
     RETURN = 6,
     LONG = 7,
+    ERROR = 8,
 };
 
 struct SL_Variable
@@ -37,8 +37,10 @@ struct SL_Variable
 struct SL_Function
 {
     char *name;
-    enum SL_Types rettype;
-    struct SL_Variable **arguments;
+    struct SL_Variable *arguments;
+    int total_arguments;
+    char** code_tokens;
+    int code_len;
 };
 
 struct SL_Code
@@ -56,7 +58,7 @@ int add_var_to_sl(struct SL_Code *code, struct SL_Variable *var);
 struct SL_Variable getvar_from_sl(struct SL_Code code, const char *name);
 struct SL_Function getfunc_from_sl(struct SL_Code code, const char *name);
 int init_sl_lexer(int malloc_size, char* file_name, char ***bufout, char *special_tokens);
-int init_sl_parser(struct SL_Code code_s);
+struct SL_Variable init_sl_parser(struct SL_Code code_s);
 int use_custom_sl_parser();
 
 #endif
