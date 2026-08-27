@@ -2117,6 +2117,29 @@ struct Loops
 	int             capacity;
 };
 
+int
+sl_find_loop_end(char **tokens, int start, int max_tokens)
+{
+    int depth = 0;
+
+    for (int i = start; i < max_tokens; i++) {
+
+        if (strcmp(tokens[i], "while") == 0 ||
+            strcmp(tokens[i], "if") == 0 ||
+            strcmp(tokens[i], "def") == 0) {
+            depth++;
+        }
+        else if (strcmp(tokens[i], "end") == 0) {
+            if (depth == 0)
+                return i;
+
+            depth--;
+        }
+    }
+    return -1;
+}
+
+
 
 struct SL_Variable
 sl_init_sl_parser(struct SL_Code *code_s)
@@ -2130,6 +2153,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 	struct SL_Variable return_val = { 0 };
 	int             if_situation = 0;
 	int             depth_of_if_sit = 0;
+	int 			brk_sit = 0;
 
 	for (int current_token = 0; current_token < code_s->token_count;
 	     current_token++) {
@@ -2156,6 +2180,10 @@ sl_init_sl_parser(struct SL_Code *code_s)
 				current_token =
 					while_loop.back_pos[--while_loop.
 							    depth];
+			}
+
+			if (while_loop.depth == 0) {
+				while_sit = 0;
 			}
 		}
 
@@ -2241,14 +2269,31 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     current_token,
 					     code_s->token_count, 0);
 
-			if (out_boolean.valb == 0) {
+			if (out_boolean.valb == 0 || brk_sit == 1) {
 				depth_of_if_sit++;
 				if_situation = 1;
+				brk_sit = 0;
 				while_loop.depth--;
 			}
 			else {
 				while_sit = 1;
 			}
+		} 
+		else if (strcmp(code_s->code[current_token], "continue") == 0) {
+			if (while_sit != 1) 
+				sl_throw_an_error(*code_s,code_s->code,current_token, end, "CONTINUE USAGE WITHOUT LOOP", "Expected: define a loop first."); 
+			current_token =
+				while_loop.back_pos[--while_loop.
+							    depth] - 1;
+
+		}
+		else if (strcmp(code_s->code[current_token], "break") == 0) {
+			if (while_sit != 1) 
+				sl_throw_an_error(*code_s, code_s->code ,current_token, end, "BREAK USAGE WITHOUT LOOP", "Expected: define a loop first."); 
+			current_token =
+				while_loop.back_pos[--while_loop.
+							    depth] - 1;
+			brk_sit = 1;
 		}
 		else if (strcmp(code_s->code[current_token], "end") == 0) {
 			continue;
