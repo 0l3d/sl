@@ -50,7 +50,7 @@ struct SL_Code
 
 struct SL_L_Function {
     int total_arguments;
-    int *argument_indexs;
+    int *argument_indexes;
     int starting_index;
 };
 

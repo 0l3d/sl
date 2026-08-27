@@ -1360,7 +1360,7 @@ run_sl_function(struct SL_Code code, char *name,
 		current_token += 2;
 		int             how_much_go = 0;
 		int             vaargs_counter = 0;
-		lfunc.argument_indexs = calloc(SL_INIT, sizeof(int));
+		lfunc.argument_indexes = calloc(SL_INIT, sizeof(int));
 		lfunc.starting_index = code.total_vars;
 		while (current_token < code.token_count) {
 			int             commapos =
@@ -1379,7 +1379,7 @@ run_sl_function(struct SL_Code code, char *name,
 				return return_val;
 			}
 			if (function.linked_function == 1) {
-				lfunc.argument_indexs[lfunc.total_arguments] =
+				lfunc.argument_indexes[lfunc.total_arguments] =
 					code.total_vars;
 				char           *function_name =
 					malloc(SL_INIT);
@@ -1464,8 +1464,8 @@ run_sl_function(struct SL_Code code, char *name,
 	}
 	if (function.linked_function == 1) {
 		return_val = function.funcr(&code, lfunc);
-		if (lfunc.argument_indexs != NULL)
-			free(lfunc.argument_indexs);
+		if (lfunc.argument_indexes != NULL)
+			free(lfunc.argument_indexes);
 	}
 	else {
 		struct SL_Code  code_def =
