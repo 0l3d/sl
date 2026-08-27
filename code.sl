@@ -1,12 +1,6 @@
-def loop -> howmany then 
-    "Hello Guys!\n"
-    $howmany = $howmany + 1
-    if $howmany < 5 then 
-        $howmany = loop($howmany)
-    end 
-    if $howmany equ 5 then 
-        return 5
-    end
-end
+import lib.sl
 
-loop(0) + loop(0) + 10
+var enable_notify = true # acting like a configuration
+print("Hello world", "\n", 10, "\n", true, "\n", false, "\n", 10.1, "\n", 'A', "\n")
+$enable_notify = false # setting false again
+print("10 + 200 = ", add(10, 200), "\n")

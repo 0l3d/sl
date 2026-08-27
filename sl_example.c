@@ -67,11 +67,18 @@ main(int argc, char **argv)
 	char          **code_array;
 
 	struct SL_Code  sl_code = sl_init_sl_process();
+	sl_dostr_sl_process(&sl_code, "var a = 10");
 	sl_add_func(&sl_code, "print", print_fn);
+	sl_dostr_sl_process(&sl_code, "print($a, \"\n\")");
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {
 		exit(-1);
 	}
+	struct SL_Function getfu = sl_get_func(sl_code, "print");
+	printf("Linked function? : %d\n", getfu.linked_function);
+	struct SL_Variable getva = sl_get_var(sl_code, "enable_notify");
+	printf("Value of [%s]: %d\n", getva.name, getva.valb);
+
 
 	if (sl_close_sl_process(&sl_code) == -1) {
 		fprintf(stderr, "close_sl_process failed.");
