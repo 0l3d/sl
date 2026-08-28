@@ -1,3 +1,6 @@
+# Original implementation and examples:
+# https://github.com/0l3d/brainsuck
+
 var file_name = sys.get_arg(2)
 if errors.bool($file_name) then 
     print("Program got an Error: \n");
@@ -6,12 +9,97 @@ if errors.bool($file_name) then
 end
 
 var file_content = read.tostr($file_name)
-print($file_content)
 
-var mylist = List.new(100)
-List.push($mylist, "Hello")
-print(List.get($mylist, 0))
-List.set($mylist, 0, ", World")
-print(List.get($mylist, 0))
-print("\nList.len: ", List.len($mylist), "\n")
-# WIP
+var memory = List.new(30000) # Memory Array
+var where_is = 0
+
+
+
+def suck_in then 
+    List.set($memory, $where_is, (List.get($memory, $where_is) + 1) % 256)
+end
+
+
+def suck_de then 
+    List.set($memory, $where_is, (List.get($memory, $where_is) - 1) % 256)
+end
+
+def suck_move_right then 
+    if $where_is < List.len($memory) - 1 then
+        $where_is = $where_is + 1
+    end
+end
+
+def suck_move_left then 
+    if $where_is > 0 then
+        $where_is = $where_is - 1
+    end
+end
+
+
+def get_current then
+    return List.get($memory, $where_is)
+end
+
+def set_data -> data then
+    List.set($memory, $where_is, $data)
+end
+
+
+var i = 0
+var code_len = string.len($file_content)
+while $i < $code_len then
+    var gchar = string.getchar($file_content, $i)
+    if $gchar equ '+' then
+        suck_in()
+    end 
+    if $gchar equ '-' then
+        suck_de()
+    end
+    if $gchar equ '>' then 
+        suck_move_right()
+    end
+    if $gchar equ '<' then 
+        suck_move_left()
+    end
+    if $gchar equ '.' then 
+        var c = get_current()
+        print(int_to_char($c))
+    end
+    if $gchar equ ',' then 
+        var c = sys.getchar()
+        set_data(char_to_int($c))
+    end
+    if $gchar equ '[' then
+        if get_current() equ 0 then
+            var bracket_count = 1
+            while $bracket_count > 0 and $i < $code_len - 1 then
+                $i = $i + 1
+                var ggchar = string.getchar($file_content, $i)
+                if $ggchar equ '[' then 
+                    $bracket_count = $bracket_count + 1
+                end
+                if $ggchar equ ']' then 
+                    $bracket_count = $bracket_count - 1
+                end
+            end
+        end
+    end
+    if $gchar equ ']' then
+        if get_current() neq 0 then
+            var bracket_count = 1
+            while $bracket_count > 0 and $i > 0 then
+                $i = $i - 1
+                var ggchar = string.getchar($file_content, $i)
+                if $ggchar equ ']' then 
+                    $bracket_count = $bracket_count + 1
+                end
+                if $ggchar equ '[' then 
+                    $bracket_count = $bracket_count - 1
+                end
+            end
+        end
+    end
+    $i = $i + 1
+end
+

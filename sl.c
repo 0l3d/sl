@@ -82,7 +82,7 @@ LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 			p++;
 			continue;
 		}
-		else if (*p == '"') {
+		else if (*p == '"' || *p == '\'') {
 			char            in_string = *p;
 			const char     *string_start = p++;
 			while (*p && *p != in_string)
@@ -2178,6 +2178,7 @@ struct Loops
 	int             depth;
 	int            *back_pos;
 	int             capacity;
+	int 		   *end;
 };
 
 
@@ -2215,20 +2216,22 @@ sl_init_sl_parser(struct SL_Code *code_s)
 	struct Loops    while_loop = { 0 };
 	while_loop.depth = 0;
 	while_loop.back_pos = calloc(SL_INIT, sizeof(int));
+	while_loop.end = calloc(SL_INIT, sizeof(int));
 	while_loop.capacity = SL_INIT;
 	int             while_sit = 0;
 	struct SL_Variable return_val = { 0 };
 	int             brk_sit = 0;
+	int 			depth = 0; 
 
 	for (int current_token = 0; current_token < code_s->token_count;
 	     current_token++) {
 		if (while_sit == 1) {
 			if (strcmp(code_s->code[current_token], "end") == 0) {
-				current_token =
-					while_loop.
-					back_pos[--while_loop.depth];
+				if (while_loop.end[while_loop.depth - 1] == current_token)
+					current_token =
+						while_loop.
+						back_pos[--while_loop.depth];
 			}
-
 			if (while_loop.depth == 0) {
 				while_sit = 0;
 			}
@@ -2310,15 +2313,19 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			}
 		}
 		else if (strcmp(code_s->code[current_token], "while") == 0) {
+			int currpos = current_token;
 			current_token++;
-			while_loop.back_pos[while_loop.depth++] =
-				current_token - 1;
 			if (while_loop.depth >= while_loop.capacity) {
 				while_loop.capacity *= 2;
 				while_loop.back_pos =
 					realloc(while_loop.back_pos,
 						while_loop.capacity *
 						sizeof(int));
+				while_loop.end =
+					realloc(while_loop.end,
+						while_loop.capacity *
+						sizeof(int));
+
 			}
 
 			struct SL_Variable out_boolean =
@@ -2327,13 +2334,36 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     current_token,
 					     code_s->token_count, 0);
 
-			if (out_boolean.valb == 0 || brk_sit == 1) {
+			if (out_boolean.valb == 0) {
 				current_token =
 					sl_find_end(code_s->code,
 						    current_token,
 						    code_s->token_count);
 			}
 			else {
+			while_loop.back_pos[while_loop.depth] =
+				currpos;
+
+			int end  =
+					sl_find_end(code_s->code,
+						    current_token,
+						    code_s->token_count);
+
+			if (end == -1) {
+					sl_throw_an_error(*code_s,
+							  code_s->code,
+							  current_token,
+							  code_s->token_count,
+							  "END NOT FOUND END OF THE WHILE",
+							  "Expected: while <expr> then <code> end");
+
+			}
+			while_loop.end[while_loop.depth++] =
+					sl_find_end(code_s->code,
+						    current_token,
+						    code_s->token_count);
+
+
 				while_sit = 1;
 			}
 		}
@@ -2354,8 +2384,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 						  "BREAK USAGE WITHOUT LOOP",
 						  "Expected: define a loop first.");
 			current_token =
-				while_loop.back_pos[--while_loop.depth] - 1;
-			brk_sit = 1;
+				while_loop.end[--while_loop.depth];
 		}
 		else if (strcmp(code_s->code[current_token], "end") == 0) {
 			continue;

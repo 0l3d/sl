@@ -12,6 +12,7 @@ struct SL_List
 	int             capacity;
 	struct SL_Variable *vars;
 	int             size;
+	int fixed;
 };
 
 int             LISTS_count = 0;
@@ -109,6 +110,17 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
+sys_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	struct SL_Variable varib = { 0 };
+	varib.valc = getchar();
+	varib.type = CHAR;
+	return varib;
+}
+
+
+
+struct SL_Variable
 random_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
@@ -139,6 +151,41 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable varib = { 0 };
 	varib.type = INTEGER;
 	varib.vali = atoi(first_arg.vals);
+	return varib;
+}
+
+struct SL_Variable
+int_to_char_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at int_to_char! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib = { 0 };
+	if (first_arg.vali > 255) {
+		varib.type = ERROR;
+		varib.vals = "Char overflow!";
+		return varib;
+	}
+	varib.valc = first_arg.vali;
+	varib.type = CHAR;
+	return varib;
+}
+
+struct SL_Variable
+char_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at char_to_int! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib = { 0 };
+	varib.vali = first_arg.valc;
+	varib.type = INTEGER;
 	return varib;
 }
 
@@ -315,12 +362,30 @@ sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
+typeof_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at typeof! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable varib = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	varib.type = INTEGER;
+	varib.vali = first_arg.type;
+	return varib;
+}
+
+
+
+struct SL_Variable
 List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	struct SL_Variable first_arg;
-
+	int fixed = 0; 
 	if (func.total_arguments > 0) {
 		first_arg = sl_get_argument(*code, func, 0);
+		fixed = 1;
 	}
 	else {
 		first_arg.vali = 128;
@@ -340,7 +405,16 @@ List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 	LISTS[LISTS_count].vars =
 		calloc(capacity, sizeof(struct SL_Variable));
 	LISTS[LISTS_count].capacity = capacity;
-	LISTS[LISTS_count].size = 0;
+	LISTS[LISTS_count].fixed = fixed;
+	if (fixed == 1) {
+		LISTS[LISTS_count].size = capacity; 
+		for (int i = 0; i < capacity; i++) {
+			LISTS[LISTS_count].vars[i].type = INTEGER;
+			LISTS[LISTS_count].vars[i].vali = 0;
+		}
+	} else {
+		LISTS[LISTS_count].size = 0;
+	}
 
 	varib.type = INTEGER;
 	varib.vali = LISTS_count;
@@ -552,9 +626,13 @@ main(int argc, char **argv)
 	sl_add_func(&sl_code, "input", input_fn);
 	sl_add_func(&sl_code, "random", random_fn);
 	sl_add_func(&sl_code, "str_to_int", str_to_int_fn);
+	sl_add_func(&sl_code, "int_to_char", int_to_char_fn);
+	sl_add_func(&sl_code, "char_to_int", char_to_int_fn);
 	sl_add_func(&sl_code, "sys.get_arg", sys_get_arg_fn);
+	sl_add_func(&sl_code, "typeof", typeof_fn);
 	sl_add_func(&sl_code, "errors.string", errors_string_fn);
 	sl_add_func(&sl_code, "errors.bool", errors_bool_fn);
+	sl_add_func(&sl_code, "sys.getchar", sys_getchar_fn);
 	sl_add_func(&sl_code, "sys.exit", sys_exit_fn);
 	sl_add_func(&sl_code, "read.tostr", read_tostr_fn);
 	sl_add_func(&sl_code, "string.getchar", string_getchar_fn);
