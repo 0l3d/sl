@@ -3,7 +3,7 @@ SOURCES = sl.c sl_lang.c
 OBJECTS = $(SOURCES:.c=.o)
 TARGET  = sl
 
-CFLAGS =
+CFLAGS = -g
 LDFLAGS = 
 
 .PHONY: all clean 

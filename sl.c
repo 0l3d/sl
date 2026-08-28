@@ -2117,15 +2117,16 @@ struct Loops
 	int             capacity;
 };
 
+
 int
-sl_find_loop_end(char **tokens, int start, int max_tokens)
+sl_find_end(char **tokens, int start, int max_tokens)
 {
     int depth = 0;
 
     for (int i = start; i < max_tokens; i++) {
 
-        if (strcmp(tokens[i], "while") == 0 ||
-            strcmp(tokens[i], "if") == 0 ||
+        if (strcmp(tokens[i], "if") == 0 ||
+            strcmp(tokens[i], "while") == 0 ||
             strcmp(tokens[i], "def") == 0) {
             depth++;
         }
@@ -2135,11 +2136,14 @@ sl_find_loop_end(char **tokens, int start, int max_tokens)
 
             depth--;
         }
+        else if (strcmp(tokens[i], "else") == 0) {
+            if (depth == 0)
+                return i;
+        }
     }
+
     return -1;
 }
-
-
 
 struct SL_Variable
 sl_init_sl_parser(struct SL_Code *code_s)
@@ -2151,30 +2155,10 @@ sl_init_sl_parser(struct SL_Code *code_s)
 	while_loop.capacity = SL_INIT;
 	int             while_sit = 0;
 	struct SL_Variable return_val = { 0 };
-	int             if_situation = 0;
-	int             depth_of_if_sit = 0;
 	int 			brk_sit = 0;
 
 	for (int current_token = 0; current_token < code_s->token_count;
 	     current_token++) {
-
-
-		if (if_situation == 1) {
-			if (strcmp(code_s->code[current_token], "end") == 0)
-				depth_of_if_sit--;
-
-			if (strcmp(code_s->code[current_token], "if") == 0
-			    || strcmp(code_s->code[current_token], "def") == 0
-			    || strcmp(code_s->code[current_token],
-				      "while") == 0)
-				depth_of_if_sit++;
-
-			if (depth_of_if_sit == 0)
-				if_situation = 0;
-
-			continue;
-		}
-
 		if (while_sit == 1) {
 			if (strcmp(code_s->code[current_token], "end") == 0) {
 				current_token =
@@ -2245,11 +2229,15 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     &current_token,
 					     current_token,
 					     code_s->token_count, 0);
-
+			
 			if (out_boolean.valb == 0) {
-				depth_of_if_sit++;
-				if_situation = 1;
-			}
+				int out = sl_find_end(code_s->code, current_token, code_s->token_count);
+				if (out == -1) {
+					sl_throw_an_error(*code_s, code_s->code, current_token, code_s->token_count, "END NOT FOUND END OF THE IF", "Expected: if <expr> then <code> else <code> end");
+				}
+				current_token = out;
+				continue;
+			}		
 		}
 		else if (strcmp(code_s->code[current_token], "while") == 0) {
 			current_token++;
@@ -2270,10 +2258,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     code_s->token_count, 0);
 
 			if (out_boolean.valb == 0 || brk_sit == 1) {
-				depth_of_if_sit++;
-				if_situation = 1;
-				brk_sit = 0;
-				while_loop.depth--;
+				current_token = sl_find_end(code_s->code, current_token, code_s->token_count);
 			}
 			else {
 				while_sit = 1;
@@ -2296,6 +2281,13 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			brk_sit = 1;
 		}
 		else if (strcmp(code_s->code[current_token], "end") == 0) {
+			continue;
+		} 
+		else if (strcmp(code_s->code[current_token], "else") == 0) {
+			int out = sl_find_end(code_s->code, current_token + 1, code_s->token_count);
+			if (out == -1) 
+					sl_throw_an_error(*code_s, code_s->code, current_token, code_s->token_count, "END NOT FOUND END OF THE ELSE", "Expected: if <expr> then <code> else <code> end");
+			current_token = out;
 			continue;
 		}
 		else if (strcmp(code_s->code[current_token], "import") == 0) {
