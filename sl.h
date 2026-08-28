@@ -19,6 +19,7 @@ enum SL_Types
     RETURN = 6,
     LONG = 7,
     ERROR = 8,
+    POINTER = 9,
 };
 
 struct SL_Variable

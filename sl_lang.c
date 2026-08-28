@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <time.h>
 
+char **arguments = NULL;
+int argcN;
+
 struct SL_Variable
 print_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -131,13 +134,83 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 	return varib;
 }
 
+struct SL_Variable
+errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr, "Error usage at errors.string! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib = { 0 };
+	if (first_arg.type == ERROR) {
+		printf("%s\n", first_arg.vals);
+	}
+	return varib;
+}
+
+struct SL_Variable
+errors_bool_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr, "Error usage at errors.bool! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib = { 0 };
+	if (first_arg.type == ERROR) {
+		varib.valb = 1;
+		varib.type = BOOLEAN;
+	}
+	return varib;
+}
+
+struct SL_Variable
+sys_exit_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr, "Error usage at sys.exit! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib = { 0 };
+	if (first_arg.type == INTEGER) {
+		exit(first_arg.vali);
+	}
+	return varib;
+}
 
 
+
+
+struct SL_Variable
+sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr, "Error usage at sys.get_arg! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable varib;
+	if (first_arg.type == INTEGER && first_arg.vali < argcN) {
+		varib.type = STRING;
+		varib.vals = strdup(arguments[first_arg.vali]);
+	} else {
+		varib.type = ERROR;
+		varib.vals = "Argument not found!";
+	}
+	return varib;
+}
 
 int
 main(int argc, char **argv)
 {
 	srand(time(NULL));
+	arguments = malloc(argc * sizeof(char *));
+	for (int i = 0; i < argc; i++) {
+		arguments[i] = strdup(argv[i]);
+	}
+	argcN = argc;
 	char           *code = strdup("./code.sl");
 	int             console = 0;
 	if (argc > 1) {
@@ -157,7 +230,10 @@ main(int argc, char **argv)
 	sl_add_func(&sl_code, "input", input_fn);
 	sl_add_func(&sl_code, "random", random_fn);
 	sl_add_func(&sl_code, "str_to_int", str_to_int_fn);
-
+	sl_add_func(&sl_code, "sys.get_arg", sys_get_arg_fn);
+	sl_add_func(&sl_code, "errors.string", errors_string_fn);
+	sl_add_func(&sl_code, "errors.bool", errors_bool_fn);
+	sl_add_func(&sl_code, "sys.exit", sys_exit_fn);
 
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {
@@ -168,6 +244,12 @@ main(int argc, char **argv)
 		fprintf(stderr, "close_sl_process failed.");
 		return -1;
 	}
+	
+	for(int i = 0; i < argc; i++) {
+		free(arguments[i]);
+	}
+	if (arguments != NULL)
+		free(arguments);
 
 	free(code);
 	return 0;
