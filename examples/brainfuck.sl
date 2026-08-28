@@ -5,4 +5,7 @@ if errors.bool($file_name) then
     sys.exit(-1)
 end
 
+var file_content = read.tostr($file_name)
+print($file_content)
+
 # WIP

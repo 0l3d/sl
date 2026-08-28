@@ -30,10 +30,6 @@ print_fn(struct SL_Code *code, struct SL_L_Function func)
 			else
 				printf("%s", varib.vals);
 
-			if ((varib.type == STRING || varib.type == RETURN)
-			    && varib.vals != NULL) {
-				free(varib.vals);
-			}
 			break;
 		case BOOLEAN:
 			printf("%d", varib.valb);
@@ -75,10 +71,6 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 			else
 				printf("%s", varib.vals);
 
-			if ((varib.type == STRING || varib.type == RETURN)
-			    && varib.vals != NULL) {
-				free(varib.vals);
-			}
 			break;
 		case BOOLEAN:
 			printf("%d", varib.valb);
@@ -133,6 +125,39 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 	varib.vali = atoi(first_arg.vals);
 	return varib;
 }
+
+struct SL_Variable
+read_tostr_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr, "Error usage at read.tostr! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable varib;
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	FILE *file_open = fopen(first_arg.vals, "r");
+	if (file_open == NULL) {
+		varib.type = ERROR;
+		varib.vals = "File not found!";
+		return varib;
+	}
+	
+	fseek(file_open, 0, SEEK_END);
+	long int size = ftell(file_open);
+	rewind(file_open);
+
+	char*buffer = malloc(size + 1);
+	fread(buffer, 1, size, file_open);
+	buffer[size] = '\0';
+	fclose(file_open);
+
+	varib.type = STRING;
+	varib.vals = strdup(buffer);
+	free(buffer);
+	return varib;
+}
+
+
 
 struct SL_Variable
 errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -234,6 +259,8 @@ main(int argc, char **argv)
 	sl_add_func(&sl_code, "errors.string", errors_string_fn);
 	sl_add_func(&sl_code, "errors.bool", errors_bool_fn);
 	sl_add_func(&sl_code, "sys.exit", sys_exit_fn);
+	sl_add_func(&sl_code, "read.tostr", read_tostr_fn);
+
 
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {

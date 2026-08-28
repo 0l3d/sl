@@ -465,8 +465,8 @@ expression_solver(struct SL_Variable left_side, char op,
 						sl_string_getter
 						(left_side.vals);
 					char           *right_string =
-						sl_string_getter(right_side.
-								 vals);
+						sl_string_getter
+						(right_side.vals);
 					size_t          len =
 						strlen(left_string) +
 						strlen(right_string) + 1;
@@ -1404,9 +1404,8 @@ run_sl_function(struct SL_Code code, char *name,
 				return return_val;
 			}
 			if (function.linked_function == 1) {
-				lfunc.argument_indexes[lfunc.
-						       total_arguments] =
-					code.total_vars;
+				lfunc.argument_indexes[lfunc.total_arguments]
+					= code.total_vars;
 				char           *function_name =
 					malloc(SL_INIT);
 				int             func_len =
@@ -1506,6 +1505,12 @@ run_sl_function(struct SL_Code code, char *name,
 	for (int i = code.total_vars - 1; i >= code.total_vars - free_tracker;
 	     i--) {
 		free(code.vars[i].name);
+
+		if ((code.vars[i].type == STRING
+		     || code.vars[i].type == RETURN)
+		    && code.vars[i].vals != NULL) {
+			free(code.vars[i].vals);
+		}
 	}
 
 	return return_val;
@@ -1563,6 +1568,10 @@ expression_parser_solver(struct SL_Code code_s,
 					raw_var_name(result.vals);
 				int             index =
 					getvar_index_from_sl(code_s, rawname);
+
+				if (result.vals != NULL)
+					free(result.vals);
+
 				if (index == -1) {
 					sl_throw_an_error(code_s,
 							  expression,
@@ -1571,9 +1580,12 @@ expression_parser_solver(struct SL_Code code_s,
 							  "VARIABLE NOT FOUND!",
 							  "Expected: Define a variable first.");
 				}
-				if (result.vals != NULL)
-					free(result.vals);
 				result = code_s.vars[index];
+				if ((result.type == STRING
+				     || result.type == RETURN)
+				    && result.vals != NULL) {
+					result.vals = strdup(result.vals);
+				}
 				free(rawname);
 			}
 			else if (is_has_func(code_s, result.vals) == 1) {
@@ -1663,6 +1675,11 @@ expression_parser_solver(struct SL_Code code_s,
 				if (left.vals != NULL)
 					free(left.vals);
 				left = code_s.vars[index];
+				if ((left.type == STRING
+				     || left.type == RETURN)
+				    && left.vals != NULL) {
+					left.vals = strdup(left.vals);
+				}
 				free(rawname);
 			}
 			else if (is_has_func(code_s, left.vals) == 1) {
@@ -1714,8 +1731,6 @@ expression_parser_solver(struct SL_Code code_s,
 
 				}
 
-
-
 				if (left.vals != NULL)
 					free(left.vals);
 				left = left_side_fn;
@@ -1750,6 +1765,11 @@ expression_parser_solver(struct SL_Code code_s,
 				if (right.vals != NULL)
 					free(right.vals);
 				right = code_s.vars[index];
+				if ((right.type == STRING
+				     || right.type == RETURN)
+				    && right.vals != NULL) {
+					right.vals = strdup(right.vals);
+				}
 				free(rawname);
 			}
 			else if (is_has_func(code_s, right.vals) == 1) {
@@ -1795,9 +1815,6 @@ expression_parser_solver(struct SL_Code code_s,
 								  how_big_func,
 								  "STACK CALL OVERFLOW!",
 								  "Expected: Use less recursion or arguments");
-
-
-
 				}
 
 				if (right.vals != NULL)
@@ -1903,9 +1920,8 @@ variable_parser(struct SL_Code code_s,
 	while (current_token != NULL && *current_token < max_tokens) {
 		if (tokens[(*current_token) + 1] == NULL && max_tokens < 3) {
 			if (tokens[*current_token] != NULL) {
-				variables.
-					variable[variables.total_variables++].
-					name =
+				variables.variable[variables.
+						   total_variables++].name =
 					strdup(tokens[(*current_token)]);
 			}
 		}
@@ -2190,8 +2206,8 @@ sl_init_sl_parser(struct SL_Code *code_s)
 		if (while_sit == 1) {
 			if (strcmp(code_s->code[current_token], "end") == 0) {
 				current_token =
-					while_loop.
-					back_pos[--while_loop.depth];
+					while_loop.back_pos[--while_loop.
+							    depth];
 			}
 
 			if (while_loop.depth == 0) {
@@ -2211,7 +2227,8 @@ sl_init_sl_parser(struct SL_Code *code_s)
 				if (code_s->code[i][0] == '=') {
 					i++;
 					end = find_maxt_expr(code_s->code, i,
-							     code_s->token_count);
+							     code_s->
+							     token_count);
 					break;
 				}
 			}
@@ -2225,8 +2242,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			for (int i = 0; i < vars.total_variables; i++) {
 				int             index =
 					getvar_index_from_sl(*code_s,
-							     vars.
-							     variable
+							     vars.variable
 							     [i].name);
 				if (index != -1) {
 					code_s->vars[index] =
@@ -2514,6 +2530,8 @@ sl_dostr_sl_process(struct SL_Code *code_s, char *code)
 int
 sl_close_sl_process(struct SL_Code *code)
 {
+
+
 	if (code->vars != NULL) {
 		for (int i = 0; i < code->total_vars; i++) {
 			if (code->vars[i].name != NULL) {
@@ -2539,21 +2557,19 @@ sl_close_sl_process(struct SL_Code *code)
 				for (int j = 0;
 				     j < code->funcs[i].total_arguments;
 				     j++) {
-					if (code->funcs[i].
-					    arguments[j].name != NULL) {
-						free(code->
-						     funcs[i].arguments[j].
-						     name);
+					if (code->funcs[i].arguments[j].
+					    name != NULL) {
+						free(code->funcs[i].
+						     arguments[j].name);
 					}
-					if ((code->funcs[i].
-					     arguments[j].type == STRING
-					     || code->funcs[i].
-					     arguments[j].type == RETURN)
-					    && code->funcs[i].
-					    arguments[j].vals != NULL) {
-						free(code->
-						     funcs[i].arguments[j].
-						     vals);
+					if ((code->funcs[i].arguments[j].
+					     type == STRING
+					     || code->funcs[i].arguments[j].
+					     type == RETURN)
+					    && code->funcs[i].arguments[j].
+					    vals != NULL) {
+						free(code->funcs[i].
+						     arguments[j].vals);
 					}
 				}
 				free(code->funcs[i].arguments);
@@ -2564,8 +2580,8 @@ sl_close_sl_process(struct SL_Code *code)
 				     k++) {
 					if (code->funcs[i].code_tokens[k] !=
 					    NULL) {
-						free(code->
-						     funcs[i].code_tokens[k]);
+						free(code->funcs[i].
+						     code_tokens[k]);
 					}
 				}
 				free(code->funcs[i].code_tokens);
