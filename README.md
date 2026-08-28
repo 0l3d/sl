@@ -5,7 +5,7 @@ SL is a simple scripting language for C.
 Wiki: [SL-BASICS](https://github.com/0l3d/sl/wiki/SL-BASICS)
 
 ## Features
-- `if` support without `else` or `else if`.
+- `if` support.
 - `while` loop support.
 - `def` function support.
 - `var` dynamic variables.
