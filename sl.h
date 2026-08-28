@@ -69,6 +69,7 @@ struct SL_Function
 
 char * sl_string_getter(char *word);
 int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function));
+struct SL_Variable sl_copy_variable(struct SL_Variable var);
 struct SL_Variable sl_get_argument(struct SL_Code code, struct SL_L_Function func, int which_one);
 int sl_add_var(struct SL_Code *code, struct SL_Variable var);
 struct SL_Variable sl_get_var(struct SL_Code code, const char *name);

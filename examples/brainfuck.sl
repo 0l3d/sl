@@ -8,4 +8,10 @@ end
 var file_content = read.tostr($file_name)
 print($file_content)
 
+var mylist = List.new(100)
+List.push($mylist, "Hello")
+print(List.get($mylist, 0))
+List.set($mylist, 0, ", World")
+print(List.get($mylist, 0))
+print("\nList.len: ", List.len($mylist), "\n")
 # WIP
