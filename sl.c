@@ -2339,6 +2339,9 @@ sl_init_sl_parser(struct SL_Code *code_s)
 				sl_define_parser(*code_s, code_s->code,
 						 &current_token,
 						 code_s->token_count);
+			if (is_has_func(*code_s, func.name) == 1) {
+				sl_throw_an_error(*code_s, code_s->code, current_token, max_tokens, "FUNCTION ALREADY EXISTS", "Expected: try different name for your function");
+			}
 			code_s->funcs[code_s->total_funcs++] = func;
 			if (code_s->total_funcs == code_s->total_size_f - 1) {
 				code_s->total_size_f *= 2;

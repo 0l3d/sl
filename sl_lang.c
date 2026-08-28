@@ -121,7 +121,7 @@ struct SL_Variable
 str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
-		fprintf(stderr, "Error usage at random! Not enough arguments.");
+		fprintf(stderr, "Error usage at str_to_int! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);	
@@ -157,6 +157,7 @@ main(int argc, char **argv)
 	sl_add_func(&sl_code, "input", input_fn);
 	sl_add_func(&sl_code, "random", random_fn);
 	sl_add_func(&sl_code, "str_to_int", str_to_int_fn);
+
 
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {
