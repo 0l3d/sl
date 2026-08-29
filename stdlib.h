@@ -4,6 +4,19 @@
 #include <stdlib.h>
 #include <time.h>
 
+
+struct SL_Variable
+example_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+	return return_var;
+}
+
+
+
 char          **arguments = NULL;
 int             argcN;
 
@@ -19,80 +32,80 @@ int             LISTS_count = 0;
 int             LISTS_capacity = SL_INIT;
 struct SL_List *LISTS = { 0 };
 
-
+// IO
 struct SL_Variable
 print_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	for (int i = 0; i < func.total_arguments; i++) {
-		varib = sl_get_argument(*code, func, i);
-		switch (varib.type) {
+		return_var = sl_get_argument(*code, func, i);
+		switch (return_var.type) {
 		case INTEGER:
-			printf("%d", varib.vali);
+			printf("%d", return_var.vali);
 			break;
 		case DOUBLE:
-			printf("%f", varib.valf);
+			printf("%f", return_var.valf);
 			break;
 		case STRING:
-			if (strchr(varib.vals, '"')) {
+			if (strchr(return_var.vals, '"')) {
 				char           *string =
-					sl_string_getter(varib.vals);
+					sl_string_getter(return_var.vals);
 				printf("%s", string);
 				free(string);
 			}
 			else
-				printf("%s", varib.vals);
+				printf("%s", return_var.vals);
 
 			break;
 		case BOOLEAN:
-			printf("%d", varib.valb);
+			printf("%d", return_var.valb);
 			break;
 		case CHAR:
-			printf("%c", varib.valc);
+			printf("%c", return_var.valc);
 			break;
 		case LONG:
-			printf("%lu", varib.valh);
+			printf("%lu", return_var.valh);
 			break;
 		default:
 			break;
 		}
 
 	}
-	return varib;
+	return return_var;
 }
 
 struct SL_Variable
 input_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	for (int i = 0; i < func.total_arguments; i++) {
-		varib = sl_get_argument(*code, func, i);
-		switch (varib.type) {
+		return_var = sl_get_argument(*code, func, i);
+		switch (return_var.type) {
 		case INTEGER:
-			printf("%d", varib.vali);
+			printf("%d", return_var.vali);
 			break;
 		case DOUBLE:
-			printf("%f", varib.valf);
+			printf("%f", return_var.valf);
 			break;
 		case STRING:
-			if (strchr(varib.vals, '"')) {
+			if (strchr(return_var.vals, '"')) {
 				char           *string =
-					sl_string_getter(varib.vals);
+					sl_string_getter(return_var.vals);
 				printf("%s", string);
 				free(string);
 			}
 			else
-				printf("%s", varib.vals);
+				printf("%s", return_var.vals);
 
 			break;
 		case BOOLEAN:
-			printf("%d", varib.valb);
+			printf("%d", return_var.valb);
 			break;
 		case CHAR:
-			printf("%c", varib.valc);
+			printf("%c", return_var.valc);
 			break;
 		case LONG:
-			printf("%lu", varib.valh);
+			printf("%lu", return_var.valh);
 			break;
 		default:
 			break;
@@ -102,24 +115,127 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 	char            string[1024];
 	fgets(string, sizeof(string), stdin);
 
-	varib.type = STRING;
-	varib.vals = malloc(1024);
-	strncpy(varib.vals, string, 1024);
+	return_var.type = STRING;
+	return_var.vals = malloc(1024);
+	strncpy(return_var.vals, string, 1024);
 
-	return varib;
+	return return_var;
 }
 
 struct SL_Variable
 sys_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-	struct SL_Variable varib = { 0 };
-	varib.valc = getchar();
-	varib.type = CHAR;
-	return varib;
+	struct SL_Variable return_var = { 0 };
+	return_var.valc = getchar();
+	return_var.type = CHAR;
+	return return_var;
+}
+
+struct SL_Variable
+file_read_to_str_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at read.tostr! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	FILE           *file_open = fopen(first_arg.vals, "r");
+	if (file_open == NULL) {
+		return_var.type = ERROR;
+		return_var.vals = "File not found!";
+		return return_var;
+	}
+
+	fseek(file_open, 0, SEEK_END);
+	long int        size = ftell(file_open);
+	rewind(file_open);
+
+	char           *buffer = malloc(size + 1);
+	fread(buffer, 1, size, file_open);
+	buffer[size] = '\0';
+	fclose(file_open);
+
+	return_var.type = STRING;
+	return_var.vals = strdup(buffer);
+	free(buffer);
+	return return_var;
+}
+
+struct SL_Variable
+file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at read.tostr! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	FILE           *file_open = fopen(first_arg.vals, "w");
+	if (file_open == NULL) {
+		return_var.type = ERROR;
+		return_var.vals = "File not found!";
+		return return_var;
+	}
+	size_t len = strlen(second_arg.vals);
+    
+	if (fwrite(second_arg.vals, 1, len, file_open) != len) {
+        fclose(file_open);
+
+        return_var.type = ERROR;
+        return_var.vals = "Could not write to file!";
+        return return_var;
+    }
+
+    fclose(file_open);
+
+    return_var.type = STRING;
+    return_var.vals = strdup(second_arg.vals);
+
+	return return_var;
+}
+
+struct SL_Variable
+file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at read.tostr! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	FILE           *file_open = fopen(first_arg.vals, "a");
+	if (file_open == NULL) {
+		return_var.type = ERROR;
+		return_var.vals = "File not found!";
+		return return_var;
+	}
+	size_t len = strlen(second_arg.vals);
+    
+	if (fwrite(second_arg.vals, 1, len, file_open) != len) {
+        fclose(file_open);
+
+        return_var.type = ERROR;
+        return_var.vals = "Could not write to file!";
+        return return_var;
+    }
+
+    fclose(file_open);
+
+    return_var.type = STRING;
+    return_var.vals = strdup(second_arg.vals);
+
+	return return_var;
 }
 
 
 
+// EXTRA
 struct SL_Variable
 random_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -133,12 +249,13 @@ random_fn(struct SL_Code *code, struct SL_L_Function func)
 	int             random =
 		rand() % (second_arg.vali - first_arg.vali + 1) +
 		first_arg.vali;
-	struct SL_Variable varib = { 0 };
-	varib.type = INTEGER;
-	varib.vali = random;
-	return varib;
+	struct SL_Variable return_var = { 0 };
+	return_var.type = INTEGER;
+	return_var.vali = random;
+	return return_var;
 }
 
+// TYPES
 struct SL_Variable
 str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -148,10 +265,10 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
-	varib.type = INTEGER;
-	varib.vali = atoi(first_arg.vals);
-	return varib;
+	struct SL_Variable return_var = { 0 };
+	return_var.type = INTEGER;
+	return_var.vali = atoi(first_arg.vals);
+	return return_var;
 }
 
 struct SL_Variable
@@ -163,15 +280,15 @@ int_to_char_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	if (first_arg.vali > 255) {
-		varib.type = ERROR;
-		varib.vals = "Char overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "Char overflow!";
+		return return_var;
 	}
-	varib.valc = first_arg.vali;
-	varib.type = CHAR;
-	return varib;
+	return_var.valc = first_arg.vali;
+	return_var.type = CHAR;
+	return return_var;
 }
 
 struct SL_Variable
@@ -183,44 +300,30 @@ char_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
-	varib.vali = first_arg.valc;
-	varib.type = INTEGER;
-	return varib;
+	struct SL_Variable return_var = { 0 };
+	return_var.vali = first_arg.valc;
+	return_var.type = INTEGER;
+	return return_var;
 }
 
 struct SL_Variable
-read_tostr_fn(struct SL_Code *code, struct SL_L_Function func)
+typeof_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at read.tostr! Not enough arguments.");
+			"Error usage at typeof! Not enough arguments.");
 		exit(-1);
 	}
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	FILE           *file_open = fopen(first_arg.vals, "r");
-	if (file_open == NULL) {
-		varib.type = ERROR;
-		varib.vals = "File not found!";
-		return varib;
-	}
-
-	fseek(file_open, 0, SEEK_END);
-	long int        size = ftell(file_open);
-	rewind(file_open);
-
-	char           *buffer = malloc(size + 1);
-	fread(buffer, 1, size, file_open);
-	buffer[size] = '\0';
-	fclose(file_open);
-
-	varib.type = STRING;
-	varib.vals = strdup(buffer);
-	free(buffer);
-	return varib;
+	return_var.type = INTEGER;
+	return_var.vali = first_arg.type;
+	return return_var;
 }
 
+
+
+// STRING
 struct SL_Variable
 string_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -229,40 +332,40 @@ string_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 			"Error usage at string.getchar! Not enough arguments.");
 		exit(-1);
 	}
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 	if (first_arg.type != STRING) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected string as the first argument to string.getchar.";
-		return varib;
+		return return_var;
 	}
 
 	if (second_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected integer as the second argument to string.getchar.";
-		return varib;
+		return return_var;
 	}
 
 	int             len = strlen(first_arg.vals);
 
 	if (second_arg.vali >= len) {
-		varib.type = ERROR;
-		varib.vals = "Buffer overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "Buffer overflow!";
+		return return_var;
 	}
 
 	if (second_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "Buffer underflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "Buffer underflow!";
+		return return_var;
 	}
 
-	varib.valc = first_arg.vals[second_arg.vali];
-	varib.type = CHAR;
-	return varib;
+	return_var.valc = first_arg.vals[second_arg.vali];
+	return_var.type = CHAR;
+	return return_var;
 }
 
 struct SL_Variable
@@ -273,24 +376,24 @@ string_len_fn(struct SL_Code *code, struct SL_L_Function func)
 			"Error usage at string.len! Not enough arguments.");
 		exit(-1);
 	}
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
 	if (first_arg.type != STRING) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected string as the first argument to string.getchar.";
-		return varib;
+		return return_var;
 	}
 
 	int             len = strlen(first_arg.vals);
-	varib.vali = len;
-	varib.type = INTEGER;
-	return varib;
+	return_var.vali = len;
+	return_var.type = INTEGER;
+	return return_var;
 }
 
 
-
+// ERROR HANDLING
 struct SL_Variable
 errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -300,11 +403,11 @@ errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	if (first_arg.type == ERROR) {
 		printf("%s\n", first_arg.vals);
 	}
-	return varib;
+	return return_var;
 }
 
 struct SL_Variable
@@ -316,14 +419,33 @@ errors_bool_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	if (first_arg.type == ERROR) {
-		varib.valb = 1;
-		varib.type = BOOLEAN;
+		return_var.valb = 1;
+		return_var.type = BOOLEAN;
 	}
-	return varib;
+	return return_var;
 }
 
+struct SL_Variable
+errors_panic_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at errors.string! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+	if (first_arg.type == ERROR) {
+		printf("%s\n", first_arg.vals);
+		exit(-1);
+	}
+	return return_var;
+}
+
+
+// SYS
 struct SL_Variable
 sys_exit_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -333,11 +455,11 @@ sys_exit_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	if (first_arg.type == INTEGER) {
 		exit(first_arg.vali);
 	}
-	return varib;
+	return return_var;
 }
 
 struct SL_Variable
@@ -349,35 +471,20 @@ sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	if (first_arg.type == INTEGER && first_arg.vali < argcN) {
-		varib.type = STRING;
-		varib.vals = strdup(arguments[first_arg.vali]);
+		return_var.type = STRING;
+		return_var.vals = strdup(arguments[first_arg.vali]);
 	}
 	else {
-		varib.type = ERROR;
-		varib.vals = "Argument not found!";
+		return_var.type = ERROR;
+		return_var.vals = "Argument not found!";
 	}
-	return varib;
-}
-
-struct SL_Variable
-typeof_fn(struct SL_Code *code, struct SL_L_Function func)
-{
-	if (func.total_arguments < 1) {
-		fprintf(stderr,
-			"Error usage at typeof! Not enough arguments.");
-		exit(-1);
-	}
-	struct SL_Variable varib = { 0 };
-	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	varib.type = INTEGER;
-	varib.vali = first_arg.type;
-	return varib;
+	return return_var;
 }
 
 
-
+// LISTS
 struct SL_Variable
 List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -399,7 +506,7 @@ List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 		return err;
 	}
 
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 	int             capacity = first_arg.vali > 0 ? first_arg.vali : 1;
 
 	LISTS[LISTS_count].vars =
@@ -417,11 +524,11 @@ List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 		LISTS[LISTS_count].size = 0;
 	}
 
-	varib.type = INTEGER;
-	varib.vali = LISTS_count;
+	return_var.type = INTEGER;
+	return_var.vali = LISTS_count;
 	LISTS_count++;
 
-	return varib;
+	return return_var;
 }
 
 struct SL_Variable
@@ -435,27 +542,27 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected list_variable as the first argument to List.push.";
-		return varib;
+		return return_var;
 	}
 
 	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "List buffer overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
 	}
 
 	struct SL_List *list = &LISTS[first_arg.vali];
 
 	if (list->fixed == 1) {
-		varib.type = ERROR;
-		varib.vals = "List is fixed list!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "List is fixed list!";
+		return return_var;
 	}
 
 	if (list->size >= list->capacity) {
@@ -466,10 +573,111 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 				list->capacity * sizeof(struct SL_Variable));
 	}
 	list->vars[list->size++] = sl_copy_variable(second_arg);
-	varib.type = INTEGER;
-	varib.vali = 1;
-	return varib;
+	return_var.type = INTEGER;
+	return_var.vali = 1;
+	return return_var;
 }
+
+struct SL_Variable
+List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at List.pop! Not enough arguments.\n");
+		exit(-1);
+	}
+
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+
+	if (first_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected list_variable as the first argument to List.pop.";
+		return return_var;
+	}
+
+	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
+	}
+	
+
+	struct SL_List *list = &LISTS[first_arg.vali];
+	
+	if (list->size <= 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer underflow";
+		return return_var;
+	}
+
+	if (list->fixed == 1) {
+		return_var.type = ERROR;
+		return_var.vals = "List is fixed list!";
+		return return_var;
+	}
+	struct SL_Variable ret = sl_copy_variable(list->vars[list->size - 1]);
+	
+	if (list->vars[list->size - 1].name != NULL) {
+		free(list->vars[list->size - 1].name);
+		list->vars[list->size - 1].name = NULL;
+	}
+	
+	if ((list->vars[list->size - 1].type == STRING || list->vars[list->size - 1].type == RETURN) 
+	    && list->vars[list->size - 1].vals != NULL) {
+		free(list->vars[list->size - 1].vals);
+		list->vars[list->size - 1].vals = NULL;
+	}
+	
+	list->size--;
+	return ret;
+}
+
+struct SL_Variable
+List_peek_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at List.peek! Not enough arguments.\n");
+		exit(-1);
+	}
+
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+
+	if (first_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected list_variable as the first argument to List.peek.";
+		return return_var;
+	}
+
+	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
+	}
+	
+
+	struct SL_List *list = &LISTS[first_arg.vali];
+	
+	if (list->size <= 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer underflow";
+		return return_var;
+	}
+
+	if (list->fixed == 1) {
+		return_var.type = ERROR;
+		return_var.vals = "List is fixed list!";
+		return return_var;
+	}
+	return sl_copy_variable(list->vars[list->size - 1]);
+}
+
+
+
 
 struct SL_Variable
 List_set_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -483,49 +691,50 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 	struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected list_variable as the first argument to List.set.";
-		return varib;
+		return return_var;
 	}
 	if (second_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected integer as the second argument to List.set.";
-		return varib;
+		return return_var;
 	}
 
 	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "List buffer overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
 	}
 
 	struct SL_List *list = &LISTS[first_arg.vali];
 
 	if (second_arg.vali >= list->size || second_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "Buffer overflow on List element.";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "Buffer overflow on List element.";
+		return return_var;
 	}
 	if ((list->vars[second_arg.vali].type == STRING
 	     || list->vars[second_arg.vali].type == RETURN)
 	    && list->vars[second_arg.vali].vals != NULL) {
 		free(list->vars[second_arg.vali].vals);
+		list->vars[second_arg.vali].vals = NULL;
 	}
 
 	if (list->vars[second_arg.vali].name != NULL) {
 		free(list->vars[second_arg.vali].name);
+		list->vars[second_arg.vali].name = NULL;
 	}
 
 	list->vars[second_arg.vali] = sl_copy_variable(third_arg);
-
-	varib.type = INTEGER;
-	varib.vali = 1;
-	return varib;
+	return_var.type = INTEGER;
+	return_var.vali = 1;
+	return return_var;
 }
 
 struct SL_Variable
@@ -539,36 +748,36 @@ List_get_fn(struct SL_Code *code, struct SL_L_Function func)
 
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected list_variable as the first argument to List.get.";
-		return varib;
+		return return_var;
 	}
 
 	if (second_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected integer as the second argument to List.get.";
-		return varib;
+		return return_var;
 	}
 
 	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "List buffer overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
 	}
 
 	if (second_arg.vali >= LISTS[first_arg.vali].size
 	    || second_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "Buffer overflow on List element.";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "Buffer overflow on List element.";
+		return return_var;
 	}
 
-	return LISTS[first_arg.vali].vars[second_arg.vali];
+	return sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
 }
 
 struct SL_Variable
@@ -581,27 +790,102 @@ List_len_fn(struct SL_Code *code, struct SL_L_Function func)
 	}
 
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable varib = { 0 };
+	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
-		varib.type = ERROR;
-		varib.vals =
+		return_var.type = ERROR;
+		return_var.vals =
 			"Expected list_variable as the first argument to List.len.";
-		return varib;
+		return return_var;
 	}
 
 	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
-		varib.type = ERROR;
-		varib.vals = "List buffer overflow!";
-		return varib;
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
 	}
 
-	varib.type = INTEGER;
-	varib.vali = LISTS[first_arg.vali].size;
-	return varib;
+	return_var.type = INTEGER;
+	return_var.vali = LISTS[first_arg.vali].size;
+	return return_var;
 }
 
+struct SL_Code *use_code = NULL;
+int used_io = 0;
+int used_file = 0;
+int used_types = 0; 
+int used_sys = 0; 
+int used_string = 0;
+int used_errors = 0;
+int used_list = 0; 
+int used_extra = 0;
 
+
+struct SL_Variable
+use_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	struct SL_Variable return_var = { 0 };
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at use! Not enough arguments.\n");
+		exit(-1);
+	}
+	for (int i = 0; i < func.total_arguments; i++) {
+		struct SL_Variable lib = sl_get_argument(*code, func, i);
+		char           *libstr =
+					sl_string_getter(lib.vals);
+
+		if (strcmp(libstr, "io") == 0 && used_io == 0) {
+			used_io = 1;
+			sl_add_func(use_code, "io.print", print_fn);
+			sl_add_func(use_code, "io.input", input_fn);
+		} else if (strcmp(libstr, "file") == 0 && used_file == 0) {
+			used_file = 1;
+			sl_add_func(use_code, "file.read_to_str", file_read_to_str_fn);
+			sl_add_func(use_code, "file.write_to_str", file_write_from_str_fn);
+			sl_add_func(use_code, "file.append_to_str", file_append_from_str_fn);
+		} else if (strcmp(libstr, "types") == 0 && used_types == 0) {
+			used_types = 1;
+			sl_add_func(use_code, "types.str_to_int", str_to_int_fn);
+			sl_add_func(use_code, "types.int_to_char", int_to_char_fn);
+			sl_add_func(use_code, "types.char_to_int", char_to_int_fn);
+			sl_add_func(use_code, "types.typeof", typeof_fn);
+		} else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
+			used_sys = 1;
+			sl_add_func(use_code, "sys.get_arg", sys_get_arg_fn);
+			sl_add_func(use_code, "sys.getchar", sys_getchar_fn);
+			sl_add_func(use_code, "sys.exit", sys_exit_fn);
+		} else if (strcmp(libstr, "errors") == 0 && used_errors == 0)  {
+			used_errors = 1;
+			sl_add_func(use_code, "errors.string", errors_string_fn);
+			sl_add_func(use_code, "errors.bool", errors_bool_fn);
+			sl_add_func(use_code, "errors.panic", errors_panic_fn);
+		} else if (strcmp(libstr, "string") == 0 && used_string == 0)  {
+			used_string = 1;
+			sl_add_func(use_code, "string.getchar", string_getchar_fn);
+			sl_add_func(use_code, "string.len", string_len_fn);
+		} else if (strcmp(libstr, "list") == 0 && used_list == 0) {
+			used_list = 1;
+			sl_add_func(use_code, "List.new", List_new_fn);
+			sl_add_func(use_code, "List.push", List_push_fn);
+			sl_add_func(use_code, "List.pop", List_pop_fn);
+			sl_add_func(use_code, "List.peek", List_peek_fn);
+			sl_add_func(use_code, "List.set", List_set_fn);
+			sl_add_func(use_code, "List.get", List_get_fn);
+			sl_add_func(use_code, "List.len", List_len_fn);
+		} else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
+			used_extra = 1;
+			sl_add_func(use_code, "rand.random", random_fn);
+		} else {
+			fprintf(stderr, "Unknown library.");
+			exit(-1);
+		}
+		
+		free(libstr);
+	}
+
+	return return_var;
+}
 
 void
 init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
@@ -613,28 +897,8 @@ init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
 	}
 	argcN = argc;
 	LISTS = calloc(SL_INIT, sizeof(struct SL_List));
-	sl_add_func(sl_code, "print", print_fn);
-	sl_add_func(sl_code, "input", input_fn);
-	sl_add_func(sl_code, "random", random_fn);
-	sl_add_func(sl_code, "str_to_int", str_to_int_fn);
-	sl_add_func(sl_code, "int_to_char", int_to_char_fn);
-	sl_add_func(sl_code, "char_to_int", char_to_int_fn);
-	sl_add_func(sl_code, "sys.get_arg", sys_get_arg_fn);
-	sl_add_func(sl_code, "typeof", typeof_fn);
-	sl_add_func(sl_code, "errors.string", errors_string_fn);
-	sl_add_func(sl_code, "errors.bool", errors_bool_fn);
-	sl_add_func(sl_code, "sys.getchar", sys_getchar_fn);
-	sl_add_func(sl_code, "sys.exit", sys_exit_fn);
-	sl_add_func(sl_code, "read.tostr", read_tostr_fn);
-	sl_add_func(sl_code, "string.getchar", string_getchar_fn);
-	sl_add_func(sl_code, "string.len", string_len_fn);
-	sl_add_func(sl_code, "List.new", List_new_fn);
-	sl_add_func(sl_code, "List.push", List_push_fn);
-	sl_add_func(sl_code, "List.set", List_set_fn);
-	sl_add_func(sl_code, "List.get", List_get_fn);
-	sl_add_func(sl_code, "List.len", List_len_fn);
-
-
+	use_code = sl_code;
+	sl_add_func(sl_code, "use", use_fn);
 }
 
 

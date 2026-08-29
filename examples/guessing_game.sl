@@ -1,18 +1,24 @@
-var rand = random(0, 100)
+use(
+    "io", 
+    "extra", 
+    "types"
+)
+
+var rand = rand.random(0, 100)
 
 var num = 0
 while $num neq $rand then 
-    $num = str_to_int(input("Enter number: "))
+    $num = types.str_to_int(io.input("Enter number: "))
     if $num > $rand then 
-        print("Try smaller.\n")
+        io.print("Try smaller.\n")
     end 
 
     if $num < $rand then
-        print("Try bigger.\n")
+        io.print("Try bigger.\n")
     end
      if $num equ $rand then 
         break
     end
 end
 
-print("You made it! Number is : ", $rand, "\n")
+io.print("You made it! Number is : ", $rand, "\n")

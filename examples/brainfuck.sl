@@ -1,19 +1,13 @@
 # Original implementation and examples:
 # https://github.com/0l3d/brainsuck
+use("io", "file", "types", "sys", "errors", "string", "list")
 
 var file_name = sys.get_arg(2)
-if errors.bool($file_name) then 
-    print("Program got an Error: \n");
-    errors.string($file_name)
-    sys.exit(-1)
-end
-
-var file_content = read.tostr($file_name)
+errors.panic($file_name)
+var file_content = file.read_to_str($file_name)
 
 var memory = List.new(30000) # Memory Array
 var where_is = 0
-
-
 
 def suck_in then 
     List.set($memory, $where_is, (List.get($memory, $where_is) + 1) % 256)
@@ -60,10 +54,10 @@ while $i < $code_len then
         suck_move_left()
     elif $gchar equ '.' then 
         var c = get_current()
-        print(int_to_char($c))
+        io.print(types.int_to_char($c))
     elif $gchar equ ',' then 
         var c = sys.getchar()
-        set_data(char_to_int($c))
+        set_data(types.char_to_int($c))
     elif $gchar equ '[' then
         if get_current() equ 0 then
             var bracket_count = 1
