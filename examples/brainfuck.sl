@@ -52,25 +52,19 @@ while $i < $code_len then
     var gchar = string.getchar($file_content, $i)
     if $gchar equ '+' then
         suck_in()
-    end 
-    if $gchar equ '-' then
+    elif $gchar equ '-' then
         suck_de()
-    end
-    if $gchar equ '>' then 
+    elif $gchar equ '>' then 
         suck_move_right()
-    end
-    if $gchar equ '<' then 
+    elif $gchar equ '<' then 
         suck_move_left()
-    end
-    if $gchar equ '.' then 
+    elif $gchar equ '.' then 
         var c = get_current()
         print(int_to_char($c))
-    end
-    if $gchar equ ',' then 
+    elif $gchar equ ',' then 
         var c = sys.getchar()
         set_data(char_to_int($c))
-    end
-    if $gchar equ '[' then
+    elif $gchar equ '[' then
         if get_current() equ 0 then
             var bracket_count = 1
             while $bracket_count > 0 and $i < $code_len - 1 then
@@ -78,14 +72,12 @@ while $i < $code_len then
                 var ggchar = string.getchar($file_content, $i)
                 if $ggchar equ '[' then 
                     $bracket_count = $bracket_count + 1
-                end
-                if $ggchar equ ']' then 
+                elif $ggchar equ ']' then 
                     $bracket_count = $bracket_count - 1
                 end
             end
         end
-    end
-    if $gchar equ ']' then
+    elif $gchar equ ']' then
         if get_current() neq 0 then
             var bracket_count = 1
             while $bracket_count > 0 and $i > 0 then
@@ -93,8 +85,7 @@ while $i < $code_len then
                 var ggchar = string.getchar($file_content, $i)
                 if $ggchar equ ']' then 
                     $bracket_count = $bracket_count + 1
-                end
-                if $ggchar equ '[' then 
+                elif $ggchar equ '[' then 
                     $bracket_count = $bracket_count - 1
                 end
             end

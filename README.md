@@ -40,7 +40,7 @@ int sl_open_sl_process(struct SL_Code *code, char* file_name);
 struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s);
 int sl_close_sl_process(struct SL_Code *code);
 ```
-Check wiki or sl_example.c for example.
+Check wiki or sl_example.c for example.  
 
 ## License
 

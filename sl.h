@@ -37,9 +37,32 @@ struct SL_Variable
     };
 };
 
+enum TokenTypes {
+    T_UNKNOWN = 0,	
+    T_IF, 
+    T_DEF, 
+    T_WHILE,
+    T_THEN, 
+    T_END, 
+    T_VAR, 
+    T_ELSE, 
+    T_ELIF,
+    T_IMPORT, 
+    T_BREAK, 
+    T_CONTINUE,
+    T_RETURN,
+    T_EQU,
+    T_NEQ,
+    T_EQG,
+    T_EQL,
+    T_AND,
+    T_OR,
+};
+
 struct SL_Code
 {
     char **code;
+    enum TokenTypes *types;
     int token_count;
     struct SL_Variable *vars;
     int total_size_v;
@@ -61,6 +84,7 @@ struct SL_Function
     struct SL_Variable *arguments;
     int total_arguments;
     char** code_tokens;
+    enum TokenTypes *types;
     int code_len;
     int vaargs;
     struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function);
