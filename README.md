@@ -2,7 +2,7 @@
 
 SL is a simple scripting language for C.
 
-Wiki: [SL-BASICS](https://github.com/0l3d/sl/wiki/SL-BASICS)
+Wiki: [SL-BASICS](https://github.com/0l3d/sl/wiki)
 
 ## Features
 - `if` support.
