@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <time.h>
 
+struct SL_Code *use_code = NULL;
 
 struct SL_Variable
 example_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -136,7 +137,7 @@ file_read_to_str_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at read.tostr! Not enough arguments.");
+			"Error usage at file.read_to_str! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable return_var = { 0 };
@@ -168,7 +169,7 @@ file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at read.tostr! Not enough arguments.");
+			"Error usage at file.write_from_str! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable return_var = { 0 };
@@ -203,7 +204,7 @@ file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at read.tostr! Not enough arguments.");
+			"Error usage at file.append_from_str! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable return_var = { 0 };
@@ -241,7 +242,7 @@ random_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
-			"Error usage at random! Not enough arguments.");
+			"Error usage at rand.random! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -261,7 +262,7 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at str_to_int! Not enough arguments.");
+			"Error usage at types.str_to_int! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -276,7 +277,7 @@ int_to_char_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at int_to_char! Not enough arguments.");
+			"Error usage at types.int_to_char! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -296,7 +297,7 @@ char_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at char_to_int! Not enough arguments.");
+			"Error usage at types.char_to_int! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -311,7 +312,7 @@ typeof_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at typeof! Not enough arguments.");
+			"Error usage at types.typeof! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable return_var = { 0 };
@@ -321,15 +322,113 @@ typeof_fn(struct SL_Code *code, struct SL_L_Function func)
 	return return_var;
 }
 
+struct SL_Variable
+is_int_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_int! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == INTEGER)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+struct SL_Variable
+is_char_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_char! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == CHAR)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+struct SL_Variable
+is_bool_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_bool! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == BOOLEAN)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+
+struct SL_Variable
+is_string_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_string! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == STRING)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+struct SL_Variable
+is_double_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_string! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == DOUBLE)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+struct SL_Variable
+is_not_initialized_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.is_string! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	if (first_arg.type == INIT)
+		return_var.valb = 1;
+	return_var.type = BOOLEAN;
+	return return_var;
+}
+
+
 
 
 // STRING
 struct SL_Variable
-string_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
+string_charat_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
-			"Error usage at string.getchar! Not enough arguments.");
+			"Error usage at string.char_at! Not enough arguments.");
 		exit(-1);
 	}
 	struct SL_Variable return_var = { 0 };
@@ -338,14 +437,14 @@ string_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 	if (first_arg.type != STRING) {
 		return_var.type = ERROR;
 		return_var.vals =
-			"Expected string as the first argument to string.getchar.";
+			"Expected string as the first argument to string.char_at.";
 		return return_var;
 	}
 
 	if (second_arg.type != INTEGER) {
 		return_var.type = ERROR;
 		return_var.vals =
-			"Expected integer as the second argument to string.getchar.";
+			"Expected integer as the second argument to string.char_at.";
 		return return_var;
 	}
 
@@ -438,10 +537,10 @@ errors_panic_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable return_var = { 0 };
 	if (first_arg.type == ERROR) {
-		printf("%s\n", first_arg.vals);
+		printf("Program panicked with error: %s\n", first_arg.vals);
 		exit(-1);
-	}
-	return return_var;
+	} 	
+	return first_arg;
 }
 
 
@@ -810,7 +909,6 @@ List_len_fn(struct SL_Code *code, struct SL_L_Function func)
 	return return_var;
 }
 
-struct SL_Code *use_code = NULL;
 int used_io = 0;
 int used_file = 0;
 int used_types = 0; 
@@ -819,6 +917,7 @@ int used_string = 0;
 int used_errors = 0;
 int used_list = 0; 
 int used_extra = 0;
+int used_fast = 0;
 
 
 struct SL_Variable
@@ -846,9 +945,19 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			sl_add_func(use_code, "file.append_to_str", file_append_from_str_fn);
 		} else if (strcmp(libstr, "types") == 0 && used_types == 0) {
 			used_types = 1;
+
+			// CONVERT
 			sl_add_func(use_code, "types.str_to_int", str_to_int_fn);
 			sl_add_func(use_code, "types.int_to_char", int_to_char_fn);
 			sl_add_func(use_code, "types.char_to_int", char_to_int_fn);
+
+			
+			// TYPE CHECK
+			sl_add_func(use_code, "types.is_int", is_int_fn);
+			sl_add_func(use_code, "types.is_char", is_char_fn);
+			sl_add_func(use_code, "types.is_string", is_string_fn);
+			sl_add_func(use_code, "types.is_double", is_double_fn);
+			sl_add_func(use_code, "types.is_not_initialized", is_not_initialized_fn);
 			sl_add_func(use_code, "types.typeof", typeof_fn);
 		} else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
 			used_sys = 1;
@@ -859,10 +968,10 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_errors = 1;
 			sl_add_func(use_code, "errors.string", errors_string_fn);
 			sl_add_func(use_code, "errors.bool", errors_bool_fn);
-			sl_add_func(use_code, "errors.panic", errors_panic_fn);
+			sl_add_func(use_code, "?", errors_panic_fn);
 		} else if (strcmp(libstr, "string") == 0 && used_string == 0)  {
 			used_string = 1;
-			sl_add_func(use_code, "string.getchar", string_getchar_fn);
+			sl_add_func(use_code, "string.char_at", string_charat_fn);
 			sl_add_func(use_code, "string.len", string_len_fn);
 		} else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;

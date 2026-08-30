@@ -100,7 +100,7 @@ struct SL_Variable sl_get_var(struct SL_Code code, const char *name);
 struct SL_Function sl_get_func(struct SL_Code code, const char *name);
 int sl_init_sl_lexer(int malloc_size, char* file_name, char ***bufout, char *special_tokens);
 struct SL_Code sl_init_sl_process(); 
-int sl_dostr_sl_process(struct SL_Code *code_s, char *code);
+struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code);
 int sl_open_sl_process(struct SL_Code *code, char* file_name);
 struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s);
 int sl_close_sl_process(struct SL_Code *code);

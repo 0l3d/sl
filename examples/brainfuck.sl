@@ -2,20 +2,19 @@
 # https://github.com/0l3d/brainsuck
 use("io", "file", "types", "sys", "errors", "string", "list")
 
-var file_name = sys.get_arg(2)
-errors.panic($file_name)
-var file_content = file.read_to_str($file_name)
+var file_name = ?(sys.get_arg(2))
+var file_content = ?(file.read_to_str($file_name))
 
-var memory = List.new(30000) # Memory Array
+var memory = ?(List.new(30000)) # Memory Array
 var where_is = 0
 
 def suck_in then 
-    List.set($memory, $where_is, (List.get($memory, $where_is) + 1) % 256)
+    ?(List.set($memory, $where_is, (?(List.get($memory, $where_is)) + 1) % 256))
 end
 
 
 def suck_de then 
-    List.set($memory, $where_is, (List.get($memory, $where_is) - 1) % 256)
+    ?(List.set($memory, $where_is, (?(List.get($memory, $where_is)) - 1) % 256))
 end
 
 def suck_move_right then 
@@ -32,11 +31,11 @@ end
 
 
 def get_current then
-    return List.get($memory, $where_is)
+    return ?(List.get($memory, $where_is))
 end
 
 def set_data -> data then
-    List.set($memory, $where_is, $data)
+    ?(List.set($memory, $where_is, $data))
 end
 
 
@@ -63,7 +62,7 @@ while $i < $code_len then
             var bracket_count = 1
             while $bracket_count > 0 and $i < $code_len - 1 then
                 $i = $i + 1
-                var ggchar = string.getchar($file_content, $i)
+                var ggchar = string.char_at($file_content, $i)
                 if $ggchar equ '[' then 
                     $bracket_count = $bracket_count + 1
                 elif $ggchar equ ']' then 
@@ -76,7 +75,7 @@ while $i < $code_len then
             var bracket_count = 1
             while $bracket_count > 0 and $i > 0 then
                 $i = $i - 1
-                var ggchar = string.getchar($file_content, $i)
+                var ggchar = string.char_at($file_content, $i)
                 if $ggchar equ ']' then 
                     $bracket_count = $bracket_count + 1
                 elif $ggchar equ '[' then 

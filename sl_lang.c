@@ -33,6 +33,7 @@ main(int argc, char **argv)
 		exit(-1);
 	}
 
+
 	if (sl_close_sl_process(&sl_code) == -1) {
 		fprintf(stderr, "close_sl_process failed.");
 		return -1;
