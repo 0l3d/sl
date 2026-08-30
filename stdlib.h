@@ -181,20 +181,20 @@ file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "File not found!";
 		return return_var;
 	}
-	size_t len = strlen(second_arg.vals);
-    
+	size_t          len = strlen(second_arg.vals);
+
 	if (fwrite(second_arg.vals, 1, len, file_open) != len) {
-        fclose(file_open);
+		fclose(file_open);
 
-        return_var.type = ERROR;
-        return_var.vals = "Could not write to file!";
-        return return_var;
-    }
+		return_var.type = ERROR;
+		return_var.vals = "Could not write to file!";
+		return return_var;
+	}
 
-    fclose(file_open);
+	fclose(file_open);
 
-    return_var.type = STRING;
-    return_var.vals = strdup(second_arg.vals);
+	return_var.type = STRING;
+	return_var.vals = strdup(second_arg.vals);
 
 	return return_var;
 }
@@ -216,20 +216,20 @@ file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "File not found!";
 		return return_var;
 	}
-	size_t len = strlen(second_arg.vals);
-    
+	size_t          len = strlen(second_arg.vals);
+
 	if (fwrite(second_arg.vals, 1, len, file_open) != len) {
-        fclose(file_open);
+		fclose(file_open);
 
-        return_var.type = ERROR;
-        return_var.vals = "Could not write to file!";
-        return return_var;
-    }
+		return_var.type = ERROR;
+		return_var.vals = "Could not write to file!";
+		return return_var;
+	}
 
-    fclose(file_open);
+	fclose(file_open);
 
-    return_var.type = STRING;
-    return_var.vals = strdup(second_arg.vals);
+	return_var.type = STRING;
+	return_var.vals = strdup(second_arg.vals);
 
 	return return_var;
 }
@@ -539,7 +539,7 @@ errors_panic_fn(struct SL_Code *code, struct SL_L_Function func)
 	if (first_arg.type == ERROR) {
 		printf("Program panicked with error: %s\n", first_arg.vals);
 		exit(-1);
-	} 	
+	}
 	return first_arg;
 }
 
@@ -701,10 +701,10 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "List buffer overflow!";
 		return return_var;
 	}
-	
+
 
 	struct SL_List *list = &LISTS[first_arg.vali];
-	
+
 	if (list->size <= 0) {
 		return_var.type = ERROR;
 		return_var.vals = "List buffer underflow";
@@ -717,18 +717,19 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		return return_var;
 	}
 	struct SL_Variable ret = sl_copy_variable(list->vars[list->size - 1]);
-	
+
 	if (list->vars[list->size - 1].name != NULL) {
 		free(list->vars[list->size - 1].name);
 		list->vars[list->size - 1].name = NULL;
 	}
-	
-	if ((list->vars[list->size - 1].type == STRING || list->vars[list->size - 1].type == RETURN) 
+
+	if ((list->vars[list->size - 1].type == STRING
+	     || list->vars[list->size - 1].type == RETURN)
 	    && list->vars[list->size - 1].vals != NULL) {
 		free(list->vars[list->size - 1].vals);
 		list->vars[list->size - 1].vals = NULL;
 	}
-	
+
 	list->size--;
 	return ret;
 }
@@ -757,10 +758,10 @@ List_peek_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "List buffer overflow!";
 		return return_var;
 	}
-	
+
 
 	struct SL_List *list = &LISTS[first_arg.vali];
-	
+
 	if (list->size <= 0) {
 		return_var.type = ERROR;
 		return_var.vals = "List buffer underflow";
@@ -909,15 +910,15 @@ List_len_fn(struct SL_Code *code, struct SL_L_Function func)
 	return return_var;
 }
 
-int used_io = 0;
-int used_file = 0;
-int used_types = 0; 
-int used_sys = 0; 
-int used_string = 0;
-int used_errors = 0;
-int used_list = 0; 
-int used_extra = 0;
-int used_fast = 0;
+int             used_io = 0;
+int             used_file = 0;
+int             used_types = 0;
+int             used_sys = 0;
+int             used_string = 0;
+int             used_errors = 0;
+int             used_list = 0;
+int             used_extra = 0;
+int             used_fast = 0;
 
 
 struct SL_Variable
@@ -931,49 +932,66 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 	}
 	for (int i = 0; i < func.total_arguments; i++) {
 		struct SL_Variable lib = sl_get_argument(*code, func, i);
-		char           *libstr =
-					sl_string_getter(lib.vals);
+		char           *libstr = sl_string_getter(lib.vals);
 
 		if (strcmp(libstr, "io") == 0 && used_io == 0) {
 			used_io = 1;
 			sl_add_func(use_code, "io.print", print_fn);
 			sl_add_func(use_code, "io.input", input_fn);
-		} else if (strcmp(libstr, "file") == 0 && used_file == 0) {
+		}
+		else if (strcmp(libstr, "file") == 0 && used_file == 0) {
 			used_file = 1;
-			sl_add_func(use_code, "file.read_to_str", file_read_to_str_fn);
-			sl_add_func(use_code, "file.write_to_str", file_write_from_str_fn);
-			sl_add_func(use_code, "file.append_to_str", file_append_from_str_fn);
-		} else if (strcmp(libstr, "types") == 0 && used_types == 0) {
+			sl_add_func(use_code, "file.read_to_str",
+				    file_read_to_str_fn);
+			sl_add_func(use_code, "file.write_to_str",
+				    file_write_from_str_fn);
+			sl_add_func(use_code, "file.append_to_str",
+				    file_append_from_str_fn);
+		}
+		else if (strcmp(libstr, "types") == 0 && used_types == 0) {
 			used_types = 1;
 
 			// CONVERT
-			sl_add_func(use_code, "types.str_to_int", str_to_int_fn);
-			sl_add_func(use_code, "types.int_to_char", int_to_char_fn);
-			sl_add_func(use_code, "types.char_to_int", char_to_int_fn);
+			sl_add_func(use_code, "types.str_to_int",
+				    str_to_int_fn);
+			sl_add_func(use_code, "types.int_to_char",
+				    int_to_char_fn);
+			sl_add_func(use_code, "types.char_to_int",
+				    char_to_int_fn);
 
-			
+
 			// TYPE CHECK
 			sl_add_func(use_code, "types.is_int", is_int_fn);
 			sl_add_func(use_code, "types.is_char", is_char_fn);
-			sl_add_func(use_code, "types.is_string", is_string_fn);
-			sl_add_func(use_code, "types.is_double", is_double_fn);
-			sl_add_func(use_code, "types.is_not_initialized", is_not_initialized_fn);
+			sl_add_func(use_code, "types.is_string",
+				    is_string_fn);
+			sl_add_func(use_code, "types.is_double",
+				    is_double_fn);
+			sl_add_func(use_code, "types.is_not_initialized",
+				    is_not_initialized_fn);
 			sl_add_func(use_code, "types.typeof", typeof_fn);
-		} else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
+		}
+		else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
 			used_sys = 1;
 			sl_add_func(use_code, "sys.get_arg", sys_get_arg_fn);
 			sl_add_func(use_code, "sys.getchar", sys_getchar_fn);
 			sl_add_func(use_code, "sys.exit", sys_exit_fn);
-		} else if (strcmp(libstr, "errors") == 0 && used_errors == 0)  {
+		}
+		else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
 			used_errors = 1;
-			sl_add_func(use_code, "errors.string", errors_string_fn);
+			sl_add_func(use_code, "errors.string",
+				    errors_string_fn);
 			sl_add_func(use_code, "errors.bool", errors_bool_fn);
-			sl_add_func(use_code, "errors.panic", errors_panic_fn);
-		} else if (strcmp(libstr, "string") == 0 && used_string == 0)  {
+			sl_add_func(use_code, "errors.panic",
+				    errors_panic_fn);
+		}
+		else if (strcmp(libstr, "string") == 0 && used_string == 0) {
 			used_string = 1;
-			sl_add_func(use_code, "string.char_at", string_charat_fn);
+			sl_add_func(use_code, "string.char_at",
+				    string_charat_fn);
 			sl_add_func(use_code, "string.len", string_len_fn);
-		} else if (strcmp(libstr, "list") == 0 && used_list == 0) {
+		}
+		else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;
 			sl_add_func(use_code, "List.new", List_new_fn);
 			sl_add_func(use_code, "List.push", List_push_fn);
@@ -982,14 +1000,16 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			sl_add_func(use_code, "List.set", List_set_fn);
 			sl_add_func(use_code, "List.get", List_get_fn);
 			sl_add_func(use_code, "List.len", List_len_fn);
-		} else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
+		}
+		else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
 			used_extra = 1;
 			sl_add_func(use_code, "rand.random", random_fn);
-		} else {
+		}
+		else {
 			fprintf(stderr, "Unknown library: %s\n", libstr);
 			exit(-1);
 		}
-		
+
 		free(libstr);
 	}
 
@@ -1007,7 +1027,7 @@ init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
 	argcN = argc;
 	LISTS = calloc(SL_INIT, sizeof(struct SL_List));
 	use_code = sl_code;
-	sl_add_func(sl_code, "use", use_fn);	
+	sl_add_func(sl_code, "use", use_fn);
 }
 
 
