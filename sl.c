@@ -140,13 +140,28 @@ LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 				(*bufout)[token_count++] = word;
 				continue;
 			}
-			if (lexer_special_tokens_ex(special_tokens, *p) > 0) {
+			switch (*p) {
+				#define SPECIAL_TOKENS "()+-/*%^&|=<>,"
+				case '(':
+				case ')':
+				case '+':
+				case '-':
+				case '/':
+				case '%':
+				case '^':
+				case '&':
+				case '|':
+				case '=':
+				case '<':
+				case '>':
+				case ',': {
 				char           *pot = malloc(2);
 				pot[0] = *p;
 				pot[1] = '\0';
 				(*bufout)[token_count++] = pot;
 				p++;
 				continue;
+						  }
 			}
 			const char     *word_start = p;
 			while (*p && !isspace(*p) &&
@@ -312,25 +327,26 @@ sl_string_getter(char *word)
 enum SL_Types
 type_analyzer(char *word)
 {
+	int check_num = check_number(word);
 	if (string_checker(word) == 1) {
 		return STRING;
 	}
 	else if (word[0] == '0' && word[1] == 'x') {
 		return LONG;
 	}
-	else if (check_number(word) == 1) {
+	else if (check_num == 1) {
 		return INTEGER;
 	}
-	else if (check_number(word) == 2) {
+	else if (check_num == 2) {
 		return DOUBLE;
 	}
 	else if (strcmp(word, "false") == 0 || strcmp(word, "true") == 0) {
 		return BOOLEAN;
 	}
-	else if (strchr(word, '\'')) {
+	else if (word[0] == '\'') {
 		return CHAR;
 	}
-	else if (check_number(word) == 0 && string_checker(word) != 1) {
+	else if (check_num  == 0 && string_checker(word) != 1) {
 		return RETURN;
 	}
 	return -1;
@@ -341,29 +357,30 @@ sl_word_to_var_converter(char *word)
 {
 	struct SL_Variable v = { 0 };
 	v.type = type_analyzer(word);
-	if (v.type == INTEGER) {
+	switch (v.type) {
+		case INTEGER:
 		v.vali = atoi(word);
-	}
-	else if (v.type == DOUBLE) {
+		break;
+	case DOUBLE:
 		v.valf = strtod(word, NULL);
-	}
-	else if (v.type == STRING) {
+		break;
+	case STRING:
 		v.vals = strdup(word);
-	}
-	else if (v.type == BOOLEAN) {
-		if (strcmp(word, "false") == 0)
+		break;
+	case BOOLEAN:
+		if (word[0] == 'f')
 			v.valb = 0;
-		if (strcmp(word, "true") == 0)
+		if (word[0] == 't')
 			v.valb = 1;
-	}
-	else if (v.type == CHAR) {
+		break;
+	case CHAR:
 		v.valc = word[1];
-	}
-	else if (v.type == RETURN) {
+		break;
+	case RETURN:
 		v.type = RETURN;
 		v.vals = strdup(word);
-	}
-	else if (v.type == LONG) {
+		break;
+	case LONG: {
 		int             base = 0;
 		if (word[0] == '0') {
 			switch (word[1]) {
@@ -378,6 +395,10 @@ sl_word_to_var_converter(char *word)
 			}
 		}
 		v.valh = strtol(word, NULL, base);
+			   }
+		break;
+	default:
+		break;
 	}
 	return v;
 }
@@ -457,7 +478,7 @@ sl_get_func(struct SL_Code code, const char *name)
 struct SL_Variable
 expression_solver(struct SL_Variable left_side, char op,
 		  struct SL_Variable right_side,
-		  int current_line, char *op_str, int is_op_str)
+		  int current_line, enum TokenTypes op_type, int is_op_type)
 {
 
 	if ((left_side.type == DOUBLE && right_side.type == INTEGER) ||
@@ -476,7 +497,7 @@ expression_solver(struct SL_Variable left_side, char op,
 	struct SL_Variable expression_result = { 0 };
 	expression_result.type = left_side.type;
 
-	if (is_op_str != 1) {
+	if (is_op_type != 1) {
 		switch (op) {
 		case '+':
 			switch (left_side.type) {
@@ -818,7 +839,8 @@ expression_solver(struct SL_Variable left_side, char op,
 		}
 	}
 	else {
-		if (strcmp(op_str, ">>") == 0) {
+		switch(op_type) {
+		case T_SHRIGHT:
 			switch (left_side.type) {
 			case INTEGER:
 				expression_result.vali =
@@ -850,8 +872,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "<<") == 0) {
+			break;
+		case T_SHLEFT:
 			switch (left_side.type) {
 			case INTEGER:
 				expression_result.vali =
@@ -885,8 +907,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "and") == 0) {
+			break;
+		case T_AND:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -917,8 +939,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "or") == 0) {
+			break;
+		case T_OR:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -949,8 +971,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "equ") == 0) {
+			break;
+		case T_EQU:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -982,8 +1004,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "neq") == 0) {
+			break;
+		case T_NEQ:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -1015,8 +1037,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "eqg") == 0) {
+			break;
+		case T_EQG:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -1052,8 +1074,8 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
-		}
-		else if (strcmp(op_str, "eql") == 0) {
+			break;
+		case T_EQL:
 			expression_result.type = BOOLEAN;
 			switch (left_side.type) {
 			case INTEGER:
@@ -1087,6 +1109,9 @@ expression_solver(struct SL_Variable left_side, char op,
 			default:
 				break;
 			}
+			break;
+		default:
+			break;
 		}
 	}
 	return expression_result;
@@ -1095,9 +1120,9 @@ expression_solver(struct SL_Variable left_side, char op,
 struct SL_Math_Splitter
 {
 	char            op;
-	char           *op_str;
-	int             is_op_str;
+	int             is_op_type;
 	int             op_pos;
+	enum TokenTypes op_type;
 };
 
 int             operator_checker(char *expressions[], enum TokenTypes *types,
@@ -1113,10 +1138,7 @@ is_it_function_or_not(char **tokens, enum TokenTypes *types,
 
 	int             depth = 0;
 
-	if (tokens[current_token + 1][0] == '('
-	    &&
-	    operator_checker(tokens, types, current_token + 1,
-			     current_token + 2) == 0) {
+	if (tokens[current_token + 1][0] == '(') {
 		for (int i = current_token + 2; i < max_tokens; i++) {
 			if (tokens[i][0] == '(')
 				depth++;
@@ -1169,20 +1191,20 @@ operator_checker(char *expressions[], enum TokenTypes *types, int start,
 }
 
 int
-prec_priority(char op, char *op_str, int is_op_str)
+prec_priority(char op, enum TokenTypes op_type, int is_op_type)
 {
-	if (is_op_str == 1) {
-		if (strcmp(op_str, ">>") == 0 || strcmp(op_str, "<<") == 0) {
+	if (is_op_type == 1) {
+		if (op_type == T_SHRIGHT || op_type == T_SHLEFT) {
 			return 6;
 		}
-		else if (strcmp(op_str, "equ") == 0
-			 || strcmp(op_str, "eql") == 0
-			 || strcmp(op_str, "neq") == 0
-			 || strcmp(op_str, "eqg") == 0) {
-			return 2;
+		else if (op_type == T_EQU ||
+			    op_type == T_EQG ||
+			    op_type == T_EQL ||
+			    op_type == T_NEQ){
+				return 2;
 		}
-		else if (strcmp(op_str, "and") == 0
-			 || strcmp(op_str, "or") == 0) {
+		else if (op_type == T_AND
+			 || op_type == T_OR) {
 			return 1;
 		}
 	}
@@ -1258,56 +1280,66 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
 			current_token++;
 			continue;
 		}
-		int             op_str = 0;
-		char           *op_string = NULL;
+		enum TokenTypes op_type;
+		int optype = 0;
 		char            op = expression[current_token][0];
-		if (strlen(expression[current_token]) > 1) {
-			op_str = 1;
-			op_string = strdup(expression[current_token]);
+
+		switch (types[current_token]) {
+			case    T_UNKNOWN:
+			case    T_IF:
+			case    T_DEF:
+			case    T_WHILE:
+			case    T_THEN:
+			case    T_END:
+			case    T_VAR:
+			case    T_ELSE:
+			case    T_ELIF:
+			case    T_IMPORT:
+			case    T_BREAK:
+			case    T_CONTINUE:
+			case    T_RETURN:
+				break;
+			case    T_EQU:
+			case    T_NEQ:
+			case    T_EQG:
+			case    T_EQL:
+			case    T_AND:
+			case    T_OR:
+			case    T_SHLEFT:
+			case    T_SHRIGHT:
+				op_type = types[current_token];
+				optype = 1;
+				break;
 		}
 
 		int             op_prec =
-			prec_priority(op, op_string, op_str);
+			prec_priority(op, op_type, optype);
 		if (op_prec != 0) {
 			if (tree.op == 0) {
 				tree.op = op;
-				if (op_string != NULL) {
-					if (tree.op_str != NULL)
-						free(tree.op_str);
-					tree.op_str = strdup(op_string);
-					tree.is_op_str = 1;
-				}
-				else {
-					if (tree.op_str != NULL)
-						free(tree.op_str);
-					tree.op_str = NULL;
-					tree.is_op_str = 0;
+				if (optype == 1) {
+					tree.op_type = op_type;
+					tree.is_op_type = 1;
+				} else {
+					tree.is_op_type = 0;
 				}
 				tree.op_pos = current_token;
 			}
 			if (op_prec <=
-			    prec_priority(tree.op, tree.op_str,
-					  tree.is_op_str)
+			    prec_priority(tree.op, tree.op_type,
+					  tree.is_op_type)
 			    && op_prec != 0) {
 				tree.op = op;
 
-				if (op_string != NULL) {
-					if (tree.op_str != NULL)
-						free(tree.op_str);
-					tree.op_str = strdup(op_string);
-					tree.is_op_str = 1;
-				}
-				else {
-					if (tree.op_str != NULL)
-						free(tree.op_str);
-					tree.op_str = NULL;
-					tree.is_op_str = 0;
+				if (optype == 1) {
+					tree.op_type = op_type;
+					tree.is_op_type = 1;
+				} else {
+					tree.is_op_type = 0;
 				}
 				tree.op_pos = current_token;
 			}
 		}
-		if (op_str == 1)
-			free(op_string);
 		current_token++;
 	}
 	return tree;
@@ -1383,16 +1415,14 @@ run_sl_function(struct SL_Code code, char *name,
 
 	int             function_number = -1;
 	struct SL_Variable return_val;
+	char           *rawfunc = get_raw_function_name(name);
 	for (int i = 0; i < code.total_funcs; i++) {
-		char           *rawfunc = get_raw_function_name(name);
 		if (strcmp(code.funcs[i].name, rawfunc) == 0) {
 			function_number = i;
-			free(rawfunc);
 			break;
 		}
-		free(rawfunc);
 	}
-
+	free(rawfunc);
 	if (function_number == -1) {
 		return_val.type = ERROR;
 		return_val.vali = 0;
@@ -1705,10 +1735,6 @@ expression_parser_solver(struct SL_Code code_s,
 
 		}
 		*current_token = max_tokens;
-		if (tree.op_str != NULL) {
-			free(tree.op_str);
-			tree.op_str = NULL;
-		}
 		return result;
 	}
 
@@ -1912,11 +1938,7 @@ expression_parser_solver(struct SL_Code code_s,
 	}
 
 	result = expression_solver(left, tree.op, right, current_line,
-				   tree.op_str, tree.is_op_str);
-	if (tree.op_str != NULL) {
-		free(tree.op_str);
-		tree.op_str = NULL;
-	}
+				   tree.op_type, tree.is_op_type);
 	if (result.type == ERROR) {
 			sl_throw_an_error(code_s, expression, old_curr, max_tokens, 
                   "Mathematical or logical operation error. (Type mismatch or invalid operation)", 
@@ -2344,7 +2366,13 @@ identifier_tokenizer(struct SL_Code *code)
 		}
 		else if (strcmp(code->code[i], "or") == 0) {
 			code->types[i] = T_OR;
+		} else if (strcmp(code->code[i], "<<") == 0) {
+			code->types[i] = T_SHLEFT;
 		}
+		else if (strcmp(code->code[i], ">>") == 0) {
+			code->types[i] = T_SHRIGHT;
+		}
+
 	}
 }
 
@@ -2363,6 +2391,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 	int             brk_sit = 0;
 	int             depth = 0;
 	identifier_tokenizer(code_s);
+	int             max_tokens = code_s->token_count;
 	for (int current_token = 0; current_token < code_s->token_count;
 	     current_token++) {
 		if (while_sit == 1) {
@@ -2378,12 +2407,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			}
 		}
 
-		int             max_tokens = 0;
-		int             end =
-			find_maxt_expr(code_s->code, code_s->types,
-				       current_token,
-				       code_s->token_count);
-
+		int             end = 0;
 
 		if (code_s->types[current_token] == T_VAR) {
 			for (int i = current_token; i < code_s->token_count;
@@ -2580,7 +2604,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 		else if (code_s->types[current_token] == T_CONTINUE) {
 			if (while_sit != 1)
 				sl_throw_an_error(*code_s, code_s->code,
-						  current_token, end,
+						  current_token, code_s->token_count,
 						  "CONTINUE USAGE WITHOUT LOOP",
 						  "Expected: define a loop first.");
 			current_token =
@@ -2590,7 +2614,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 		else if (code_s->types[current_token] == T_BREAK) {
 			if (while_sit != 1)
 				sl_throw_an_error(*code_s, code_s->code,
-						  current_token, end,
+						  current_token, code_s->token_count,
 						  "BREAK USAGE WITHOUT LOOP",
 						  "Expected: define a loop first.");
 			current_token = while_loop.end[--while_loop.depth];
@@ -2616,7 +2640,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 		else if (code_s->types[current_token] == T_IMPORT) {
 			if (!code_s->code[current_token + 1]) {
 				sl_throw_an_error(*code_s, code_s->code,
-						  current_token, end,
+						  current_token, code_s->token_count,
 						  "UNEXPECTED IMPORT SYNTAX!",
 						  "Expected: import <file_name> (without string literal!)");
 				exit(-1);
@@ -2727,6 +2751,11 @@ sl_init_sl_parser(struct SL_Code *code_s)
 				}
 			}
 			else {
+				end =			find_maxt_expr(code_s->code, code_s->types,
+				       current_token,
+				       code_s->token_count);
+
+
 				struct SL_Variable result =
 					expression_parser_solver(*code_s,
 								 code_s->code,

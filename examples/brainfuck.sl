@@ -2,19 +2,20 @@
 # https://github.com/0l3d/brainsuck
 use("io", "file", "types", "sys", "errors", "string", "list")
 
-var file_name = ?(sys.get_arg(2))
-var file_content = ?(file.read_to_str($file_name))
+var file_name = sys.get_arg(2)
+errors.panic($file_name)
+var file_content = file.read_to_str($file_name)
 
-var memory = ?(List.new(30000)) # Memory Array
+var memory = List.new(30000) # Memory Array
 var where_is = 0
 
 def suck_in then 
-    ?(List.set($memory, $where_is, (?(List.get($memory, $where_is)) + 1) % 256))
+    List.set($memory, $where_is, (List.get($memory, $where_is) + 1) % 256)
 end
 
 
 def suck_de then 
-    ?(List.set($memory, $where_is, (?(List.get($memory, $where_is)) - 1) % 256))
+    List.set($memory, $where_is, (List.get($memory, $where_is) - 1) % 256)
 end
 
 def suck_move_right then 
@@ -31,18 +32,18 @@ end
 
 
 def get_current then
-    return ?(List.get($memory, $where_is))
+    return List.get($memory, $where_is)
 end
 
 def set_data -> data then
-    ?(List.set($memory, $where_is, $data))
+    List.set($memory, $where_is, $data)
 end
 
 
 var i = 0
 var code_len = string.len($file_content)
 while $i < $code_len then
-    var gchar = string.getchar($file_content, $i)
+    var gchar = string.char_at($file_content, $i)
     if $gchar equ '+' then
         suck_in()
     elif $gchar equ '-' then

@@ -968,7 +968,7 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_errors = 1;
 			sl_add_func(use_code, "errors.string", errors_string_fn);
 			sl_add_func(use_code, "errors.bool", errors_bool_fn);
-			sl_add_func(use_code, "?", errors_panic_fn);
+			sl_add_func(use_code, "errors.panic", errors_panic_fn);
 		} else if (strcmp(libstr, "string") == 0 && used_string == 0)  {
 			used_string = 1;
 			sl_add_func(use_code, "string.char_at", string_charat_fn);
@@ -986,7 +986,7 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_extra = 1;
 			sl_add_func(use_code, "rand.random", random_fn);
 		} else {
-			fprintf(stderr, "Unknown library.");
+			fprintf(stderr, "Unknown library: %s\n", libstr);
 			exit(-1);
 		}
 		
@@ -1007,7 +1007,7 @@ init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
 	argcN = argc;
 	LISTS = calloc(SL_INIT, sizeof(struct SL_List));
 	use_code = sl_code;
-	sl_add_func(sl_code, "use", use_fn);
+	sl_add_func(sl_code, "use", use_fn);	
 }
 
 

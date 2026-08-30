@@ -57,6 +57,8 @@ enum TokenTypes {
     T_EQL,
     T_AND,
     T_OR,
+    T_SHLEFT,
+    T_SHRIGHT,
 };
 
 struct SL_Code
