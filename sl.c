@@ -2079,6 +2079,11 @@ assignment_parser(struct SL_Code code_s, char *tokens[],
 			expression_parser_solver(code_s, tokens, types,
 						 &last_pos_ptr_expr_start,
 						 max_tokens, current_line);
+
+		if ((code_s.vars[index].type == STRING || code_s.vars[index].type == RETURN) && code_s.vars[index].vals != NULL) {
+			free(code_s.vars[index].vals);
+		}
+
 		eq_value.name = code_s.vars[index].name;
 		code_s.vars[index] = eq_value;
 		if (is_has_token("=", tokens, *current_token, last_pos) == 1) {
@@ -2366,7 +2371,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 				    current_token)
 					current_token =
 						while_loop.back_pos
-						[--while_loop.depth];
+						[while_loop.depth - 1];
 			}
 			if (while_loop.depth == 0) {
 				while_sit = 0;
@@ -2534,39 +2539,41 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     current_token,
 					     code_s->token_count, 0);
 
-			if (out_boolean.valb == 0) {
-				current_token =
-					sl_find_end(code_s->code,
-						    code_s->types,
-						    current_token,
-						    code_s->token_count, 0);
+			if (out_boolean.valb == 0) { 
+				if (while_loop.depth > 0 && while_loop.back_pos[while_loop.depth - 1] == currpos) {
+					current_token = while_loop.end[--while_loop.depth];
+				}
+				else {
+					current_token =
+						sl_find_end(code_s->code,
+							    code_s->types,
+						    	currpos,
+						    	code_s->token_count, 0);
+				}
 			}
 			else {
-				while_loop.back_pos[while_loop.depth] =
-					currpos;
+				if (while_loop.depth == 0 || while_loop.back_pos[while_loop.depth - 1] != currpos) {
+ 
+					while_loop.back_pos[while_loop.depth] =
+						currpos;
 
-				int             end =
-					sl_find_end(code_s->code,
-						    code_s->types,
-						    current_token,
-						    code_s->token_count, 0);
+					int             end =
+						sl_find_end(code_s->code,
+						   		code_s->types,
+							    current_token,
+							    code_s->token_count, 0);
 
-				if (end == -1) {
-					sl_throw_an_error(*code_s,
-							  code_s->code,
-							  current_token,
-							  code_s->token_count,
-							  "END NOT FOUND END OF THE WHILE",
-							  "Expected: while <expr> then <code> end");
+					if (end == -1) {
+						sl_throw_an_error(*code_s,
+							  	code_s->code,
+							  	current_token,
+								  code_s->token_count,
+								  "END NOT FOUND END OF THE WHILE",
+								  "Expected: while <expr> then <code> end");
 
+					}
+					while_loop.end[while_loop.depth++] = end;
 				}
-				while_loop.end[while_loop.depth++] =
-					sl_find_end(code_s->code,
-						    code_s->types,
-						    current_token,
-						    code_s->token_count, 0);
-
-
 				while_sit = 1;
 			}
 		}
