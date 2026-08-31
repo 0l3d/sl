@@ -2452,7 +2452,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					current_token =
 						sl_find_end(code_s->code,
 							    code_s->types,
-							    currpos,
+							    current_token,
 							    code_s->token_count,
 							    0);
 				}

@@ -27,11 +27,96 @@ struct SL_List
 	struct SL_Variable *vars;
 	int             size;
 	int             fixed;
+	int 			current;
 };
 
 int             LISTS_count = 0;
 int             LISTS_capacity = SL_INIT;
 struct SL_List *LISTS = { 0 };
+
+
+int create_new_list(int capacity, int fixed) {
+	LISTS[LISTS_count].vars =
+		calloc(capacity, sizeof(struct SL_Variable));
+	LISTS[LISTS_count].capacity = capacity;
+	if (fixed == 1) {
+		LISTS[LISTS_count].fixed = 1;
+		LISTS[LISTS_count].size = capacity;
+		for (int i = 0; i < capacity; i++) {
+			LISTS[LISTS_count].vars[i].type = INTEGER;
+			LISTS[LISTS_count].vars[i].vali = 0;
+		}
+	} else {
+		LISTS[LISTS_count].size = 0;
+	}
+	int index = LISTS_count;
+	LISTS_count++;
+	return index;
+}
+
+int
+list_push(struct SL_List *list, struct SL_Variable value)
+{
+	if (list->size >= list->capacity) {
+		list->capacity =
+			(list->capacity == 0) ? 8 : list->capacity * 2;
+
+		list->vars =
+			realloc(list->vars,
+				list->capacity * sizeof(struct SL_Variable));
+	}
+
+	list->vars[list->size++] = sl_copy_variable(value);
+
+	return 1;
+}
+
+struct SL_Variable
+list_pop(struct SL_List *list)
+{
+	struct SL_Variable ret =
+		sl_copy_variable(list->vars[list->size - 1]);
+
+	if (list->vars[list->size - 1].name != NULL) {
+		free(list->vars[list->size - 1].name);
+		list->vars[list->size - 1].name = NULL;
+	}
+
+	if ((list->vars[list->size - 1].type == STRING
+	     || list->vars[list->size - 1].type == RETURN)
+	    && list->vars[list->size - 1].vals != NULL) {
+		free(list->vars[list->size - 1].vals);
+		list->vars[list->size - 1].vals = NULL;
+	}
+
+	list->size--;
+
+	return ret;
+}
+
+int
+list_set(struct SL_List *list, int index, struct SL_Variable value)
+{
+	if (index < 0 || index >= list->size)
+		return 0;
+
+	if ((list->vars[index].type == STRING
+	     || list->vars[index].type == RETURN)
+	    && list->vars[index].vals != NULL) {
+		free(list->vars[index].vals);
+		list->vars[index].vals = NULL;
+	}
+
+	if (list->vars[index].name != NULL) {
+		free(list->vars[index].name);
+		list->vars[index].name = NULL;
+	}
+
+	list->vars[index] = sl_copy_variable(value);
+
+	return 1;
+}
+
 
 // IO
 struct SL_Variable
@@ -59,7 +144,10 @@ print_fn(struct SL_Code *code, struct SL_L_Function func)
 
 			break;
 		case BOOLEAN:
-			printf("%d", return_var.valb);
+			if (return_var.valb == 1)
+				printf("true");
+			else if (return_var.valb == 0)
+				printf("false");
 			break;
 		case CHAR:
 			printf("%c", return_var.valc);
@@ -100,7 +188,10 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 
 			break;
 		case BOOLEAN:
-			printf("%d", return_var.valb);
+			if (return_var.valb == 1)
+				printf("true");
+			else if (return_var.valb == 0)
+				printf("false");
 			break;
 		case CHAR:
 			printf("%c", return_var.valc);
@@ -648,6 +739,7 @@ sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 
+
 // LISTS
 struct SL_Variable
 List_new_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -673,24 +765,8 @@ List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable return_var = { 0 };
 	int             capacity = first_arg.vali > 0 ? first_arg.vali : 1;
 
-	LISTS[LISTS_count].vars =
-		calloc(capacity, sizeof(struct SL_Variable));
-	LISTS[LISTS_count].capacity = capacity;
-	LISTS[LISTS_count].fixed = fixed;
-	if (fixed == 1) {
-		LISTS[LISTS_count].size = capacity;
-		for (int i = 0; i < capacity; i++) {
-			LISTS[LISTS_count].vars[i].type = INTEGER;
-			LISTS[LISTS_count].vars[i].vali = 0;
-		}
-	}
-	else {
-		LISTS[LISTS_count].size = 0;
-	}
-
 	return_var.type = INTEGER;
-	return_var.vali = LISTS_count;
-	LISTS_count++;
+	return_var.vali = create_new_list(capacity, fixed);
 
 	return return_var;
 }
@@ -729,18 +805,12 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 		return return_var;
 	}
 
-	if (list->size >= list->capacity) {
-		list->capacity =
-			(list->capacity == 0) ? 8 : list->capacity * 2;
-		list->vars =
-			realloc(list->vars,
-				list->capacity * sizeof(struct SL_Variable));
-	}
-	list->vars[list->size++] = sl_copy_variable(second_arg);
 	return_var.type = INTEGER;
-	return_var.vali = 1;
+	return_var.vali = list_push(list, second_arg);
+
 	return return_var;
 }
+
 
 struct SL_Variable
 List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -751,7 +821,9 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 
-	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable first_arg =
+		sl_get_argument(*code, func, 0);
+
 	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
@@ -767,7 +839,6 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		return return_var;
 	}
 
-
 	struct SL_List *list = &LISTS[first_arg.vali];
 
 	if (list->size <= 0) {
@@ -781,23 +852,10 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "List is fixed list!";
 		return return_var;
 	}
-	struct SL_Variable ret = sl_copy_variable(list->vars[list->size - 1]);
 
-	if (list->vars[list->size - 1].name != NULL) {
-		free(list->vars[list->size - 1].name);
-		list->vars[list->size - 1].name = NULL;
-	}
-
-	if ((list->vars[list->size - 1].type == STRING
-	     || list->vars[list->size - 1].type == RETURN)
-	    && list->vars[list->size - 1].vals != NULL) {
-		free(list->vars[list->size - 1].vals);
-		list->vars[list->size - 1].vals = NULL;
-	}
-
-	list->size--;
-	return ret;
+	return list_pop(list);
 }
+
 
 struct SL_Variable
 List_peek_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -853,9 +911,13 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 
-	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
-	struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+	struct SL_Variable first_arg =
+		sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg =
+		sl_get_argument(*code, func, 1);
+	struct SL_Variable third_arg =
+		sl_get_argument(*code, func, 2);
+
 	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
@@ -864,6 +926,7 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 			"Expected list_variable as the first argument to List.set.";
 		return return_var;
 	}
+
 	if (second_arg.type != INTEGER) {
 		return_var.type = ERROR;
 		return_var.vals =
@@ -879,28 +942,24 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 
 	struct SL_List *list = &LISTS[first_arg.vali];
 
-	if (second_arg.vali >= list->size || second_arg.vali < 0) {
+	if (second_arg.vali < 0 || second_arg.vali >= list->size) {
 		return_var.type = ERROR;
 		return_var.vals = "Buffer overflow on List element.";
 		return return_var;
 	}
-	if ((list->vars[second_arg.vali].type == STRING
-	     || list->vars[second_arg.vali].type == RETURN)
-	    && list->vars[second_arg.vali].vals != NULL) {
-		free(list->vars[second_arg.vali].vals);
-		list->vars[second_arg.vali].vals = NULL;
+
+	if (list_set(list, second_arg.vali, third_arg) == 0) {
+		return_var.type = ERROR;
+		return_var.vals = "Buffer overflow on List element.";
+		return return_var;
 	}
 
-	if (list->vars[second_arg.vali].name != NULL) {
-		free(list->vars[second_arg.vali].name);
-		list->vars[second_arg.vali].name = NULL;
-	}
-
-	list->vars[second_arg.vali] = sl_copy_variable(third_arg);
 	return_var.type = INTEGER;
 	return_var.vali = 1;
+
 	return return_var;
 }
+
 
 struct SL_Variable
 List_get_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -944,6 +1003,39 @@ List_get_fn(struct SL_Code *code, struct SL_L_Function func)
 
 	return sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
 }
+
+struct SL_Variable
+List_next_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at List.next! Not enough arguments.\n");
+		exit(-1);
+	}
+
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+
+	if (first_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected list_variable as the first argument to List.next.";
+		return return_var;
+	}
+
+	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
+	}
+
+	if (LISTS[first_arg.vali].current >= LISTS[first_arg.vali].size) {
+		LISTS[first_arg.vali].current = 0;
+	}
+
+	return sl_copy_variable(LISTS[first_arg.vali].vars[LISTS[first_arg.vali].current++]);
+}
+
 
 struct SL_Variable
 List_len_fn(struct SL_Code *code, struct SL_L_Function func)
@@ -1067,6 +1159,7 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			sl_add_func(use_code, "List.peek", List_peek_fn);
 			sl_add_func(use_code, "List.set", List_set_fn);
 			sl_add_func(use_code, "List.get", List_get_fn);
+			sl_add_func(use_code, "List.next", List_next_fn);
 			sl_add_func(use_code, "List.len", List_len_fn);
 		}
 		else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
