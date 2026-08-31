@@ -25,10 +25,10 @@ make
 
 ## Platform compatibility 
   
-sl.c and sl.h (the main library sources) are written in Standard C.  
+`sl.c` and `sl.h` (the main library sources) are written in Standard C.  
 (No POSIX, WinAPI, or other OS specific APIs are used.)  
   
-However, stdlib.h may change in the future, but I aim to implement it for as many operating systems as possible.  
+However, `stdlib.h` may change in the future, but I aim to implement it for as many operating systems as possible.  
   
 ## API 
 All API functions here:
