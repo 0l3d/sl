@@ -467,6 +467,71 @@ string_charat_fn(struct SL_Code *code, struct SL_L_Function func)
 	return return_var;
 }
 
+// STRING
+struct SL_Variable
+string_setcharat_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 2) {
+		fprintf(stderr,
+			"Error usage at string.char_at! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+	if (first_arg.type != STRING) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected string as the first argument to string.set_char_at.";
+		return return_var;
+	}
+
+	if (second_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected integer as the second argument to string.set_char_at.";
+		return return_var;
+	}
+
+	if (third_arg.type != CHAR) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected char as the second argument to string.set_char_at.";
+		return return_var;
+	}
+
+
+	int             len = strlen(first_arg.vals);
+
+	if (second_arg.vali >= len) {
+		return_var.type = ERROR;
+		return_var.vals = "Buffer overflow!";
+		return return_var;
+	}
+
+	if (second_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "Buffer underflow!";
+		return return_var;
+	}
+
+	return_var = sl_copy_variable(first_arg);
+	if (strchr(return_var.vals, '"')) {
+		char           *string =
+					sl_string_getter(return_var.vals);
+		string[second_arg.vali] = third_arg.valc;
+		return_var.vals = strdup(string);
+		free(string);
+	}
+	else
+		return_var.vals[second_arg.vali] = third_arg.valc;
+
+	return return_var;
+}
+
+
+
 struct SL_Variable
 string_len_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -990,6 +1055,9 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			sl_add_func(use_code, "string.char_at",
 				    string_charat_fn);
 			sl_add_func(use_code, "string.len", string_len_fn);
+			sl_add_func(use_code, "string.set_char_at",
+				    string_setcharat_fn);
+
 		}
 		else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;

@@ -204,7 +204,6 @@ LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 	return token_count;
 }
 
-
 int
 sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
 		 char *special_tokens)
@@ -1462,7 +1461,7 @@ sl_is_has_already_var(struct SL_Code code, char *name)
 struct SL_Variable
 run_sl_function(struct SL_Code code, char *name,
 		char **tokens, enum TokenTypes *types,
-		int current_token, int max_tokens, int *how_big_func)
+		int current_token, int max_tokens)
 {
 
 	int             function_number = -1;
@@ -1491,7 +1490,6 @@ run_sl_function(struct SL_Code code, char *name,
 		if (tokens[current_token + 1][0] != '(') {
 			return_val.type = ERROR;
 			return_val.vali = 1;
-			*how_big_func = current_token + 2;
 			return return_val;
 		}
 		if (tokens[current_token + 2][0] != ')') {
@@ -1510,27 +1508,17 @@ run_sl_function(struct SL_Code code, char *name,
 				if (commapos == -1) {
 					return_val.type = ERROR;
 					return_val.vali = 4;
-					(*how_big_func)++;
 					return return_val;
 				}
 				if (code.total_vars >= code.total_size_v) {
 					return_val.type = ERROR;
 					return_val.vali = 5;
-					(*how_big_func)++;
 					return return_val;
 				}
 				if (function.linked_function == 1) {
 					lfunc.argument_indexes
 						[lfunc.total_arguments]
 						= code.total_vars;
-					char           *function_name =
-						malloc(SL_INIT);
-					int             func_len =
-						strlen(function.name);
-					snprintf(function_name, SL_INIT,
-						 "%s_LINKED_ARG_%d",
-						 function.name,
-						 lfunc.total_arguments);
 					struct SL_Variable result =
 						expression_parser_solver(code,
 									 tokens,
@@ -1538,11 +1526,10 @@ run_sl_function(struct SL_Code code, char *name,
 									 &current_token,
 									 commapos,
 									 0);
-					code.vars[code.total_vars] = result;
-					code.vars[code.total_vars++].name =
-						strdup(function_name);
+
+					code.vars[code.total_vars] = result;					
+					code.vars[code.total_vars++].name = NULL;
 					free_tracker++;
-					free(function_name);
 					lfunc.total_arguments++;
 				}
 				else {
@@ -1595,7 +1582,6 @@ run_sl_function(struct SL_Code code, char *name,
 					}
 				}
 				current_token = commapos + 1;
-				*how_big_func = commapos + 1;
 				if (tokens[commapos][0] == ')') {
 					break;
 				}
@@ -1611,13 +1597,11 @@ run_sl_function(struct SL_Code code, char *name,
 			    && tokens[current_token + 1][0] == '('
 			    && tokens[current_token + 2][0] == ')') {
 				current_token += 2;
-				*how_big_func = current_token;
 				break;
 			}
 			else {
 				return_val.type = ERROR;
 				return_val.vali = 2;
-				*how_big_func = current_token + 1;
 				return return_val;
 			}
 		}
@@ -1651,6 +1635,93 @@ run_sl_function(struct SL_Code code, char *name,
 		free(lfunc.argument_indexes);
 
 	return return_val;
+}
+
+
+static struct SL_Variable
+resolve_variable(struct SL_Code code_s,
+                 char *expression[],
+                 enum TokenTypes *types,
+                 int current_token,
+                 int max_tokens,
+                 int old_curr) {
+    struct SL_Variable var = sl_word_to_var_converter(expression[current_token]);
+    if (var.type != RETURN)
+        return var;
+    if (var.vals[0] == '$') {
+        char *rawname = raw_var_name(var.vals);
+        int index = getvar_index_from_sl(code_s, rawname);
+        free(rawname);
+        free(var.vals);
+				if (index == -1) {
+					sl_throw_an_error(code_s,
+							  expression,
+							  old_curr,
+							  max_tokens,
+							  "VARIABLE NOT FOUND!",
+							  "Expected: Define a variable first.");
+				}
+				var = code_s.vars[index];
+        if ((var.type == STRING || var.type == RETURN) && var.vals)
+            var.vals = strdup(var.vals);
+        return var;
+    }
+    if (is_has_func(code_s, var.vals)) {
+        struct SL_Variable fn =
+            run_sl_function(code_s, var.vals,
+                            expression, types,
+                            current_token, max_tokens);
+        free(var.vals);
+        if (fn.type == ERROR) {
+            					if (fn.vali == 0)
+						sl_throw_an_error(code_s,
+								  expression,
+								  old_curr,
+								  max_tokens,
+								  "FUNCTION NOT FOUND!",
+								  "Expected: Create a function first.");
+					else if (fn.vali == 1)
+						sl_throw_an_error(code_s,
+								  expression,
+								  old_curr,
+								  max_tokens,
+								  "OPENING PARENTHESIS '(' NOT FOUND!",
+								  "Expected: <function_name>(<arguments?>)");
+					else if (fn.vali == 2)
+						sl_throw_an_error(code_s,
+								  expression,
+								  old_curr,
+								  max_tokens,
+								  "OPENING/CLOSING PARENTHESIS NOT FOUND!",
+								  "Expected: <function_name>()");
+					else if (fn.vali == 4)
+						sl_throw_an_error(code_s,
+								  expression,
+								  old_curr,
+								  max_tokens,
+								  "CLOSING PARENTHESIS ')' OR COMMA ',' NOT FOUND!",
+								  "Expected: <function_name>(<arguments?>, <arguments?>)");
+					else if (fn.vali == 5)
+						sl_throw_an_error(code_s,
+								  expression,
+								  old_curr,
+								  max_tokens,
+								  "STACK CALL OVERFLOW!",
+								  "Expected: Use less recursion or arguments (TIP: While loop is a good alternative!)");
+
+
+        }
+        return fn;
+    }
+
+	sl_throw_an_error(code_s,
+		expression,
+		old_curr,
+		max_tokens,
+		"FUNCTION OR VARIABLE NOT FOUND",
+		"Expected: define a function or variable first.");
+
+	return var;
 }
 
 struct SL_Variable
@@ -1699,94 +1770,7 @@ expression_parser_solver(struct SL_Code code_s,
 					   current_line);
 
 	if (tree.op == 0) {
-		result = sl_word_to_var_converter(expression[*current_token]);
-		if (result.type == RETURN) {
-			if (result.vals[0] == '$') {
-				char           *rawname =
-					raw_var_name(result.vals);
-				int             index =
-					getvar_index_from_sl(code_s, rawname);
-
-				if (result.vals != NULL)
-					free(result.vals);
-
-				if (index == -1) {
-					sl_throw_an_error(code_s,
-							  expression,
-							  old_curr,
-							  max_tokens,
-							  "VARIABLE NOT FOUND!",
-							  "Expected: Define a variable first.");
-				}
-				result = code_s.vars[index];
-				if ((result.type == STRING
-				     || result.type == RETURN)
-				    && result.vals != NULL) {
-					result.vals = strdup(result.vals);
-				}
-				free(rawname);
-			}
-			else if (is_has_func(code_s, result.vals) == 1) {
-				struct SL_Variable result_side_fn =
-					run_sl_function(code_s, result.vals,
-							expression, types,
-							*current_token,
-							max_tokens,
-							&how_big_func);
-				if (result_side_fn.type == ERROR) {
-					if (result_side_fn.vali == 0)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "FUNCTION NOT FOUND!",
-								  "Expected: Create a function first.");
-					else if (result_side_fn.vali == 1)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "OPENING PARENTHESIS '(' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>)");
-					else if (result_side_fn.vali == 2)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "OPENING/CLOSING PARENTHESIS NOT FOUND!",
-								  "Expected: <function_name>()");
-					else if (result_side_fn.vali == 4)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "CLOSING PARENTHESIS ')' OR COMMA ',' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>, <arguments?>)");
-					else if (result_side_fn.vali == 5)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "STACK CALL OVERFLOW!",
-								  "Expected: Use less recursion or arguments (TIP: While loop is a good alternative!)");
-
-				}
-				if (result.vals != NULL)
-					free(result.vals);
-				result = result_side_fn;
-			}
-			else {
-				sl_throw_an_error(code_s,
-						  expression,
-						  old_curr,
-						  max_tokens,
-						  "FUNCTION OR VARIABLE NOT FOUND",
-						  "Expected: define a function first.");
-
-
-			}
-
-		}
+		result = resolve_variable(code_s, expression, types, *current_token, max_tokens, old_curr);
 		*current_token = max_tokens;
 		return result;
 	}
@@ -1801,97 +1785,10 @@ expression_parser_solver(struct SL_Code code_s,
 						current_line);
 	}
 	else {
-		left = sl_word_to_var_converter(expression[left_pos_start]);
-		if (left.type == RETURN) {
-			if (left.vals[0] == '$') {
-				char           *rawname =
-					raw_var_name(left.vals);
-				int             index =
-					getvar_index_from_sl(code_s, rawname);
-				if (index == -1) {
-					sl_throw_an_error(code_s,
-							  expression,
-							  old_curr,
-							  max_tokens,
-							  "VARIABLE NOT FOUND!",
-							  "Expected: Define a variable first.");
-				}
-
-				if (left.vals != NULL)
-					free(left.vals);
-				left = code_s.vars[index];
-				if ((left.type == STRING
-				     || left.type == RETURN)
-				    && left.vals != NULL) {
-					left.vals = strdup(left.vals);
-				}
-				free(rawname);
-			}
-			else if (is_has_func(code_s, left.vals) == 1) {
-				struct SL_Variable left_side_fn =
-					run_sl_function(code_s, left.vals,
-							expression, types,
-							left_pos_start,
-							max_tokens,
-							&how_big_func);
-				if (left.type == ERROR) {
-					if (left.vali == 0)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "FUNCTION NOT FOUND!",
-								  "Expected: Create a function first.");
-					else if (left.vali == 1)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "CLOSING PARENTHESIS ')' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>)");
-					else if (left.vali == 2)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "OPENING/CLOSING PARENTHESIS NOT FOUND!",
-								  "Expected: <function_name>()");
-					else if (left.vali == 4)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "CLOSING PARENTHESIS ')' OR COMMA ',' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>, <arguments?>)");
-
-					else if (left.vali == 5)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "STACK CALL OVERFLOW!",
-								  "Expected: Use less recursion or arguments");
-
-
-
-				}
-				if (left.vals != NULL)
-					free(left.vals);
-				left = left_side_fn;
-			}
-			else {
-				sl_throw_an_error(code_s,
-						  expression,
-						  old_curr,
-						  max_tokens,
-						  "FUNCTION OR VARIABLE NOT FOUND",
-						  "Expected: define a function first.");
-
-
-			}
-
-
-		}
+		left = resolve_variable(
+		    code_s, expression, types,
+		    left_pos_start, left_pos_end, old_curr
+		);
 	}
 
 	int             right_pos_start = tree.op_pos + 1;
@@ -1903,91 +1800,11 @@ expression_parser_solver(struct SL_Code code_s,
 						 right_pos_end, current_line);
 	}
 	else {
-		right = sl_word_to_var_converter(expression[right_pos_start]);
-		if (right.type == RETURN) {
-			if (right.vals[0] == '$') {
-				char           *rawname =
-					raw_var_name(right.vals);
-				int             index =
-					getvar_index_from_sl(code_s, rawname);
-				if (index == -1) {
-					sl_throw_an_error(code_s,
-							  expression,
-							  old_curr,
-							  max_tokens,
-							  "VARIABLE NOT FOUND!",
-							  "Expected: Define a variable first.");
-				}
+		right = resolve_variable(
+    		code_s, expression, types,
+    		right_pos_start, right_pos_end, old_curr
+		);
 
-				if (right.vals != NULL)
-					free(right.vals);
-				right = code_s.vars[index];
-				if ((right.type == STRING
-				     || right.type == RETURN)
-				    && right.vals != NULL) {
-					right.vals = strdup(right.vals);
-				}
-				free(rawname);
-			}
-			else if (is_has_func(code_s, right.vals) == 1) {
-				struct SL_Variable right_side_fn =
-					run_sl_function(code_s, right.vals,
-							expression, types,
-							right_pos_start,
-							max_tokens,
-							&how_big_func);
-				if (right.type == ERROR) {
-					if (right.vali == 0)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "FUNCTION NOT FOUND!",
-								  "Expected: Create a function first.");
-					else if (right.vali == 1)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "CLOSING PARENTHESIS ')' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>)");
-					else if (right.vali == 2)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "OPENING/CLOSING PARENTHESIS NOT FOUND!",
-								  "Expected: <function_name>()");
-					else if (right.vali == 4)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "CLOSING PARENTHESIS ')' OR COMMA ',' NOT FOUND!",
-								  "Expected: <function_name>(<arguments?>, <arguments?>)");
-					else if (right.vali == 5)
-						sl_throw_an_error(code_s,
-								  expression,
-								  old_curr,
-								  max_tokens,
-								  "STACK CALL OVERFLOW!",
-								  "Expected: Use less recursion or arguments");
-				}
-				if (right.vals != NULL)
-					free(right.vals);
-				right = right_side_fn;
-			}
-			else {
-				sl_throw_an_error(code_s,
-						  expression,
-						  old_curr,
-						  max_tokens,
-						  "FUNCTION OR VARIABLE NOT FOUND",
-						  "Expected: define a function first.");
-
-			}
-
-		}
 	}
 
 	result = expression_solver(left, tree.op, right, current_line,
