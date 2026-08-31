@@ -1010,7 +1010,7 @@ List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
-			"Error usage at List.next! Not enough arguments.\n");
+			"Error usage at List.iter! Not enough arguments.\n");
 		exit(-1);
 	}
 
@@ -1020,7 +1020,7 @@ List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
 	if (first_arg.type != INTEGER) {
 		return_var.type = ERROR;
 		return_var.vals =
-			"Expected list_variable as the first argument to List.next.";
+			"Expected list_variable as the first argument to List.iter.";
 		return return_var;
 	}
 
@@ -1032,6 +1032,8 @@ List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
 
 	if (LISTS[first_arg.vali].current >= LISTS[first_arg.vali].size) {
 		LISTS[first_arg.vali].current = 0;
+		return_var.valb = 0;
+		return_var.type = BOOLEAN;
 	} else {
 		return_var.valb = 1;
 		return_var.type = BOOLEAN;
