@@ -1004,6 +1004,44 @@ List_get_fn(struct SL_Code *code, struct SL_L_Function func)
 	return sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
 }
 
+
+struct SL_Variable
+List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at List.next! Not enough arguments.\n");
+		exit(-1);
+	}
+
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+
+	if (first_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected list_variable as the first argument to List.next.";
+		return return_var;
+	}
+
+	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
+	}
+
+	if (LISTS[first_arg.vali].current >= LISTS[first_arg.vali].size) {
+		LISTS[first_arg.vali].current = 0;
+	} else {
+		return_var.valb = 1;
+		return_var.type = BOOLEAN;
+	}
+
+	return return_var;
+}
+
+
+
 struct SL_Variable
 List_next_fn(struct SL_Code *code, struct SL_L_Function func)
 {
@@ -1100,9 +1138,9 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_file = 1;
 			sl_add_func(use_code, "file.read_to_str",
 				    file_read_to_str_fn);
-			sl_add_func(use_code, "file.write_to_str",
+			sl_add_func(use_code, "file.write_from_str",
 				    file_write_from_str_fn);
-			sl_add_func(use_code, "file.append_to_str",
+			sl_add_func(use_code, "file.append_from_str",
 				    file_append_from_str_fn);
 		}
 		else if (strcmp(libstr, "types") == 0 && used_types == 0) {
@@ -1160,6 +1198,7 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			sl_add_func(use_code, "List.set", List_set_fn);
 			sl_add_func(use_code, "List.get", List_get_fn);
 			sl_add_func(use_code, "List.next", List_next_fn);
+			sl_add_func(use_code, "List.iter", List_iter_fn);
 			sl_add_func(use_code, "List.len", List_len_fn);
 		}
 		else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {

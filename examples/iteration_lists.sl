@@ -10,9 +10,8 @@ List.push($mylist, "Max")
 List.push($mylist, "Mary")
 List.push($mylist, "Barbara")
 
-
-var i = List.len($mylist)
-while $i > 0 then 
-    io.print(List.next($mylist), "\n")
-    $i = $i - 1
+while List.iter($mylist) then
+    if List.next($mylist) equ "Max" then 
+        io.print("I got Max Mayfield!\n")
+    end
 end
