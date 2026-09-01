@@ -28,7 +28,7 @@ struct SL_List
 	struct SL_Variable *vars;
 	int             size;
 	int             fixed;
-	int 			current;
+	int             current;
 };
 
 
@@ -37,7 +37,9 @@ int             LISTS_capacity = SL_INIT;
 struct SL_List *LISTS = { 0 };
 
 
-int create_new_list(int capacity, int fixed) {
+int
+create_new_list(int capacity, int fixed)
+{
 	LISTS[LISTS_count].vars =
 		calloc(capacity, sizeof(struct SL_Variable));
 	LISTS[LISTS_count].capacity = capacity;
@@ -48,10 +50,11 @@ int create_new_list(int capacity, int fixed) {
 			LISTS[LISTS_count].vars[i].type = INTEGER;
 			LISTS[LISTS_count].vars[i].vali = 0;
 		}
-	} else {
+	}
+	else {
 		LISTS[LISTS_count].size = 0;
 	}
-	int index = LISTS_count;
+	int             index = LISTS_count;
 	LISTS_count++;
 	return index;
 }
@@ -76,8 +79,7 @@ list_push(struct SL_List *list, struct SL_Variable value)
 struct SL_Variable
 list_pop(struct SL_List *list)
 {
-	struct SL_Variable ret =
-		sl_copy_variable(list->vars[list->size - 1]);
+	struct SL_Variable ret = sl_copy_variable(list->vars[list->size - 1]);
 
 	if (list->vars[list->size - 1].name != NULL) {
 		free(list->vars[list->size - 1].name);
@@ -122,27 +124,27 @@ list_set(struct SL_List *list, int index, struct SL_Variable value)
 int
 list_remove(struct SL_List *list, int index)
 {
-    if (index < 0 || index >= list->size)
-        return 0;
+	if (index < 0 || index >= list->size)
+		return 0;
 
-    if ((list->vars[index].type == STRING
-         || list->vars[index].type == RETURN)
-        && list->vars[index].vals != NULL) {
-        free(list->vars[index].vals);
-        list->vars[index].vals = NULL;
-    }
+	if ((list->vars[index].type == STRING
+	     || list->vars[index].type == RETURN)
+	    && list->vars[index].vals != NULL) {
+		free(list->vars[index].vals);
+		list->vars[index].vals = NULL;
+	}
 
-    if (list->vars[index].name != NULL) {
-        free(list->vars[index].name);
-        list->vars[index].name = NULL;
-    }
+	if (list->vars[index].name != NULL) {
+		free(list->vars[index].name);
+		list->vars[index].name = NULL;
+	}
 
-    for (int i = index; i < list->size - 1; i++) {
-        list->vars[i] = list->vars[i + 1];
-    }
+	for (int i = index; i < list->size - 1; i++) {
+		list->vars[i] = list->vars[i + 1];
+	}
 
-    list->size--;
-    return 1;
+	list->size--;
+	return 1;
 }
 
 // IO
@@ -159,16 +161,12 @@ print_fn(struct SL_Code *code, struct SL_L_Function func)
 		case DOUBLE:
 			printf("%f", return_var.valf);
 			break;
-		case STRING:
-			if (strchr(return_var.vals, '"')) {
+		case STRING:{
 				char           *string =
 					sl_string_getter(return_var.vals);
 				printf("%s", string);
 				free(string);
 			}
-			else
-				printf("%s", return_var.vals);
-
 			break;
 		case BOOLEAN:
 			if (return_var.valb == 1)
@@ -203,16 +201,12 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 		case DOUBLE:
 			printf("%f", return_var.valf);
 			break;
-		case STRING:
-			if (strchr(return_var.vals, '"')) {
+		case STRING:{
 				char           *string =
 					sl_string_getter(return_var.vals);
 				printf("%s", string);
 				free(string);
 			}
-			else
-				printf("%s", return_var.vals);
-
 			break;
 		case BOOLEAN:
 			if (return_var.valb == 1)
@@ -261,12 +255,8 @@ file_read_to_str_fn(struct SL_Code *code, struct SL_L_Function func)
 	}
 	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	char *file_name = strdup(first_arg.vals);
-	if (strchr(first_arg.vals, '"')) {
-			free(file_name);
-			file_name = sl_string_getter(first_arg.vals);
-	}
-	
+	char           *file_name = sl_string_getter(first_arg.vals);
+
 	FILE           *file_open = fopen(file_name, "r");
 	if (file_open == NULL) {
 		return_var.type = ERROR;
@@ -301,12 +291,8 @@ file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
-	char *file_name = strdup(first_arg.vals);
-	if (strchr(first_arg.vals, '"')) {
-			free(file_name);
-			file_name = sl_string_getter(first_arg.vals);
-	}
-	
+	char           *file_name = sl_string_getter(first_arg.vals);
+
 	FILE           *file_open = fopen(file_name, "w");
 	if (file_open == NULL) {
 		return_var.type = ERROR;
@@ -342,11 +328,8 @@ file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 	struct SL_Variable return_var = { 0 };
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
-	char *file_name = strdup(first_arg.vals);
-	if (strchr(first_arg.vals, '"')) {
-			free(file_name);
-			file_name = sl_string_getter(first_arg.vals);
-	}	
+	char           *file_name = sl_string_getter(first_arg.vals);
+
 	FILE           *file_open = fopen(file_name, "a");
 	if (file_open == NULL) {
 		return_var.type = ERROR;
@@ -565,13 +548,9 @@ is_digit_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	char *str = strdup(first_arg.vals);
-	if (strchr(str, '"')) {
-		free(str);
-		str = sl_string_getter(first_arg.vals);
-	}
-	
-	int len = strlen(str);
+	char           *str = sl_string_getter(first_arg.vals);
+
+	int             len = strlen(str);
 	struct SL_Variable return_var = { 0 };
 	return_var.type = BOOLEAN;
 	return_var.valb = 0;
@@ -580,7 +559,7 @@ is_digit_fn(struct SL_Code *code, struct SL_L_Function func)
 		if (!isdigit(str[i]))
 			return return_var;
 	}
-	
+
 	return_var.valb = 1;
 	return return_var;
 }
@@ -680,16 +659,13 @@ string_setcharat_fn(struct SL_Code *code, struct SL_L_Function func)
 		return return_var;
 	}
 	struct SL_Variable ref_var = sl_get_var(*use_code, first_arg.name);
-	if (strchr(ref_var.vals, '"')) {
-		char           *string =
-					sl_string_getter(ref_var.vals);
-		free(ref_var.vals);
-		string[second_arg.vali] = third_arg.valc;
-		ref_var.vals = strdup(string);
-		return_var.type = BOOLEAN;
-		return_var.valb = 1;
-		free(string);
-	}
+	char           *string = sl_string_getter(ref_var.vals);
+	free(ref_var.vals);
+	string[second_arg.vali] = third_arg.valc;
+	ref_var.vals = strdup(string);
+	return_var.type = BOOLEAN;
+	return_var.valb = 1;
+	free(string);
 	return return_var;
 }
 
@@ -740,22 +716,14 @@ string_split_fn(struct SL_Code *code, struct SL_L_Function func)
 			"Expected string as the second argument to string.split.";
 		return return_var;
 	}
-	char *splt_string = strdup(first_arg.vals);
-	if (strchr(first_arg.vals, '"')) {
-		free(splt_string);
-		splt_string = sl_string_getter(first_arg.vals);
-	}
+	char           *splt_string = sl_string_getter(first_arg.vals);
 
-	char *splt_token = strdup(second_arg.vals);
-	if (strchr(second_arg.vals, '"')) {
-		free(splt_token);
-		splt_token = sl_string_getter(second_arg.vals);
-	}
+	char           *splt_token = sl_string_getter(second_arg.vals);
 
 
-	int	listind = create_new_list(256, 0);
+	int             listind = create_new_list(256, 0);
 
-	char *tokenize = strtok(splt_string, splt_token);
+	char           *tokenize = strtok(splt_string, splt_token);
 	while (tokenize != NULL) {
 		struct SL_Variable push_val = { 0 };
 		push_val.vals = strdup(tokenize);
@@ -802,14 +770,15 @@ string_slice_fn(struct SL_Code *code, struct SL_L_Function func)
 			"Expected integer as the third argument to string.slice.";
 		return return_var;
 	}
-	char *raw_str = sl_string_getter(first_arg.vals);
-	int len = strlen(raw_str);
+	char           *raw_str = sl_string_getter(first_arg.vals);
+	int             len = strlen(raw_str);
 	if (len >= second_arg.vali || len > third_arg.vali || len < 0) {
 		return_var.type = ERROR;
 		return_var.vals = "Buffer over/underflow!";
 	}
-	char *result = malloc(len + 1);
-	strncpy(result, raw_str + second_arg.vali, third_arg.vali - second_arg.vali);
+	char           *result = malloc(len + 1);
+	strncpy(result, raw_str + second_arg.vali,
+		third_arg.vali - second_arg.vali);
 
 
 	free(raw_str);
@@ -980,7 +949,8 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 		return return_var;
 	}
 	for (int i = 1; i < func.total_arguments; i++) {
-		struct SL_Variable list_item = sl_get_argument(*code, func, i);
+		struct SL_Variable list_item =
+			sl_get_argument(*code, func, i);
 		return_var.type = INTEGER;
 		return_var.vali = list_push(list, list_item);
 	}
@@ -998,8 +968,7 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 
-	struct SL_Variable first_arg =
-		sl_get_argument(*code, func, 0);
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
 	struct SL_Variable return_var = { 0 };
 
@@ -1088,12 +1057,9 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 		exit(-1);
 	}
 
-	struct SL_Variable first_arg =
-		sl_get_argument(*code, func, 0);
-	struct SL_Variable second_arg =
-		sl_get_argument(*code, func, 1);
-	struct SL_Variable third_arg =
-		sl_get_argument(*code, func, 2);
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
 	struct SL_Variable return_var = { 0 };
 
@@ -1185,55 +1151,55 @@ List_get_fn(struct SL_Code *code, struct SL_L_Function func)
 struct SL_Variable
 List_remove_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-    if (func.total_arguments < 2) {
-        fprintf(stderr,
-            "Error usage at List.remove! Not enough arguments.\n");
-        exit(-1);
-    }
+	if (func.total_arguments < 2) {
+		fprintf(stderr,
+			"Error usage at List.remove! Not enough arguments.\n");
+		exit(-1);
+	}
 
-    struct SL_Variable return_var = { 0 };
-    struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-    struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
-    if (first_arg.type != INTEGER) {
-        return_var.type = ERROR;
-        return_var.vals =
-            "Expected list_variable as the first argument to List.remove.";
-        return return_var;
-    }
+	if (first_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected list_variable as the first argument to List.remove.";
+		return return_var;
+	}
 
-    if (second_arg.type != INTEGER) {
-        return_var.type = ERROR;
-        return_var.vals =
-            "Expected integer index as the second argument to List.remove.";
-        return return_var;
-    }
+	if (second_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected integer index as the second argument to List.remove.";
+		return return_var;
+	}
 
-    if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
-        return_var.type = ERROR;
-        return_var.vals = "List buffer overflow!";
-        return return_var;
-    }
+	if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "List buffer overflow!";
+		return return_var;
+	}
 
-    struct SL_List *list = &LISTS[first_arg.vali];
+	struct SL_List *list = &LISTS[first_arg.vali];
 
-    if (list->fixed == 1) {
-        return_var.type = ERROR;
-        return_var.vals = "List is fixed list!";
-        return return_var;
-    }
+	if (list->fixed == 1) {
+		return_var.type = ERROR;
+		return_var.vals = "List is fixed list!";
+		return return_var;
+	}
 
-    if (second_arg.vali < 0 || second_arg.vali >= list->size) {
-        return_var.type = ERROR;
-        return_var.vals = "Index out of bounds for List.remove!";
-        return return_var;
-    }
+	if (second_arg.vali < 0 || second_arg.vali >= list->size) {
+		return_var.type = ERROR;
+		return_var.vals = "Index out of bounds for List.remove!";
+		return return_var;
+	}
 
-    int success = list_remove(list, second_arg.vali);
+	int             success = list_remove(list, second_arg.vali);
 
-    return_var.type = BOOLEAN;
-    return_var.valb = success;
-    return return_var;
+	return_var.type = BOOLEAN;
+	return_var.valb = success;
+	return return_var;
 }
 
 struct SL_Variable
@@ -1265,7 +1231,8 @@ List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
 		LISTS[first_arg.vali].current = 0;
 		return_var.valb = 0;
 		return_var.type = BOOLEAN;
-	} else {
+	}
+	else {
 		return_var.valb = 1;
 		return_var.type = BOOLEAN;
 	}
@@ -1304,7 +1271,8 @@ List_next_fn(struct SL_Code *code, struct SL_L_Function func)
 		LISTS[first_arg.vali].current = 0;
 	}
 
-	return sl_copy_variable(LISTS[first_arg.vali].vars[LISTS[first_arg.vali].current++]);
+	return sl_copy_variable(LISTS[first_arg.vali].
+				vars[LISTS[first_arg.vali].current++]);
 }
 
 
@@ -1343,185 +1311,209 @@ List_len_fn(struct SL_Code *code, struct SL_L_Function func)
 struct SL_Variable
 db_from_lists_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-    if (func.total_arguments < 1) {
-        fprintf(stderr, "Error usage at db.from_lists! Not enough arguments.\n");
-        exit(-1);
-    }
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at db.from_lists! Not enough arguments.\n");
+		exit(-1);
+	}
 
-    struct SL_Variable return_var = { 0 };
-    
-    size_t body_cap = 1024;
-    size_t body_len = 0;
-    char *body = malloc(body_cap);
-    body[0] = '\0';
+	struct SL_Variable return_var = { 0 };
 
-    for (int i = 0; i < func.total_arguments; i++) {
-        struct SL_Variable arg = sl_get_argument(*code, func, i);
-        if (arg.type != INTEGER) {
-            free(body);
-            return_var.type = ERROR;
-            return_var.vals = "Expected integer list index as argument to db.from_lists.";
-            return return_var;
-        }
-        if (arg.vali >= LISTS_count || arg.vali < 0) {
-            free(body);
-            return_var.type = ERROR;
-            return_var.vals = "List buffer overflow in db.from_lists!";
-            return return_var;
-        }
+	size_t          body_cap = 1024;
+	size_t          body_len = 0;
+	char           *body = malloc(body_cap);
+	body[0] = '\0';
 
-        struct SL_List *list = &LISTS[arg.vali];
-        const char *name = (arg.name != NULL) ? arg.name : "unnamed_list";
+	for (int i = 0; i < func.total_arguments; i++) {
+		struct SL_Variable arg = sl_get_argument(*code, func, i);
+		if (arg.type != INTEGER) {
+			free(body);
+			return_var.type = ERROR;
+			return_var.vals =
+				"Expected integer list index as argument to db.from_lists.";
+			return return_var;
+		}
+		if (arg.vali >= LISTS_count || arg.vali < 0) {
+			free(body);
+			return_var.type = ERROR;
+			return_var.vals =
+				"List buffer overflow in db.from_lists!";
+			return return_var;
+		}
 
-        size_t n_len = strlen(name);
-        if (body_len + n_len + 2 >= body_cap) {
-            body_cap = body_cap * 2 + n_len + 2;
-            body = realloc(body, body_cap);
-        }
-        strcpy(body + body_len, name);
-        body_len += n_len;
+		struct SL_List *list = &LISTS[arg.vali];
+		const char     *name =
+			(arg.name != NULL) ? arg.name : "unnamed_list";
 
-        for (int j = 0; j < list->size; j++) {
-            struct SL_Variable item = list->vars[j];
-            char item_str[512] = "";
-            switch (item.type) {
-                case INTEGER: snprintf(item_str, sizeof(item_str), "%d", item.vali); break;
-                case DOUBLE: snprintf(item_str, sizeof(item_str), "%f", item.valf); break;
-                case STRING: 
-                    if (item.vals && strchr(item.vals, '"')) {
-                        char *s = sl_string_getter(item.vals);
-                        snprintf(item_str, sizeof(item_str), "%s", s);
-                        free(s);
-                    } else {
-                        snprintf(item_str, sizeof(item_str), "%s", item.vals ? item.vals : "");
-                    }
-                    break;
-                case BOOLEAN: snprintf(item_str, sizeof(item_str), "%s", item.valb ? "true" : "false"); break;
-                case CHAR: snprintf(item_str, sizeof(item_str), "%c", item.valc); break;
-                case LONG: snprintf(item_str, sizeof(item_str), "%lu", item.valh); break;
-                default: break;
-            }
+		size_t          n_len = strlen(name);
+		if (body_len + n_len + 2 >= body_cap) {
+			body_cap = body_cap * 2 + n_len + 2;
+			body = realloc(body, body_cap);
+		}
+		strcpy(body + body_len, name);
+		body_len += n_len;
 
-            size_t is_len = strlen(item_str);
-            if (body_len + is_len + 2 >= body_cap) {
-                body_cap = body_cap * 2 + is_len + 2;
-                body = realloc(body, body_cap);
-            }
-            body[body_len++] = '/';
-            strcpy(body + body_len, item_str);
-            body_len += is_len;
-        }
+		for (int j = 0; j < list->size; j++) {
+			struct SL_Variable item = list->vars[j];
+			char            item_str[512] = "";
+			switch (item.type) {
+			case INTEGER:
+				snprintf(item_str, sizeof(item_str), "%d",
+					 item.vali);
+				break;
+			case DOUBLE:
+				snprintf(item_str, sizeof(item_str), "%f",
+					 item.valf);
+				break;
+			case STRING:{
+					char           *s =
+						sl_string_getter(item.vals);
+					snprintf(item_str, sizeof(item_str),
+						 "%s", s);
+					free(s);
+				}
+				break;
+			case BOOLEAN:
+				snprintf(item_str, sizeof(item_str), "%s",
+					 item.valb ? "true" : "false");
+				break;
+			case CHAR:
+				snprintf(item_str, sizeof(item_str), "%c",
+					 item.valc);
+				break;
+			case LONG:
+				snprintf(item_str, sizeof(item_str), "%lu",
+					 item.valh);
+				break;
+			default:
+				break;
+			}
 
-        if (i < func.total_arguments - 1) {
-            if (body_len + 2 >= body_cap) {
-                body_cap *= 2;
-                body = realloc(body, body_cap);
-            }
-            body[body_len++] = '\\';
-            body[body_len] = '\0';
-        }
-    }
+			size_t          is_len = strlen(item_str);
+			if (body_len + is_len + 2 >= body_cap) {
+				body_cap = body_cap * 2 + is_len + 2;
+				body = realloc(body, body_cap);
+			}
+			body[body_len++] = '/';
+			strcpy(body + body_len, item_str);
+			body_len += is_len;
+		}
 
-    return_var.type = STRING;
-    return_var.vals = body;
-    return return_var;
+		if (i < func.total_arguments - 1) {
+			if (body_len + 2 >= body_cap) {
+				body_cap *= 2;
+				body = realloc(body, body_cap);
+			}
+			body[body_len++] = '\\';
+			body[body_len] = '\0';
+		}
+	}
+
+	return_var.type = STRING;
+	return_var.vals = body;
+	return return_var;
 }
 
 struct SL_Variable
 db_to_lists_fn(struct SL_Code *code, struct SL_L_Function func)
 {
-    if (func.total_arguments < 1) {
-        fprintf(stderr, "Error usage at db.to_lists! Not enough arguments.\n");
-        exit(-1);
-    }
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at db.to_lists! Not enough arguments.\n");
+		exit(-1);
+	}
 
-    struct SL_Variable return_var = { 0 };
-    struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-    if (first_arg.type != STRING) {
-        return_var.type = ERROR;
-        return_var.vals = "Expected string as argument to db.to_lists.";
-        return return_var;
-    }
+	if (first_arg.type != STRING) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected string as argument to db.to_lists.";
+		return return_var;
+	}
 
-    int master_list_idx = create_new_list(8, 0);
-    struct SL_List *master_list = &LISTS[master_list_idx];
+	int             master_list_idx = create_new_list(8, 0);
+	struct SL_List *master_list = &LISTS[master_list_idx];
 
-    char *src = first_arg.vals;
-    if (!src) {
-        return_var.type = INTEGER;
-        return_var.vali = master_list_idx;
-        return return_var;
-    }
+	char           *src = first_arg.vals;
+	if (!src) {
+		return_var.type = INTEGER;
+		return_var.vali = master_list_idx;
+		return return_var;
+	}
 
-    char *p = src;
-    int current_list_idx = -1;
-    int is_first_token = 1;
+	char           *p = src;
+	int             current_list_idx = -1;
+	int             is_first_token = 1;
 
-    size_t tok_cap = 256;
-    size_t tok_len = 0;
-    char *tok = malloc(tok_cap);
+	size_t          tok_cap = 256;
+	size_t          tok_len = 0;
+	char           *tok = malloc(tok_cap);
 
-    while (*p != '\0') {
-        if (*p == '\\') {
-            if (current_list_idx != -1 && !is_first_token) {
-                tok[tok_len] = '\0';
-                struct SL_Variable item = { 0 };
-                item.type = STRING;
-                item.vals = strdup(tok);
-                list_push(&LISTS[current_list_idx], item);
-            }
-            if (current_list_idx != -1) {
-                struct SL_Variable list_ref = { 0 };
-                list_ref.type = INTEGER;
-                list_ref.vali = current_list_idx;
-                list_push(master_list, list_ref);
-            }
-            current_list_idx = -1;
-            is_first_token = 1;
-            tok_len = 0;
-            p++;
-        } else if (*p == '/') {
-            tok[tok_len] = '\0';
-            if (is_first_token) {
-                current_list_idx = create_new_list(8, 0);
-                is_first_token = 0;
-            } else {
-                struct SL_Variable item = { 0 };
-                item.type = STRING;
-                item.vals = strdup(tok);
-                list_push(&LISTS[current_list_idx], item);
-            }
-            tok_len = 0;
-            p++;
-        } else {
-            if (tok_len + 1 >= tok_cap) {
-                tok_cap *= 2;
-                tok = realloc(tok, tok_cap);
-            }
-            tok[tok_len++] = *p;
-            p++;
-        }
-    }
+	while (*p != '\0') {
+		if (*p == '\\') {
+			if (current_list_idx != -1 && !is_first_token) {
+				tok[tok_len] = '\0';
+				struct SL_Variable item = { 0 };
+				item.type = STRING;
+				item.vals = strdup(tok);
+				list_push(&LISTS[current_list_idx], item);
+			}
+			if (current_list_idx != -1) {
+				struct SL_Variable list_ref = { 0 };
+				list_ref.type = INTEGER;
+				list_ref.vali = current_list_idx;
+				list_push(master_list, list_ref);
+			}
+			current_list_idx = -1;
+			is_first_token = 1;
+			tok_len = 0;
+			p++;
+		}
+		else if (*p == '/') {
+			tok[tok_len] = '\0';
+			if (is_first_token) {
+				current_list_idx = create_new_list(8, 0);
+				is_first_token = 0;
+			}
+			else {
+				struct SL_Variable item = { 0 };
+				item.type = STRING;
+				item.vals = strdup(tok);
+				list_push(&LISTS[current_list_idx], item);
+			}
+			tok_len = 0;
+			p++;
+		}
+		else {
+			if (tok_len + 1 >= tok_cap) {
+				tok_cap *= 2;
+				tok = realloc(tok, tok_cap);
+			}
+			tok[tok_len++] = *p;
+			p++;
+		}
+	}
 
-    if (current_list_idx != -1 && !is_first_token) {
-        tok[tok_len] = '\0';
-        struct SL_Variable item = { 0 };
-        item.type = STRING;
-        item.vals = strdup(tok);
-        list_push(&LISTS[current_list_idx], item);
+	if (current_list_idx != -1 && !is_first_token) {
+		tok[tok_len] = '\0';
+		struct SL_Variable item = { 0 };
+		item.type = STRING;
+		item.vals = strdup(tok);
+		list_push(&LISTS[current_list_idx], item);
 
-        struct SL_Variable list_ref = { 0 };
-        list_ref.type = INTEGER;
-        list_ref.vali = current_list_idx;
-        list_push(master_list, list_ref);
-    }
+		struct SL_Variable list_ref = { 0 };
+		list_ref.type = INTEGER;
+		list_ref.vali = current_list_idx;
+		list_push(master_list, list_ref);
+	}
 
-    free(tok);
+	free(tok);
 
-    return_var.type = INTEGER;
-    return_var.vali = master_list_idx;
-    return return_var;
+	return_var.type = INTEGER;
+	return_var.vali = master_list_idx;
+	return return_var;
 }
 
 int             used_io = 0;
@@ -1532,7 +1524,7 @@ int             used_string = 0;
 int             used_errors = 0;
 int             used_list = 0;
 int             used_extra = 0;
-int 			used_db = 0;
+int             used_db = 0;
 
 
 struct SL_Variable
@@ -1605,8 +1597,10 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_string = 1;
 			sl_add_func(use_code, "string.char_at",
 				    string_charat_fn);
-			sl_add_func(use_code, "string.split", string_split_fn);
-			sl_add_func(use_code, "string.slice", string_slice_fn);
+			sl_add_func(use_code, "string.split",
+				    string_split_fn);
+			sl_add_func(use_code, "string.slice",
+				    string_slice_fn);
 			sl_add_func(use_code, "string.set_char_at",
 				    string_setcharat_fn);
 			sl_add_func(use_code, "string.len", string_len_fn);
@@ -1627,9 +1621,11 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 		else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
 			used_extra = 1;
 			sl_add_func(use_code, "rand.random", random_fn);
-		} else if (strcmp(libstr, "db") == 0 && used_db == 0) {
+		}
+		else if (strcmp(libstr, "db") == 0 && used_db == 0) {
 			used_db = 1;
-			sl_add_func(use_code, "db.from_lists", db_from_lists_fn);
+			sl_add_func(use_code, "db.from_lists",
+				    db_from_lists_fn);
 			sl_add_func(use_code, "db.to_lists", db_to_lists_fn);
 		}
 		free(libstr);
