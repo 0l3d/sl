@@ -73,6 +73,17 @@ lexer_special_tokens_ex(char *special_tokens, char letter)
 	return 0;
 }
 
+unsigned long hash_string(const char *str) {
+    unsigned long hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c;
+    }
+    return hash;
+}
+
+
+
 int
 LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
       int start_size)
@@ -444,12 +455,15 @@ sl_word_to_var_converter(char *word)
 int
 getvar_index_from_sl(struct SL_Code code, const char *name)
 {
+
+	unsigned long hash = hash_string(name);
 	for (int i = code.total_vars - 1; i >= 0; i--) {
 		if (code.vars[i].name == NULL)
 			continue;
-
-		if (strcmp(code.vars[i].name, name) == 0) {
-			return i;
+		if (code.vars[i].hash == hash) {
+			if (strcmp(code.vars[i].name, name) == 0) {
+				return i;
+			}
 		}
 	}
 	return -1;
@@ -464,6 +478,7 @@ sl_add_func(struct SL_Code *code, char *name,
 					 struct SL_L_Function))
 {
 	code->funcs[code->total_funcs].name = strdup(name);
+	code->funcs[code->total_funcs].hash = hash_string(name);
 	code->funcs[code->total_funcs].linked_function = 1;
 	code->funcs[code->total_funcs++].funcr = funcr;
 	return 0;
@@ -483,7 +498,8 @@ int
 sl_add_var(struct SL_Code *code, struct SL_Variable var)
 {
 	code->vars[code->total_vars] = var;
-	code->vars[code->total_vars++].name = strdup(var.name);;
+	code->vars[code->total_vars++].name = strdup(var.name);
+	code->vars[code->total_vars++].hash = hash_string(var.name);
 	return 0;
 
 }
@@ -1193,42 +1209,40 @@ is_it_function_or_not(char **tokens, enum TokenTypes *types,
 
 
 int
-operator_checker(char *expressions[], enum TokenTypes *types, int start,
-		 int end)
+operator_checker(char *expressions[], enum TokenTypes *types, int start, int end)
 {
-	if (end - start > 1) {
-		return 1;
-	}
+    if (end - start > 1) {
+        return 1;
+    }
 
-	int             isitfunc =
-		is_it_function_or_not(expressions, types, start, end);
-	if (isitfunc != -1) {
-		start = isitfunc;
-	}
+    int isitfunc = is_it_function_or_not(expressions, types, start, end);
+    if (isitfunc != -1) {
+        start = isitfunc;
+    }
 
-	char           *operators = OPERATORS;
-	for (int i = start; i < end; i++) {
-		for (int j = 0; j < strlen(operators); j++) {
-			if (expressions[i] == NULL)
-				return 0;
+    for (int i = start; i < end; i++) {
+        if (expressions[i] == NULL)
+            return 0;
 
-			if (types[i] == T_EQU ||
-			    types[i] == T_EQG ||
-			    types[i] == T_EQL ||
-			    types[i] == T_NEQ ||
-			    types[i] == T_AND ||
-			    types[i] == T_OR ||
-			    types[i] == T_SHRIGHT || types[i] == T_SHLEFT) {
-				return 1;
-			}
-			if (expressions[i][0] == operators[j]
-			    && strlen(expressions[i]) == 1) {
-				return 1;
-			}
-		}
-	}
+        switch (types[i]) {
+            case T_EQU: case T_EQG: case T_EQL: case T_NEQ:
+            case T_AND: case T_OR: case T_SHRIGHT: case T_SHLEFT:
+                return 1;
+            default:
+                break;
+        }
 
-	return 0;
+        if (expressions[i][1] == '\0') { 
+            switch (expressions[i][0]) {
+                case '+': case '-': case '*': case '/': 
+                case '%': case '<': case '>': case '&': 
+                case '|': case '^':
+                    return 1;
+            }
+        }
+    }
+
+    return 0;
 }
 
 int
@@ -1270,17 +1284,17 @@ prec_priority(char op, enum TokenTypes op_type, int is_op_type)
 	return 0;
 }
 
-int
-is_has_func(struct SL_Code code, char *name)
-{
-	for (int i = 0; i < code.total_funcs; i++) {
-		if (strcmp(code.funcs[i].name, name) == 0)
-			return 1;
-	}
-	return -1;
+int is_has_func(struct SL_Code code, const char *name) {
+    unsigned long target_hash = hash_string(name);
+    for (int i = 0; i < code.total_funcs; i++) {
+        if (code.funcs[i].hash == target_hash) {
+            if (strcmp(code.funcs[i].name, name) == 0) {
+                return 1;
+            }
+        }
+    }
+    return -1;
 }
-
-
 
 struct SL_Math_Splitter
 expression_parser_splitter(struct SL_Code code, char *expression[],
@@ -1388,14 +1402,6 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
 	return tree;
 }
 
-char           *
-raw_var_name(char *word)
-{
-	const char     *starting = word + 1;
-	char           *return_val = strdup(starting);
-	return return_val;
-}
-
 
 char           *
 get_raw_function_name(char *word)
@@ -1439,16 +1445,6 @@ sl_where_is_next_comma(char **tokens, int current_token, int max_tokens)
 	return -1;
 }
 
-int
-sl_is_has_already_var(struct SL_Code code, char *name)
-{
-	for (int i = 0; i < code.total_vars; i++) {
-		if (strcmp(code.vars[i].name, name) == 0) {
-			return i;
-		}
-	}
-	return -1;
-}
 
 struct SL_Variable
 run_sl_function(struct SL_Code code, char *name,
@@ -1459,10 +1455,13 @@ run_sl_function(struct SL_Code code, char *name,
 	int             function_number = -1;
 	struct SL_Variable return_val;
 	char           *rawfunc = get_raw_function_name(name);
+	unsigned long hash = hash_string(name);
 	for (int i = 0; i < code.total_funcs; i++) {
-		if (strcmp(code.funcs[i].name, rawfunc) == 0) {
-			function_number = i;
-			break;
+		if (code.funcs[i].hash ==  hash) {
+			if (strcmp(code.funcs[i].name, rawfunc) == 0) {
+				function_number = i;
+				break;
+			}
 		}
 	}
 	free(rawfunc);
@@ -1519,8 +1518,10 @@ run_sl_function(struct SL_Code code, char *name,
 									 0);
 
 					code.vars[code.total_vars] = result;
-					code.vars[code.total_vars++].name =
-						NULL;
+					code.vars[code.total_vars].name = NULL;
+					if (result.name != NULL)
+						code.vars[code.total_vars].name = strdup(result.name);
+					code.total_vars++;
 					free_tracker++;
 					lfunc.total_arguments++;
 				}
@@ -1549,8 +1550,12 @@ run_sl_function(struct SL_Code code, char *name,
 						code.vars[code.total_vars] =
 							result;
 						code.vars[code.
-							  total_vars++].name =
+							  total_vars].name =
 							strdup(function_name);
+					code.vars[code.
+							  total_vars++].hash =
+							hash_string(function_name);
+
 						free_tracker++;
 						free(function_name);
 
@@ -1567,9 +1572,14 @@ run_sl_function(struct SL_Code code, char *name,
 						code.vars[code.total_vars] =
 							result;
 						code.vars[code.
-							  total_vars++].name =
+							  total_vars].name =
 							function.arguments
 							[how_much_go].name;
+						code.vars[code.
+							  total_vars++].hash =
+							function.arguments
+							[how_much_go].hash;
+
 					}
 				}
 				current_token = commapos + 1;
@@ -1640,9 +1650,7 @@ resolve_variable(struct SL_Code code_s,
 	if (var.type != RETURN)
 		return var;
 	if (var.vals[0] == '$') {
-		char           *rawname = raw_var_name(var.vals);
-		int             index = getvar_index_from_sl(code_s, rawname);
-		free(rawname);
+		int             index = getvar_index_from_sl(code_s, var.vals + 1);
 		free(var.vals);
 		if (index == -1) {
 			sl_throw_an_error(code_s,
@@ -1926,8 +1934,10 @@ variable_parser(struct SL_Code code_s, enum TokenTypes *types,
 							 current_line);
 			variables.variable[variables.total_variables] =
 				result;
-			variables.variable[variables.total_variables++].name =
+			variables.variable[variables.total_variables].name =
 				strdup(tokens[(*current_token) - 1]);
+			variables.variable[variables.total_variables++].hash = 
+				hash_string(tokens[(*current_token) - 1]);
 			*current_token = value_end;
 		}
 		// printf("TOKEN: %s\n", tokens[*current_token]);
@@ -1970,15 +1980,13 @@ assignment_parser(struct SL_Code code_s, char *tokens[],
 			break;
 		}
 		int             variable_pos = last_pos - 1;
-		char           *varname = raw_var_name(tokens[variable_pos]);
-		int             index = getvar_index_from_sl(code_s, varname);
+		int             index = getvar_index_from_sl(code_s, tokens[variable_pos] + 1);
 		if (index == -1) {
 			sl_throw_an_error(code_s, tokens, *current_token,
 					  max_tokens,
 					  "VARIABLE NOT FOUND ON ASSIGNMENT!",
 					  "Expected: Define a variable first.");
 		}
-		free(varname);
 		struct SL_Variable eq_value = { 0 };
 		int             last_pos_ptr_expr_start = last_pos + 1;
 		eq_value =
@@ -1994,6 +2002,7 @@ assignment_parser(struct SL_Code code_s, char *tokens[],
 
 		eq_value.name = code_s.vars[index].name;
 		code_s.vars[index] = eq_value;
+		code_s.vars[index].hash = hash_string(code_s.vars[index].name);
 		if (is_has_token("=", tokens, *current_token, last_pos) == 1) {
 			struct SL_Variable out_var =
 				assignment_parser(code_s, tokens, types,
@@ -2078,6 +2087,7 @@ sl_define_parser(struct SL_Code code_s, char *tokens[],
 	function.name = malloc(f_name_len + 1);
 	function.name[f_name_len] = '\0';
 	strncpy(function.name, f_name, f_name_len);
+	function.hash = hash_string(function.name);
 	function.total_arguments = 0;
 	int             starting = 0;
 
@@ -2109,6 +2119,7 @@ sl_define_parser(struct SL_Code code_s, char *tokens[],
 			strncpy(function.arguments[j].name, tokens[current],
 				len);
 			function.arguments[j].name[len] = '\0';
+			function.arguments[j].hash = hash_string(function.arguments[j].name);
 			function.total_arguments++;
 			current++;
 		}

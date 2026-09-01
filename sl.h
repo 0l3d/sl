@@ -25,6 +25,7 @@ enum SL_Types
 struct SL_Variable
 {
     char *name;
+    unsigned long hash;
     enum SL_Types type;
     union
     {
@@ -83,6 +84,7 @@ struct SL_L_Function {
 struct SL_Function
 {
     char *name;
+    unsigned long hash;
     struct SL_Variable *arguments;
     int total_arguments;
     char** code_tokens;
