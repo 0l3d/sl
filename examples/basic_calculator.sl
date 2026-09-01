@@ -42,4 +42,4 @@ while List.iter($nums) then
     $result = $result + List.next($nums)
 end
 
-io.print("Result: ",$result)
+io.print("Result: ", $result, "\n")
