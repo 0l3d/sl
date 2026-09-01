@@ -56,7 +56,7 @@ while $i < $code_len then
         var c = get_current()
         io.print(types.int_to_char($c))
     elif $gchar equ ',' then 
-        var c = sys.getchar()
+        var c = io.getchar()
         set_data(types.char_to_int($c))
     elif $gchar equ '[' then
         if get_current() equ 0 then

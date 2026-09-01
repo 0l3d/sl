@@ -242,7 +242,7 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-sys_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
+io_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 {
 	struct SL_Variable return_var = { 0 };
 	return_var.valc = getchar();
@@ -678,7 +678,7 @@ string_len_fn(struct SL_Code *code, struct SL_L_Function func)
 	if (first_arg.type != STRING) {
 		return_var.type = ERROR;
 		return_var.vals =
-			"Expected string as the first argument to string.getchar.";
+			"Expected string as the first argument to string.len.";
 		return return_var;
 	}
 
@@ -687,6 +687,109 @@ string_len_fn(struct SL_Code *code, struct SL_L_Function func)
 	return_var.type = INTEGER;
 	return return_var;
 }
+
+struct SL_Variable
+string_split_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at string.len! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	if (first_arg.type != STRING) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected string as the first argument to string.split.";
+		return return_var;
+	}
+	if (second_arg.type != STRING) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected string as the second argument to string.split.";
+		return return_var;
+	}
+	char *splt_string = strdup(first_arg.vals);
+	if (strchr(first_arg.vals, '"')) {
+		free(splt_string);
+		splt_string = sl_string_getter(first_arg.vals);
+	}
+
+	char *splt_token = strdup(second_arg.vals);
+	if (strchr(second_arg.vals, '"')) {
+		free(splt_token);
+		splt_token = sl_string_getter(second_arg.vals);
+	}
+
+
+	int	listind = create_new_list(256, 0);
+
+	char *tokenize = strtok(splt_string, splt_token);
+	while (tokenize != NULL) {
+		struct SL_Variable push_val = { 0 };
+		push_val.vals = strdup(tokenize);
+		push_val.type = STRING;
+		list_push(&LISTS[listind], push_val);
+		tokenize = strtok(NULL, splt_token);
+	}
+
+	free(splt_string);
+	free(splt_token);
+	return_var.vali = listind;
+	return_var.type = INTEGER;
+	return return_var;
+}
+
+struct SL_Variable
+string_slice_fn(struct SL_Code *code, struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at string.len! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable return_var = { 0 };
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+	struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+	if (first_arg.type != STRING) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected string as the first argument to string.slice.";
+		return return_var;
+	}
+	if (second_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected integer as the second argument to string.slice.";
+		return return_var;
+	}
+
+	if (third_arg.type != INTEGER) {
+		return_var.type = ERROR;
+		return_var.vals =
+			"Expected integer as the third argument to string.slice.";
+		return return_var;
+	}
+	char *raw_str = sl_string_getter(first_arg.vals);
+	int len = strlen(raw_str);
+	if (len >= second_arg.vali || len > third_arg.vali || len < 0) {
+		return_var.type = ERROR;
+		return_var.vals = "Buffer over/underflow!";
+	}
+	char *result = malloc(len + 1);
+	strncpy(result, raw_str + second_arg.vali, third_arg.vali - second_arg.vali);
+
+
+	free(raw_str);
+	return_var.type = STRING;
+	return_var.vals = strdup(result);
+	free(result);
+	return return_var;
+}
+
 
 
 // ERROR HANDLING
@@ -1420,6 +1523,7 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_io = 1;
 			sl_add_func(use_code, "io.print", print_fn);
 			sl_add_func(use_code, "io.input", input_fn);
+			sl_add_func(use_code, "io.getchar", io_getchar_fn);
 		}
 		else if (strcmp(libstr, "file") == 0 && used_file == 0) {
 			used_file = 1;
@@ -1432,7 +1536,6 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 		}
 		else if (strcmp(libstr, "types") == 0 && used_types == 0) {
 			used_types = 1;
-
 			// CONVERT
 			sl_add_func(use_code, "types.str_to_int",
 				    str_to_int_fn);
@@ -1440,7 +1543,6 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 				    int_to_char_fn);
 			sl_add_func(use_code, "types.char_to_int",
 				    char_to_int_fn);
-
 
 			// TYPE CHECK
 			sl_add_func(use_code, "types.is_int", is_int_fn);
@@ -1456,7 +1558,6 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 		else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
 			used_sys = 1;
 			sl_add_func(use_code, "sys.get_arg", sys_get_arg_fn);
-			sl_add_func(use_code, "sys.getchar", sys_getchar_fn);
 			sl_add_func(use_code, "sys.exit", sys_exit_fn);
 		}
 		else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
@@ -1471,10 +1572,11 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_string = 1;
 			sl_add_func(use_code, "string.char_at",
 				    string_charat_fn);
-			sl_add_func(use_code, "string.len", string_len_fn);
+			sl_add_func(use_code, "string.split", string_split_fn);
+			sl_add_func(use_code, "string.slice", string_slice_fn);
 			sl_add_func(use_code, "string.set_char_at",
 				    string_setcharat_fn);
-
+			sl_add_func(use_code, "string.len", string_len_fn);
 		}
 		else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;
@@ -1496,7 +1598,6 @@ use_fn(struct SL_Code *code, struct SL_L_Function func)
 			used_db = 1;
 			sl_add_func(use_code, "db.from_lists", db_from_lists_fn);
 			sl_add_func(use_code, "db.to_lists", db_to_lists_fn);
-
 		}
 		free(libstr);
 	}

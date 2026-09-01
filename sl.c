@@ -572,10 +572,10 @@ expression_solver(struct SL_Variable left_side, char op,
 						(right_side.vals);
 					size_t          len =
 						strlen(left_string) +
-						strlen(right_string) + 1;
+						strlen(right_string) + 4;
 					expression_result.vals = malloc(len);
 					snprintf(expression_result.vals, len,
-						 "%s%s", left_string,
+						 "\"%s%s\"", left_string,
 						 right_string);
 					free(left_string);
 					free(right_string);
