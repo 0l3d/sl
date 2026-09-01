@@ -781,7 +781,6 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 	}
 
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-	struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 	struct SL_Variable return_var = { 0 };
 
 	if (first_arg.type != INTEGER) {
@@ -804,9 +803,11 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "List is fixed list!";
 		return return_var;
 	}
-
-	return_var.type = INTEGER;
-	return_var.vali = list_push(list, second_arg);
+	for (int i = 1; i < func.total_arguments; i++) {
+		struct SL_Variable list_item = sl_get_argument(*code, func, i);
+		return_var.type = INTEGER;
+		return_var.vali = list_push(list, list_item);
+	}
 
 	return return_var;
 }

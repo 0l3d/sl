@@ -1,16 +1,20 @@
-use("io", "list")
+use(
+    "io", 
+    "list"
+)
 
 var mylist = List.new()
 
-List.push($mylist, "Jason")
-List.push($mylist, "Stanley")
-List.push($mylist, "Scott")
-List.push($mylist, "Alice")
-List.push($mylist, "Max")
-List.push($mylist, "Goodman")
-List.push($mylist, "White")
-List.push($mylist, "Mary")
-List.push($mylist, "Barbara")
+List.push($mylist, "Jason", 
+        "Stanley", 
+        "Scott", 
+        "Alice", 
+        "Max", 
+        "Goodman", 
+        "White", 
+        "Mary", 
+        "Barbara"
+)
 
 while List.iter($mylist) then
     var next = List.next($mylist)
