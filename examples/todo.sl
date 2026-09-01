@@ -26,7 +26,7 @@ if errors.bool($db_out) equ false then
 end
 
 while true then 
-        var user_input = types.str_to_int(io.input("Enter an operation [ LIST: 1 | ADD: 2 | REMOVE: 3 | 5 QUIT]:"))
+        var user_input = types.str_to_int(io.input("Enter an operation [ LIST: 1 | ADD: 2 | REMOVE: 3 | 4 QUIT]:"))
         if $user_input equ 2 then 
                 var mission = io.input("Enter mission:")
                 var desc = io.input("Enter description:")
@@ -39,7 +39,12 @@ while true then
                         io.print($todo_n, ": ", $desc_s, "\n")
                 end
                 io.print("-----------------------------------------\n")
-        elif $user_input equ 5 then
+        elif $user_input equ 3 then 
+                io.print("Items are indexed from 0, increasing from top to bottom.\n")
+                var index = types.str_to_int(io.input("Select an index: "))
+                List.remove($todos, $index)
+                List.remove($description, $index)
+        elif $user_input equ 4 then
                 break
         end                         
 end
