@@ -27,6 +27,7 @@ struct SL_Variable
     char *name;
     unsigned long hash;
     enum SL_Types type;
+    int scope_lifetime;
     union
     {
         int vali;
@@ -73,6 +74,7 @@ struct SL_Code
     struct SL_Function *funcs;
     int total_size_f;
     int total_funcs;
+    int scope_depth;
 };
 
 struct SL_L_Function {
@@ -91,13 +93,19 @@ struct SL_Function
     enum TokenTypes *types;
     int code_len;
     int vaargs;
-    struct SL_Variable (*funcr)(struct SL_Code *, struct SL_Code*, struct SL_L_Function);
+    struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function);
     int linked_function;
+    int scope_lifetime;
 };
 
 char * sl_string_getter(char *word);
-int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code *, struct SL_Code*, struct SL_L_Function));
+char* sl_get_assignment_var();
+int sl_get_scope(struct SL_Code *code);
+unsigned long sl_hash_string(const char *str);
+int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function);
+int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function));
 struct SL_Variable sl_copy_variable(struct SL_Variable var);
+struct SL_Function sl_copy_function(struct SL_Function function);
 struct SL_Variable sl_get_argument(struct SL_Code code, struct SL_L_Function func, int which_one);
 int sl_add_var(struct SL_Code *code, struct SL_Variable var);
 struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name);

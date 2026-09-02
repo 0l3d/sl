@@ -3,7 +3,7 @@ SOURCES = sl.c sl_lang.c
 OBJECTS = $(SOURCES:.c=.o)
 TARGET  = sl
 
-# CFLAGS = -g
+# CFLAGS = -g -O0
 CFLAGS := -O3 -DNDEBUG -flto -ffast-math -fno-math-errno -fno-trapping-math -fno-signed-zeros -ffp-contract=fast
 LDFLAGS := -flto
 
