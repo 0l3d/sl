@@ -30,6 +30,7 @@ main(int argc, char **argv)
 	init_sl_stdlib(&sl_code, argc, argv);
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {
+		free(sl_code.types);
 		exit(-1);
 	}
 

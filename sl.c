@@ -453,6 +453,7 @@ sl_word_to_var_converter(char *word)
 					break;
 				case 'b':
 					base = 2;
+					break;
 				default:
 					base = 10;
 					break;
@@ -1550,6 +1551,11 @@ run_sl_function(struct SL_Code code, char *name,
 					return return_val;
 				}
 				if (function.linked_function == 1) {
+					if (lfunc.argument_indexes == NULL) {
+						fprintf(stderr, "calloc() failed to allocate memory\n");
+						exit(-1);
+					}
+
 					lfunc.argument_indexes
 						[lfunc.total_arguments]
 						= code.total_vars;
@@ -2171,6 +2177,10 @@ sl_define_parser(struct SL_Code code_s, char *tokens[],
 			}
 			int             j = function.total_arguments;
 			int             len = strlen(tokens[current]);
+			if (function.arguments == NULL) {
+				fprintf(stderr, "calloc() failed to allocate memory\n");
+				exit(-1);
+			}
 			function.arguments[j].name = malloc(len + 1);
 			strncpy(function.arguments[j].name, tokens[current],
 				len);
@@ -2340,6 +2350,14 @@ sl_init_sl_parser(struct SL_Code *code_s)
 	while_loop.depth = 0;
 	while_loop.back_pos = calloc(SL_INIT, sizeof(int));
 	while_loop.end = calloc(SL_INIT, sizeof(int));
+	if (while_loop.back_pos == NULL || while_loop.end == NULL) {
+		if (while_loop.back_pos != NULL) {
+			/* only free 'back_pos' since 'end' must be NULL */
+			free(while_loop.back_pos);
+		}
+		fprintf(stderr, "calloc() failed to allocate memory\n");
+		exit(-1);
+	}
 	while_loop.capacity = SL_INIT;
 	int             while_sit = 0;
 	struct SL_Variable return_val = { 0 };
@@ -2618,6 +2636,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			if (sl_open_sl_process
 			    (&imported_code,
 			     code_s->code[current_token + 1]) != 0) {
+				free(imported_code.types);
 				exit(-1);
 			}
 			if (imported_code.funcs != NULL) {
@@ -2763,6 +2782,12 @@ sl_open_sl_process(struct SL_Code *code, char *file_name)
 		sl_init_sl_lexer(SL_INIT, file_name, &code->code,
 				 SPECIAL_TOKENS);
 	code->types = calloc(count, sizeof(enum TokenTypes));
+	if (code->types == NULL)
+	{
+		fprintf(stderr, "calloc() failed to allocate memory\n");
+		return -1;
+	}
+
 	if (count <= 0) {
 		fprintf(stderr, "sl_lexer failed\n");
 		return -1;
