@@ -1584,6 +1584,8 @@ structure_creator_fn(struct SL_Code *code,
 	int scope = sl_get_scope(code);
 	if (scope > 1)
 		scope -= 1;
+	
+	printf("Scope: %d\n", scope);
 
 	for (int i = 0; i < func.total_arguments; i++) {	
 		struct SL_Variable argument = sl_get_argument(*code, func, i);
