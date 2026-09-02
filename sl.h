@@ -91,17 +91,17 @@ struct SL_Function
     enum TokenTypes *types;
     int code_len;
     int vaargs;
-    struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function);
+    struct SL_Variable (*funcr)(struct SL_Code *, struct SL_Code*, struct SL_L_Function);
     int linked_function;
 };
 
 char * sl_string_getter(char *word);
-int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function));
+int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code *, struct SL_Code*, struct SL_L_Function));
 struct SL_Variable sl_copy_variable(struct SL_Variable var);
 struct SL_Variable sl_get_argument(struct SL_Code code, struct SL_L_Function func, int which_one);
 int sl_add_var(struct SL_Code *code, struct SL_Variable var);
-struct SL_Variable sl_get_var(struct SL_Code code, const char *name);
-struct SL_Function sl_get_func(struct SL_Code code, const char *name);
+struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name);
+struct SL_Function *sl_get_func(struct SL_Code *code, const char *name);
 int sl_init_sl_lexer(int malloc_size, char* file_name, char ***bufout, char *special_tokens);
 struct SL_Code sl_init_sl_process(); 
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code);

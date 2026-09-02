@@ -6,7 +6,7 @@
 
 
 struct SL_Variable
-expression_parser_solver(struct SL_Code code_s,
+expression_parser_solver(struct SL_Code *code_s,
 			 char *expression[], enum TokenTypes *types,
 			 int *current_token, int max_tokens,
 			 int current_line);
@@ -490,7 +490,7 @@ getvar_index_from_sl(struct SL_Code code, const char *name)
 
 int
 sl_add_func(struct SL_Code *code, char *name,
-	    struct SL_Variable (*funcr) (struct SL_Code *,
+	    struct SL_Variable (*funcr) (struct SL_Code *,struct SL_Code *,
 					 struct SL_L_Function))
 {
 	code->funcs[code->total_funcs].name = strdup(name);
@@ -520,29 +520,25 @@ sl_add_var(struct SL_Code *code, struct SL_Variable var)
 
 }
 
-struct SL_Variable
-sl_get_var(struct SL_Code code, const char *name)
+struct SL_Variable *
+sl_get_var(struct SL_Code *code, const char *name)
 {
-	struct SL_Variable return_err = { 0 };
-	return_err.type = ERROR;
-	int             index = getvar_index_from_sl(code, name);
+	int             index = getvar_index_from_sl(*code, name);
 	if (index == -1)
-		return return_err;
+		return NULL;
 
-	return code.vars[index];
+	return &code->vars[index];
 }
 
 
-struct SL_Function
-sl_get_func(struct SL_Code code, const char *name)
+struct SL_Function *
+sl_get_func(struct SL_Code *code, const char *name)
 {
-	struct SL_Function error_func = { 0 };
-	error_func.name = NULL;
-	for (int i = 0; i < code.total_funcs; i++) {
-		if (strcmp(code.funcs[i].name, name) == 0)
-			return code.funcs[i];
+	for (int i = 0; i < code->total_funcs; i++) {
+		if (strcmp(code->funcs[i].name, name) == 0)
+			return &code->funcs[i];
 	}
-	return error_func;
+	return NULL;
 }
 
 struct SL_Variable
@@ -1491,7 +1487,7 @@ sl_where_is_next_comma(char **tokens, int current_token, int max_tokens)
 
 
 struct SL_Variable
-run_sl_function(struct SL_Code code, char *name,
+run_sl_function(struct SL_Code *global_scope, struct SL_Code code, char *name,
 		char **tokens, enum TokenTypes *types,
 		int current_token, int max_tokens)
 {
@@ -1560,7 +1556,7 @@ run_sl_function(struct SL_Code code, char *name,
 						[lfunc.total_arguments]
 						= code.total_vars;
 					struct SL_Variable result =
-						expression_parser_solver(code,
+						expression_parser_solver(&code,
 									 tokens,
 									 types,
 									 &current_token,
@@ -1594,7 +1590,7 @@ run_sl_function(struct SL_Code code, char *name,
 						vaargs_counter++;
 						struct SL_Variable result =
 							expression_parser_solver
-							(code,
+							(&code,
 							 tokens,
 							 types,
 							 &current_token,
@@ -1617,7 +1613,7 @@ run_sl_function(struct SL_Code code, char *name,
 					else {
 						struct SL_Variable result =
 							expression_parser_solver
-							(code,
+							(&code,
 							 tokens,
 							 types,
 							 &current_token,
@@ -1663,7 +1659,7 @@ run_sl_function(struct SL_Code code, char *name,
 	}
 
 	if (function.linked_function == 1) {
-		return_val = function.funcr(&code, lfunc);
+		return_val = function.funcr(global_scope, &code, lfunc);
 	}
 	else {
 		struct SL_Code  code_def =
@@ -1694,7 +1690,7 @@ run_sl_function(struct SL_Code code, char *name,
 
 
 static struct SL_Variable
-resolve_variable(struct SL_Code code_s,
+resolve_variable(struct SL_Code *code_s,
 		 char *expression[],
 		 enum TokenTypes *types,
 		 int current_token, int max_tokens, int old_curr)
@@ -1705,58 +1701,58 @@ resolve_variable(struct SL_Code code_s,
 		return var;
 	if (var.vals[0] == '$') {
 		int             index =
-			getvar_index_from_sl(code_s, var.vals + 1);
+			getvar_index_from_sl(*code_s, var.vals + 1);
 		free(var.vals);
 		if (index == -1) {
-			sl_throw_an_error(code_s,
+			sl_throw_an_error(*code_s,
 					  expression,
 					  old_curr,
 					  max_tokens,
 					  "VARIABLE NOT FOUND!",
 					  "Expected: Define a variable first.");
 		}
-		var = code_s.vars[index];
+		var = code_s->vars[index];
 		if ((var.type == STRING || var.type == RETURN) && var.vals)
 			var.vals = strdup(var.vals);
 		return var;
 	}
-	if (is_has_func(code_s, var.vals) == 1) {
-		struct SL_Variable fn = run_sl_function(code_s, var.vals,
+	if (is_has_func(*code_s, var.vals) == 1) {
+		struct SL_Variable fn = run_sl_function(code_s, *code_s, var.vals,
 							expression, types,
 							current_token,
 							max_tokens);
 		free(var.vals);
 		if (fn.type == ERROR) {
 			if (fn.vali == 0)
-				sl_throw_an_error(code_s,
+				sl_throw_an_error(*code_s,
 						  expression,
 						  old_curr,
 						  max_tokens,
 						  "FUNCTION NOT FOUND!",
 						  "Expected: Create a function first.");
 			else if (fn.vali == 1)
-				sl_throw_an_error(code_s,
+				sl_throw_an_error(*code_s,
 						  expression,
 						  old_curr,
 						  max_tokens,
 						  "OPENING PARENTHESIS '(' NOT FOUND!",
 						  "Expected: <function_name>(<arguments?>)");
 			else if (fn.vali == 2)
-				sl_throw_an_error(code_s,
+				sl_throw_an_error(*code_s,
 						  expression,
 						  old_curr,
 						  max_tokens,
 						  "OPENING/CLOSING PARENTHESIS NOT FOUND!",
 						  "Expected: <function_name>()");
 			else if (fn.vali == 4)
-				sl_throw_an_error(code_s,
+				sl_throw_an_error(*code_s,
 						  expression,
 						  old_curr,
 						  max_tokens,
 						  "CLOSING PARENTHESIS ')' OR COMMA ',' NOT FOUND!",
 						  "Expected: <function_name>(<arguments?>, <arguments?>)");
 			else if (fn.vali == 5)
-				sl_throw_an_error(code_s,
+				sl_throw_an_error(*code_s,
 						  expression,
 						  old_curr,
 						  max_tokens,
@@ -1768,7 +1764,7 @@ resolve_variable(struct SL_Code code_s,
 		return fn;
 	}
 
-	sl_throw_an_error(code_s,
+	sl_throw_an_error(*code_s,
 			  expression,
 			  old_curr,
 			  max_tokens,
@@ -1779,7 +1775,7 @@ resolve_variable(struct SL_Code code_s,
 }
 
 struct SL_Variable
-expression_parser_solver(struct SL_Code code_s,
+expression_parser_solver(struct SL_Code *code_s,
 			 char *expression[], enum TokenTypes *types,
 			 int *current_token, int max_tokens, int current_line)
 {
@@ -1818,7 +1814,7 @@ expression_parser_solver(struct SL_Code code_s,
 	struct SL_Variable right = { 0 };
 	struct SL_Variable result = { 0 };
 	struct SL_Math_Splitter tree =
-		expression_parser_splitter(code_s, expression, types,
+		expression_parser_splitter(*code_s, expression, types,
 					   *current_token,
 					   max_tokens,
 					   current_line);
@@ -1864,7 +1860,7 @@ expression_parser_solver(struct SL_Code code_s,
 	result = expression_solver(left, tree.op, right, current_line,
 				   tree.op_type, tree.is_op_type);
 	if (result.type == ERROR) {
-		sl_throw_an_error(code_s, expression, old_curr, max_tokens,
+		sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
 				  "Mathematical or logical operation error. (Type mismatch or invalid operation)",
 				  "Ensure that the variables you are trying to operate on (String and Integer) are compatible with each other.");
 	}
@@ -1983,7 +1979,7 @@ variable_parser(struct SL_Code code_s, enum TokenTypes *types,
 			int             value_end = 0;
 			value_end = max_tokens;
 			struct SL_Variable result =
-				expression_parser_solver(code_s, tokens,
+				expression_parser_solver(&code_s, tokens,
 							 types,
 							 &equal_start,
 							 value_end,
@@ -2049,7 +2045,7 @@ assignment_parser(struct SL_Code code_s, char *tokens[],
 		struct SL_Variable eq_value = { 0 };
 		int             last_pos_ptr_expr_start = last_pos + 1;
 		eq_value =
-			expression_parser_solver(code_s, tokens, types,
+			expression_parser_solver(&code_s, tokens, types,
 						 &last_pos_ptr_expr_start,
 						 max_tokens, current_line);
 
@@ -2123,7 +2119,7 @@ sl_if_parser(struct SL_Code code_s, enum TokenTypes *types, char *tokens[],
 				  "'then' NOT FOUND ON 'if' usage.",
 				  "if <expression> then <code> end");
 	}
-	expr = expression_parser_solver(code_s, tokens, types, current_token,
+	expr = expression_parser_solver(&code_s, tokens, types, current_token,
 					if_start_pos, current_line);
 	(*current_token) = if_start_pos;
 	return expr;
@@ -2704,7 +2700,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 					     current_token,
 					     code_s->token_count);
 			struct SL_Variable result =
-				expression_parser_solver(*code_s,
+				expression_parser_solver(code_s,
 							 code_s->code,
 							 code_s->types,
 							 &current_token, end,
@@ -2754,7 +2750,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 
 
 				struct SL_Variable result =
-					expression_parser_solver(*code_s,
+					expression_parser_solver(code_s,
 								 code_s->code,
 								 code_s->
 								 types,

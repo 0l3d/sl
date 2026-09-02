@@ -8,7 +8,8 @@
 struct SL_Code *use_code = NULL;
 
 struct SL_Variable
-example_fn(struct SL_Code *code, struct SL_L_Function func)
+example_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	   struct SL_L_Function func)
 {
 
 	struct SL_Variable return_var = { 0 };
@@ -149,7 +150,8 @@ list_remove(struct SL_List *list, int index)
 
 // IO
 struct SL_Variable
-print_fn(struct SL_Code *code, struct SL_L_Function func)
+print_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	 struct SL_L_Function func)
 {
 	struct SL_Variable return_var = { 0 };
 	for (int i = 0; i < func.total_arguments; i++) {
@@ -189,7 +191,8 @@ print_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-input_fn(struct SL_Code *code, struct SL_L_Function func)
+input_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	 struct SL_L_Function func)
 {
 	struct SL_Variable return_var = { 0 };
 	for (int i = 0; i < func.total_arguments; i++) {
@@ -237,7 +240,8 @@ input_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-io_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
+io_getchar_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	      struct SL_L_Function func)
 {
 	struct SL_Variable return_var = { 0 };
 	return_var.valc = getchar();
@@ -246,7 +250,8 @@ io_getchar_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-file_read_to_str_fn(struct SL_Code *code, struct SL_L_Function func)
+file_read_to_str_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		    struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -281,7 +286,8 @@ file_read_to_str_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
+file_write_from_str_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -318,7 +324,8 @@ file_write_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
+file_append_from_str_fn(struct SL_Code *global_scope, struct SL_Code *code,
+			struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -358,7 +365,8 @@ file_append_from_str_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // EXTRA
 struct SL_Variable
-random_fn(struct SL_Code *code, struct SL_L_Function func)
+random_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	  struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -378,7 +386,8 @@ random_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // TYPES
 struct SL_Variable
-str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
+str_to_int_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	      struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -393,7 +402,8 @@ str_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-int_to_char_fn(struct SL_Code *code, struct SL_L_Function func)
+int_to_char_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -413,7 +423,8 @@ int_to_char_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-char_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
+char_to_int_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -428,7 +439,8 @@ char_to_int_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-typeof_fn(struct SL_Code *code, struct SL_L_Function func)
+typeof_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	  struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -443,7 +455,8 @@ typeof_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_int_fn(struct SL_Code *code, struct SL_L_Function func)
+is_int_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	  struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -459,7 +472,8 @@ is_int_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_char_fn(struct SL_Code *code, struct SL_L_Function func)
+is_char_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	   struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -475,7 +489,8 @@ is_char_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_bool_fn(struct SL_Code *code, struct SL_L_Function func)
+is_bool_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	   struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -492,7 +507,8 @@ is_bool_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-is_string_fn(struct SL_Code *code, struct SL_L_Function func)
+is_string_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -508,7 +524,8 @@ is_string_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_double_fn(struct SL_Code *code, struct SL_L_Function func)
+is_double_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -524,7 +541,8 @@ is_double_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_not_initialized_fn(struct SL_Code *code, struct SL_L_Function func)
+is_not_initialized_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		      struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -540,7 +558,8 @@ is_not_initialized_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-is_digit_fn(struct SL_Code *code, struct SL_L_Function func)
+is_digit_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -568,7 +587,8 @@ is_digit_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // STRING
 struct SL_Variable
-string_charat_fn(struct SL_Code *code, struct SL_L_Function func)
+string_charat_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		 struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -612,7 +632,8 @@ string_charat_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-string_setcharat_fn(struct SL_Code *code, struct SL_L_Function func)
+string_setcharat_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		    struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -658,11 +679,11 @@ string_setcharat_fn(struct SL_Code *code, struct SL_L_Function func)
 		return_var.vals = "Buffer underflow!";
 		return return_var;
 	}
-	struct SL_Variable ref_var = sl_get_var(*use_code, first_arg.name);
-	char           *string = sl_string_getter(ref_var.vals);
-	free(ref_var.vals);
+	struct SL_Variable *ref_var = sl_get_var(global_scope, first_arg.name);
+	char           *string = sl_string_getter(ref_var->vals);
+	free(ref_var->vals);
 	string[second_arg.vali] = third_arg.valc;
-	ref_var.vals = strdup(string);
+	ref_var->vals = strdup(string);
 	return_var.type = BOOLEAN;
 	return_var.valb = 1;
 	free(string);
@@ -670,7 +691,8 @@ string_setcharat_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-string_len_fn(struct SL_Code *code, struct SL_L_Function func)
+string_len_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	      struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -694,7 +716,8 @@ string_len_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-string_split_fn(struct SL_Code *code, struct SL_L_Function func)
+string_split_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -740,7 +763,8 @@ string_split_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-string_slice_fn(struct SL_Code *code, struct SL_L_Function func)
+string_slice_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -792,7 +816,8 @@ string_slice_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // ERROR HANDLING
 struct SL_Variable
-errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
+errors_string_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		 struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -808,7 +833,8 @@ errors_string_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-errors_bool_fn(struct SL_Code *code, struct SL_L_Function func)
+errors_bool_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -828,7 +854,8 @@ errors_bool_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-errors_panic_fn(struct SL_Code *code, struct SL_L_Function func)
+errors_panic_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -847,7 +874,8 @@ errors_panic_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // SYS
 struct SL_Variable
-sys_exit_fn(struct SL_Code *code, struct SL_L_Function func)
+sys_exit_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -863,7 +891,8 @@ sys_exit_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
+sys_get_arg_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -887,7 +916,8 @@ sys_get_arg_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // LISTS
 struct SL_Variable
-List_new_fn(struct SL_Code *code, struct SL_L_Function func)
+List_new_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	struct SL_Variable first_arg;
 	int             fixed = 0;
@@ -917,7 +947,8 @@ List_new_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-List_push_fn(struct SL_Code *code, struct SL_L_Function func)
+List_push_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -960,7 +991,8 @@ List_push_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
+List_pop_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1004,7 +1036,8 @@ List_pop_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_peek_fn(struct SL_Code *code, struct SL_L_Function func)
+List_peek_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1049,7 +1082,8 @@ List_peek_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_set_fn(struct SL_Code *code, struct SL_L_Function func)
+List_set_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 3) {
 		fprintf(stderr,
@@ -1105,7 +1139,8 @@ List_set_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_get_fn(struct SL_Code *code, struct SL_L_Function func)
+List_get_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -1149,7 +1184,8 @@ List_get_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_remove_fn(struct SL_Code *code, struct SL_L_Function func)
+List_remove_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 2) {
 		fprintf(stderr,
@@ -1203,7 +1239,8 @@ List_remove_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
+List_iter_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1243,7 +1280,8 @@ List_iter_fn(struct SL_Code *code, struct SL_L_Function func)
 
 
 struct SL_Variable
-List_next_fn(struct SL_Code *code, struct SL_L_Function func)
+List_next_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	     struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1271,13 +1309,14 @@ List_next_fn(struct SL_Code *code, struct SL_L_Function func)
 		LISTS[first_arg.vali].current = 0;
 	}
 
-	return sl_copy_variable(LISTS[first_arg.vali].
-				vars[LISTS[first_arg.vali].current++]);
+	return sl_copy_variable(LISTS[first_arg.vali].vars
+				[LISTS[first_arg.vali].current++]);
 }
 
 
 struct SL_Variable
-List_len_fn(struct SL_Code *code, struct SL_L_Function func)
+List_len_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	    struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1309,7 +1348,8 @@ List_len_fn(struct SL_Code *code, struct SL_L_Function func)
 
 // DB
 struct SL_Variable
-db_from_lists_fn(struct SL_Code *code, struct SL_L_Function func)
+db_from_lists_fn(struct SL_Code *global_scope, struct SL_Code *code,
+		 struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1415,7 +1455,8 @@ db_from_lists_fn(struct SL_Code *code, struct SL_L_Function func)
 }
 
 struct SL_Variable
-db_to_lists_fn(struct SL_Code *code, struct SL_L_Function func)
+db_to_lists_fn(struct SL_Code *global_scope, struct SL_Code *code,
+	       struct SL_L_Function func)
 {
 	if (func.total_arguments < 1) {
 		fprintf(stderr,
@@ -1528,7 +1569,8 @@ int             used_db = 0;
 
 
 struct SL_Variable
-use_fn(struct SL_Code *code, struct SL_L_Function func)
+use_fn(struct SL_Code *global_scope, struct SL_Code *code,
+       struct SL_L_Function func)
 {
 	struct SL_Variable return_var = { 0 };
 	if (func.total_arguments < 1) {
