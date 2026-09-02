@@ -453,6 +453,7 @@ sl_word_to_var_converter(char *word)
 					break;
 				case 'b':
 					base = 2;
+					break;
 				default:
 					base = 10;
 					break;
@@ -2618,6 +2619,7 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			if (sl_open_sl_process
 			    (&imported_code,
 			     code_s->code[current_token + 1]) != 0) {
+				free(imported_code.types);
 				exit(-1);
 			}
 			if (imported_code.funcs != NULL) {
