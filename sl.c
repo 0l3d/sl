@@ -2867,6 +2867,8 @@ sl_init_sl_parser(struct SL_Code *code_s)
 						  code_s->token_count,
 						  "UNEXPECTED IMPORT SYNTAX!",
 						  "Expected: import <file_name> (without string literal!)");
+				free(while_loop.end);
+				free(while_loop.back_pos);
 				exit(-1);
 			}
 			struct SL_Code  imported_code = sl_init_sl_process();
@@ -2874,6 +2876,8 @@ sl_init_sl_parser(struct SL_Code *code_s)
 			    (&imported_code,
 			     code_s->code[current_token + 1]) != 0) {
 				free(imported_code.types);
+				free(while_loop.end);
+				free(while_loop.back_pos);
 				exit(-1);
 			}
 			if (imported_code.funcs != NULL) {
@@ -3039,9 +3043,15 @@ sl_open_sl_process(struct SL_Code *code, char *file_name)
 	int             count =
 		sl_init_sl_lexer(SL_INIT, file_name, &code->code,
 				 SPECIAL_TOKENS);
+	if (count < 0)
+	{
+		fprintf(stderr, "Invalid count\nsl_init_sl_lexer() returned a negative value\n");
+		return -1;
+	}
+
 	code->types = calloc(count, sizeof(enum TokenTypes));
 	if (code->types == NULL) {
-		fprintf(stderr, "calloc() failed to allocate memory\n");
+		fprintf(stderr, "calloc() failed to allocate memory (types)\n");
 		return -1;
 	}
 

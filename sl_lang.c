@@ -31,9 +31,10 @@ main(int argc, char **argv)
 
 	if (sl_open_sl_process(&sl_code, code) != 0) {
 		free(sl_code.types);
+		free(sl_code.funcs);
+		free(sl_code.vars);
 		exit(-1);
 	}
-
 
 	if (sl_close_sl_process(&sl_code) == -1) {
 		fprintf(stderr, "close_sl_process failed.");
