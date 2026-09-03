@@ -451,6 +451,53 @@ char_to_int_fn(struct SL_Code *code,
 }
 
 struct SL_Variable
+char_to_str_fn(struct SL_Code *code,
+		   struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.char_to_str! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+	return_var.vals = malloc(2);
+	return_var.vals[0] = first_arg.valc;
+	return_var.vals[1] = '\0';
+	return_var.type = STRING;
+	return return_var;
+}
+
+struct SL_Variable
+int_to_str_fn(struct SL_Code *code,
+		   struct SL_L_Function func)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.char_to_str! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+	struct SL_Variable return_var = { 0 };
+	int digits = 0;
+	int temp = first_arg.vali;
+	if (temp == 0)
+		digits = 1;
+	else
+		while (temp != 0) {
+			digits++;
+			temp /= 10;
+		}
+
+	return_var.vals = malloc(digits + 1);
+	snprintf(return_var.vals, digits + 1, "%d", first_arg.vali);
+	return_var.type = STRING;
+	return return_var;
+}
+
+
+
+struct SL_Variable
 typeof_fn(struct SL_Code *code,
 	  struct SL_L_Function func)
 {
@@ -1655,6 +1702,10 @@ use_fn(struct SL_Code *code,
 				    int_to_char_fn);
 			sl_add_func(use_code, "types.char_to_int",
 				    char_to_int_fn);
+			sl_add_func(use_code, "types.char_to_str",
+				    char_to_str_fn);
+			sl_add_func(use_code, "types.int_to_str",
+				    int_to_str_fn);
 
 			// TYPE CHECK
 			sl_add_func(use_code, "types.is_int", is_int_fn);
