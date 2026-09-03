@@ -3043,9 +3043,15 @@ sl_open_sl_process(struct SL_Code *code, char *file_name)
 	int             count =
 		sl_init_sl_lexer(SL_INIT, file_name, &code->code,
 				 SPECIAL_TOKENS);
+	if (count < 0)
+	{
+		fprintf(stderr, "Invalid count\nsl_init_sl_lexer() returned a negative value\n");
+		return -1;
+	}
+
 	code->types = calloc(count, sizeof(enum TokenTypes));
 	if (code->types == NULL) {
-		fprintf(stderr, "calloc() failed to allocate memory\n");
+		fprintf(stderr, "calloc() failed to allocate memory (types)\n");
 		return -1;
 	}
 
