@@ -93,7 +93,7 @@ struct SL_Function
     enum TokenTypes *types;
     int code_len;
     int vaargs;
-    struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function);
+    struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function, struct SL_Function);
     int linked_function;
     int scope_lifetime;
 };
@@ -103,7 +103,7 @@ char* sl_get_assignment_var();
 int sl_get_scope(struct SL_Code *code);
 unsigned long sl_hash_string(const char *str);
 int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function);
-int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function));
+int sl_add_func(struct SL_Code *code, char* name, struct SL_Variable (*funcr)(struct SL_Code*, struct SL_L_Function, struct SL_Function));
 struct SL_Variable sl_copy_variable(struct SL_Variable var);
 struct SL_Function sl_copy_function(struct SL_Function function);
 struct SL_Variable sl_get_argument(struct SL_Code code, struct SL_L_Function func, int which_one);
