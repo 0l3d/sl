@@ -1686,45 +1686,52 @@ collections_new_collection_fn(struct SL_Code *code,
 {
 	struct SL_Variable return_var = { 0 };
 
-	int collec_index = 0;
+	int             collec_index = 0;
 	for (int i = 0; i < collections.size; i++) {
 		if (strcmp(collections.collections[i].name, rfunc.name - 4)) {
-			collec_index = i; 
+			collec_index = i;
 		}
 	}
 
-	int scope = sl_get_scope(code);
+	int             scope = sl_get_scope(code);
 	if (scope > 1)
 		scope -= 1;
 
-	char *assigned_var = sl_get_assignment_var();
-	int assigned_len = strlen(assigned_var);
-	for (int i = 0; i < collections.collections[collec_index].total_attrs; i++) {
-		char *raw_attr = collections.collections[collec_index].attrs[i];
-		int assigned_var_len = strlen(assigned_var);
-		int attr_len = strlen(raw_attr);
-		int total_len = assigned_var_len + attr_len;
-		char*full_attr_name = malloc(total_len + 2);
-		snprintf(full_attr_name, total_len + 2, "%s.%s", assigned_var, raw_attr);
+	char           *assigned_var = sl_get_assignment_var();
+	int             assigned_len = strlen(assigned_var);
+	for (int i = 0; i < collections.collections[collec_index].total_attrs;
+	     i++) {
+		char           *raw_attr =
+			collections.collections[collec_index].attrs[i];
+		int             assigned_var_len = strlen(assigned_var);
+		int             attr_len = strlen(raw_attr);
+		int             total_len = assigned_var_len + attr_len;
+		char           *full_attr_name = malloc(total_len + 2);
+		snprintf(full_attr_name, total_len + 2, "%s.%s", assigned_var,
+			 raw_attr);
 		struct SL_Variable var = { 0 };
 		var.name = full_attr_name;
 		var.type = INTEGER;
 		var.hash = sl_hash_string(full_attr_name);
 		var.scope_lifetime = scope;
 		sl_add_var(code, var);
-		free(full_attr_name);	
+		free(full_attr_name);
 	}
-	for (int i = 0; i < collections.collections[collec_index].total_funcs; i++) {
-		struct SL_Function raw_func = collections.collections[collec_index].functions[i];
-		int assigned_var_len = strlen(assigned_var);
-		int funcn_len = strlen(raw_func.name);
-		int total_len = assigned_var_len + funcn_len;
-		char*full_func_name = malloc(total_len + 2);
-		snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var, raw_func.name);
+	for (int i = 0; i < collections.collections[collec_index].total_funcs;
+	     i++) {
+		struct SL_Function raw_func =
+			collections.collections[collec_index].functions[i];
+		int             assigned_var_len = strlen(assigned_var);
+		int             funcn_len = strlen(raw_func.name);
+		int             total_len = assigned_var_len + funcn_len;
+		char           *full_func_name = malloc(total_len + 2);
+		snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
+			 raw_func.name);
 		struct SL_Function func = { 0 };
 		func = raw_func;
 		func.code_tokens[3] = malloc(assigned_len + 3);
-		snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);	
+		snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"",
+			 assigned_var);
 		func.name = full_func_name;
 		func.hash = sl_hash_string(full_func_name);
 		func.scope_lifetime = scope;
@@ -1738,24 +1745,23 @@ collections_new_collection_fn(struct SL_Code *code,
 
 struct SL_Variable
 collections_set_attr_fn(struct SL_Code *code,
-			      struct SL_L_Function func,
-			      struct SL_Function rfunc)
+			struct SL_L_Function func, struct SL_Function rfunc)
 {
 	struct SL_Variable return_var = { 0 };
 	struct SL_Variable self = sl_get_argument(*code, func, 0);
 	struct SL_Variable attr_name = sl_get_argument(*code, func, 1);
 	struct SL_Variable attr_val = sl_get_argument(*code, func, 2);
 
-	int scope = sl_get_scope(code);
+	int             scope = sl_get_scope(code);
 	if (scope > 1)
 		scope -= 1;
 
-	char* self_n = sl_string_getter(self.vals);
-	char* attr_name_r = sl_string_getter(attr_name.vals);
+	char           *self_n = sl_string_getter(self.vals);
+	char           *attr_name_r = sl_string_getter(attr_name.vals);
 
-	int total_size = strlen(attr_name_r) + strlen(self_n);
-	char *full_var_name = malloc(total_size + 2);
-	snprintf(full_var_name, total_size + 2,"%s.%s",self_n, attr_name_r);
+	int             total_size = strlen(attr_name_r) + strlen(self_n);
+	char           *full_var_name = malloc(total_size + 2);
+	snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
 	struct SL_Variable var = { 0 };
 	var = attr_val;
 	var.name = full_var_name;
@@ -1770,23 +1776,22 @@ collections_set_attr_fn(struct SL_Code *code,
 
 struct SL_Variable
 collections_get_attr_fn(struct SL_Code *code,
-			      struct SL_L_Function func,
-			      struct SL_Function rfunc)
+			struct SL_L_Function func, struct SL_Function rfunc)
 {
 	struct SL_Variable return_var = { 0 };
 	struct SL_Variable self = sl_get_argument(*code, func, 0);
 	struct SL_Variable attr_name = sl_get_argument(*code, func, 1);
 
-	int scope = sl_get_scope(code);
+	int             scope = sl_get_scope(code);
 	if (scope > 1)
 		scope -= 1;
 
-	char* self_n = sl_string_getter(self.vals);
-	char* attr_name_r = sl_string_getter(attr_name.vals);
+	char           *self_n = sl_string_getter(self.vals);
+	char           *attr_name_r = sl_string_getter(attr_name.vals);
 
-	int total_size = strlen(attr_name_r) + strlen(self_n);
-	char *full_var_name = malloc(total_size + 2);
-	snprintf(full_var_name, total_size + 2,"%s.%s",self_n, attr_name_r);
+	int             total_size = strlen(attr_name_r) + strlen(self_n);
+	char           *full_var_name = malloc(total_size + 2);
+	snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
 	struct SL_Variable *ref_var = sl_get_var(code, full_var_name);
 	return_var = sl_copy_variable(*ref_var);
 	free(full_var_name);
@@ -1819,10 +1824,9 @@ collections_create_collection_fn(struct SL_Code *code,
 
 	if (collections.size >= collections.capacity) {
 		collections.capacity *= 2;
-		void           *tmp =
-			realloc(collections.collections,
-				collections.capacity *
-				sizeof(struct SL_Collection));
+		void           *tmp = realloc(collections.collections,
+					      collections.capacity *
+					      sizeof(struct SL_Collection));
 		if (!tmp)
 			perror("realloc failed on collections");
 		collections.collections = tmp;
@@ -1844,30 +1848,40 @@ collections_create_collection_fn(struct SL_Code *code,
 		char           *raw_str = sl_string_getter(item.vals);
 		if (raw_str[0] == 'v' && raw_str[1] == ':') {
 			raw_str = raw_str + 2;	// v:name + 2 = name 
-			collections.collections[index].attrs[collections.
-							      collections
-							      [index].
-							      total_attrs++] =
+			collections.collections[index].
+				attrs[collections.collections
+				      [index].total_attrs++] =
 				strdup(raw_str);
-		} else if (raw_str[0] == 'f' && raw_str[1] == ':') {
-			raw_str = raw_str + 2; // f:name:link + 2 = name:link
-			char *token = strtok(raw_str, ":");
-			char *actual_name = NULL;
-			char *link_name = NULL;
+		}
+		else if (raw_str[0] == 'f' && raw_str[1] == ':') {
+			raw_str = raw_str + 2;	// f:name:link + 2 = name:link
+			char           *token = strtok(raw_str, ":");
+			char           *actual_name = NULL;
+			char           *link_name = NULL;
 			actual_name = strdup(token);
 			token = strtok(NULL, ":");
 			if (token != NULL)
 				link_name = strdup(token);
-			else 
+			else
 				link_name = actual_name;
-			
 
-			struct SL_Function *link_func_p = sl_get_func(code, actual_name);
-			struct SL_Function link_func = sl_copy_function(*link_func_p);
+
+			struct SL_Function *link_func_p =
+				sl_get_func(code, actual_name);
+			struct SL_Function link_func =
+				sl_copy_function(*link_func_p);
 			// [var] [self] [=] ["attr_name"] 4 more tokens
-			link_func.code_tokens = realloc(link_func.code_tokens, (link_func.code_len + 4) * sizeof(char *));
-			link_func.types = realloc(link_func.types, (link_func.code_len + 4) * sizeof(enum TokenTypes));
-			memmove(link_func.code_tokens + 4, link_func.code_tokens, link_func.code_len * sizeof(char *));
+			link_func.code_tokens =
+				realloc(link_func.code_tokens,
+					(link_func.code_len +
+					 4) * sizeof(char *));
+			link_func.types =
+				realloc(link_func.types,
+					(link_func.code_len +
+					 4) * sizeof(enum TokenTypes));
+			memmove(link_func.code_tokens + 4,
+				link_func.code_tokens,
+				link_func.code_len * sizeof(char *));
 			link_func.code_tokens[0] = strdup("var");
 			link_func.code_tokens[1] = strdup("self");
 			link_func.code_tokens[2] = strdup("=");
@@ -1876,19 +1890,22 @@ collections_create_collection_fn(struct SL_Code *code,
 				free(link_func.name);
 
 			link_func.name = strdup(link_name);
-			collections.collections[index].functions[collections.collections[index].total_funcs++] = link_func;
+			collections.collections[index].functions[collections.
+								 collections
+								 [index].
+								 total_funcs++]
+				= link_func;
 			if (link_name != actual_name) {
-                 free(link_name);
-             }
-             free(actual_name);
+				free(link_name);
+			}
+			free(actual_name);
 		}
 		free(raw_str - 2);
 	}
 	int             total_len = strlen(raw_name) + strlen(":new");
 	char           *collection_new_name = malloc(total_len + 1);
 	snprintf(collection_new_name, total_len + 1, "%s:new", raw_name);
-	sl_add_func(code, collection_new_name,
-		    collections_new_collection_fn);
+	sl_add_func(code, collection_new_name, collections_new_collection_fn);
 	free(raw_name);
 	free(collection_new_name);
 	collections.size++;
@@ -1982,8 +1999,10 @@ use_fn(struct SL_Code *code,
 			used_collections = 1;
 			sl_add_func(use_code, "Collections.create_collection",
 				    collections_create_collection_fn);
-			sl_add_func(use_code, "Collections.set_attr", collections_set_attr_fn);
-			sl_add_func(use_code, "Collections.get_attr", collections_get_attr_fn);
+			sl_add_func(use_code, "Collections.set_attr",
+				    collections_set_attr_fn);
+			sl_add_func(use_code, "Collections.get_attr",
+				    collections_get_attr_fn);
 		}
 		else if (strcmp(libstr, "string") == 0 && used_string == 0) {
 			used_string = 1;
@@ -2039,8 +2058,7 @@ init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
 	LISTS = calloc(SL_INIT, sizeof(struct SL_List));
 	collections.collections =
 		calloc(SL_INIT, sizeof(struct SL_Collection));
-	collections.collections->attrs =
-		calloc(SL_INIT, sizeof(char *));
+	collections.collections->attrs = calloc(SL_INIT, sizeof(char *));
 	collections.collections->functions =
 		calloc(SL_INIT, sizeof(struct SL_Function));
 	collections.size = 0;
@@ -2084,69 +2102,80 @@ close_sl_stdlib()
 
 	free(LISTS);
 
-for (int i = 0; i < collections.size; i++) {
+	for (int i = 0; i < collections.size; i++) {
 
-    if (collections.collections[i].name != NULL) {
-        free(collections.collections[i].name);
-        collections.collections[i].name = NULL;
-    }
+		if (collections.collections[i].name != NULL) {
+			free(collections.collections[i].name);
+			collections.collections[i].name = NULL;
+		}
 
-    if (collections.collections[i].attrs != NULL) {
-        for (int j = 0; j < collections.collections[i].total_attrs; j++) {
-            if (collections.collections[i].attrs[j] != NULL) {
-                free(collections.collections[i].attrs[j]);
-                collections.collections[i].attrs[j] = NULL;
-            }
-        }
+		if (collections.collections[i].attrs != NULL) {
+			for (int j = 0;
+			     j < collections.collections[i].total_attrs;
+			     j++) {
+				if (collections.collections[i].attrs[j] !=
+				    NULL) {
+					free(collections.collections[i].
+					     attrs[j]);
+					collections.collections[i].attrs[j] =
+						NULL;
+				}
+			}
 
-        free(collections.collections[i].attrs);
-        collections.collections[i].attrs = NULL;
-    }
+			free(collections.collections[i].attrs);
+			collections.collections[i].attrs = NULL;
+		}
 
-    if (collections.collections[i].functions != NULL) {
-        for (int j = 0; j < collections.collections[i].total_funcs; j++) {
+		if (collections.collections[i].functions != NULL) {
+			for (int j = 0;
+			     j < collections.collections[i].total_funcs;
+			     j++) {
 
-            struct SL_Function *func =
-                &collections.collections[i].functions[j];
+				struct SL_Function *func =
+					&collections.collections[i].
+					functions[j];
 
-            if (func->name != NULL) {
-                free(func->name);
-                func->name = NULL;
-            }
+				if (func->name != NULL) {
+					free(func->name);
+					func->name = NULL;
+				}
 
-            if (func->code_tokens != NULL) {
-                for (int k = 0; k < func->code_len; k++) {
-                    if (func->code_tokens[k] != NULL) {
-                        free(func->code_tokens[k]);
-                        func->code_tokens[k] = NULL;
-                    }
-                }
+				if (func->code_tokens != NULL) {
+					for (int k = 0; k < func->code_len;
+					     k++) {
+						if (func->code_tokens[k] !=
+						    NULL) {
+							free(func->
+							     code_tokens[k]);
+							func->code_tokens[k] =
+								NULL;
+						}
+					}
 
-                free(func->code_tokens);
-                func->code_tokens = NULL;
-            }
+					free(func->code_tokens);
+					func->code_tokens = NULL;
+				}
 
-            if (func->types != NULL) {
-                free(func->types);
-                func->types = NULL;
-            }
-        }
+				if (func->types != NULL) {
+					free(func->types);
+					func->types = NULL;
+				}
+			}
 
-        free(collections.collections[i].functions);
-        collections.collections[i].functions = NULL;
-    }
+			free(collections.collections[i].functions);
+			collections.collections[i].functions = NULL;
+		}
 
-    collections.collections[i].total_attrs = 0;
-    collections.collections[i].total_funcs = 0;
+		collections.collections[i].total_attrs = 0;
+		collections.collections[i].total_funcs = 0;
+	}
+
+	if (collections.collections != NULL) {
+		free(collections.collections);
+		collections.collections = NULL;
+	}
+
+	collections.size = 0;
+	collections.capacity = 0;
+
 }
-
-if (collections.collections != NULL) {
-    free(collections.collections);
-    collections.collections = NULL;
-}
-
-collections.size = 0;
-collections.capacity = 0;
-
-}
-
