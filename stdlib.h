@@ -1794,6 +1794,11 @@ collections_get_attr_fn(struct SL_Code *code,
 	snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
 	struct SL_Variable *ref_var = sl_get_var(code, full_var_name);
 	return_var = sl_copy_variable(*ref_var);
+	if (return_var.name != NULL) {
+		free(return_var.name);
+		return_var.name = NULL;
+	}
+
 	free(full_var_name);
 	free(self_n);
 	free(attr_name_r);
@@ -1940,105 +1945,95 @@ use_fn(struct SL_Code *code,
 
 		if (strcmp(libstr, "io") == 0 && used_io == 0) {
 			used_io = 1;
-			sl_add_func(use_code, "io.print", print_fn);
-			sl_add_func(use_code, "io.input", input_fn);
-			sl_add_func(use_code, "io.getchar", io_getchar_fn);
+			sl_add_func(code, "io.print", print_fn);
+			sl_add_func(code, "io.input", input_fn);
+			sl_add_func(code, "io.getchar", io_getchar_fn);
 		}
 		else if (strcmp(libstr, "file") == 0 && used_file == 0) {
 			used_file = 1;
-			sl_add_func(use_code, "file.read_to_str",
+			sl_add_func(code, "file.read_to_str",
 				    file_read_to_str_fn);
-			sl_add_func(use_code, "file.write_from_str",
+			sl_add_func(code, "file.write_from_str",
 				    file_write_from_str_fn);
-			sl_add_func(use_code, "file.append_from_str",
+			sl_add_func(code, "file.append_from_str",
 				    file_append_from_str_fn);
 		}
 		else if (strcmp(libstr, "types") == 0 && used_types == 0) {
 			used_types = 1;
 			// CONVERT
-			sl_add_func(use_code, "types.str_to_int",
-				    str_to_int_fn);
-			sl_add_func(use_code, "types.int_to_char",
+			sl_add_func(code, "types.str_to_int", str_to_int_fn);
+			sl_add_func(code, "types.int_to_char",
 				    int_to_char_fn);
-			sl_add_func(use_code, "types.char_to_int",
+			sl_add_func(code, "types.char_to_int",
 				    char_to_int_fn);
-			sl_add_func(use_code, "types.char_to_str",
+			sl_add_func(code, "types.char_to_str",
 				    char_to_str_fn);
-			sl_add_func(use_code, "types.int_to_str",
-				    int_to_str_fn);
+			sl_add_func(code, "types.int_to_str", int_to_str_fn);
 
 			// TYPE CHECK
-			sl_add_func(use_code, "types.is_int", is_int_fn);
-			sl_add_func(use_code, "types.is_char", is_char_fn);
-			sl_add_func(use_code, "types.is_string",
-				    is_string_fn);
-			sl_add_func(use_code, "types.is_double",
-				    is_double_fn);
-			sl_add_func(use_code, "types.is_not_initialized",
+			sl_add_func(code, "types.is_int", is_int_fn);
+			sl_add_func(code, "types.is_char", is_char_fn);
+			sl_add_func(code, "types.is_string", is_string_fn);
+			sl_add_func(code, "types.is_double", is_double_fn);
+			sl_add_func(code, "types.is_not_initialized",
 				    is_not_initialized_fn);
-			sl_add_func(use_code, "types.typeof", typeof_fn);
+			sl_add_func(code, "types.typeof", typeof_fn);
 
 			// STRING TYPE CHECK
-			sl_add_func(use_code, "types.is_digit", is_digit_fn);
+			sl_add_func(code, "types.is_digit", is_digit_fn);
 
 		}
 		else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
 			used_sys = 1;
-			sl_add_func(use_code, "sys.get_arg", sys_get_arg_fn);
-			sl_add_func(use_code, "sys.exit", sys_exit_fn);
+			sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
+			sl_add_func(code, "sys.exit", sys_exit_fn);
 		}
 		else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
 			used_errors = 1;
-			sl_add_func(use_code, "errors.string",
-				    errors_string_fn);
-			sl_add_func(use_code, "errors.bool", errors_bool_fn);
-			sl_add_func(use_code, "errors.panic",
-				    errors_panic_fn);
+			sl_add_func(code, "errors.string", errors_string_fn);
+			sl_add_func(code, "errors.bool", errors_bool_fn);
+			sl_add_func(code, "errors.panic", errors_panic_fn);
 		}
 		else if (strcmp(libstr, "collections") == 0 && used_sys == 0) {
 			used_collections = 1;
-			sl_add_func(use_code, "Collections.create_collection",
+			sl_add_func(code, "Collections.create_collection",
 				    collections_create_collection_fn);
-			sl_add_func(use_code, "Collections.set_attr",
+			sl_add_func(code, "Collections.set_attr",
 				    collections_set_attr_fn);
-			sl_add_func(use_code, "Collections.get_attr",
+			sl_add_func(code, "Collections.get_attr",
 				    collections_get_attr_fn);
 		}
 		else if (strcmp(libstr, "string") == 0 && used_string == 0) {
 			used_string = 1;
-			sl_add_func(use_code, "string.char_at",
-				    string_charat_fn);
-			sl_add_func(use_code, "string.split",
-				    string_split_fn);
-			sl_add_func(use_code, "string.slice",
-				    string_slice_fn);
-			sl_add_func(use_code, "string.trim", string_trim_fn);
-			sl_add_func(use_code, "string.set_char_at",
+			sl_add_func(code, "string.char_at", string_charat_fn);
+			sl_add_func(code, "string.split", string_split_fn);
+			sl_add_func(code, "string.slice", string_slice_fn);
+			sl_add_func(code, "string.trim", string_trim_fn);
+			sl_add_func(code, "string.set_char_at",
 				    string_setcharat_fn);
-			sl_add_func(use_code, "string.len", string_len_fn);
+			sl_add_func(code, "string.len", string_len_fn);
 		}
 		else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;
-			sl_add_func(use_code, "List.new", List_new_fn);
-			sl_add_func(use_code, "List.push", List_push_fn);
-			sl_add_func(use_code, "List.pop", List_pop_fn);
-			sl_add_func(use_code, "List.peek", List_peek_fn);
-			sl_add_func(use_code, "List.set", List_set_fn);
-			sl_add_func(use_code, "List.get", List_get_fn);
-			sl_add_func(use_code, "List.next", List_next_fn);
-			sl_add_func(use_code, "List.iter", List_iter_fn);
-			sl_add_func(use_code, "List.remove", List_remove_fn);
-			sl_add_func(use_code, "List.len", List_len_fn);
+			sl_add_func(code, "List.new", List_new_fn);
+			sl_add_func(code, "List.push", List_push_fn);
+			sl_add_func(code, "List.pop", List_pop_fn);
+			sl_add_func(code, "List.peek", List_peek_fn);
+			sl_add_func(code, "List.set", List_set_fn);
+			sl_add_func(code, "List.get", List_get_fn);
+			sl_add_func(code, "List.next", List_next_fn);
+			sl_add_func(code, "List.iter", List_iter_fn);
+			sl_add_func(code, "List.remove", List_remove_fn);
+			sl_add_func(code, "List.len", List_len_fn);
 		}
 		else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
 			used_extra = 1;
-			sl_add_func(use_code, "rand.random", random_fn);
+			sl_add_func(code, "rand.random", random_fn);
 		}
 		else if (strcmp(libstr, "db") == 0 && used_db == 0) {
 			used_db = 1;
-			sl_add_func(use_code, "db.from_lists",
-				    db_from_lists_fn);
-			sl_add_func(use_code, "db.to_lists", db_to_lists_fn);
+			sl_add_func(code, "db.from_lists", db_from_lists_fn);
+			sl_add_func(code, "db.to_lists", db_to_lists_fn);
 		}
 		free(libstr);
 	}
@@ -2145,8 +2140,8 @@ close_sl_stdlib()
 					     k++) {
 						if (func->code_tokens[k] !=
 						    NULL) {
-							free(func->
-							     code_tokens[k]);
+							free(func->code_tokens
+							     [k]);
 							func->code_tokens[k] =
 								NULL;
 						}
@@ -2159,6 +2154,41 @@ close_sl_stdlib()
 				if (func->types != NULL) {
 					free(func->types);
 					func->types = NULL;
+				}
+				if (func->arguments != NULL) {
+					for (int arg_idx = 0;
+					     arg_idx < func->total_arguments;
+					     arg_idx++) {
+						if (func->
+						    arguments[arg_idx].name !=
+						    NULL) {
+							free(func->arguments
+							     [arg_idx].name);
+							func->arguments
+								[arg_idx].name
+								= NULL;
+						}
+
+						if ((func->
+						     arguments[arg_idx].type
+						     == STRING
+						     ||
+						     func->arguments
+						     [arg_idx].type == RETURN)
+						    &&
+						    func->arguments[arg_idx].
+						    vals != NULL) {
+
+							free(func->arguments
+							     [arg_idx].vals);
+							func->arguments
+								[arg_idx].vals
+								= NULL;
+						}
+					}
+
+					free(func->arguments);
+					func->arguments = NULL;
 				}
 			}
 

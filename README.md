@@ -35,6 +35,8 @@ All API functions here:
 ```c
 char * sl_string_getter(char *word);
 char* sl_get_assignment_var();
+void sl_free_variable(struct SL_Variable *var);
+void sl_free_function(struct SL_Function *func);
 int sl_get_scope(struct SL_Code *code);
 unsigned long sl_hash_string(const char *str);
 int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function);
@@ -46,7 +48,7 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var);
 struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name);
 struct SL_Function *sl_get_func(struct SL_Code *code, const char *name);
 int sl_init_sl_lexer(int malloc_size, char* file_name, char ***bufout, char *special_tokens);
-struct SL_Code sl_init_sl_process();
+struct SL_Code sl_init_sl_process(); 
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code);
 int sl_open_sl_process(struct SL_Code *code, char* file_name);
 struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s);
