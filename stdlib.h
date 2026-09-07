@@ -2051,6 +2051,14 @@ use_fn(struct SL_Code *code,
 		}
 		else if (strcmp(libstr, "collections") == 0 && used_sys == 0) {
 			used_collections = 1;
+			collections.collections =
+				calloc(SL_INIT, sizeof(struct SL_Collection));
+			collections.collections->attrs = calloc(SL_INIT, sizeof(char *));
+			collections.collections->functions =
+				calloc(SL_INIT, sizeof(struct SL_Function));
+			collections.size = 0;
+			collections.capacity = SL_INIT;
+
 			sl_add_func(code, "Collections.create_collection",
 				    collections_create_collection_fn);
 			sl_add_func(code, "Collections.set_attr",
@@ -2070,6 +2078,7 @@ use_fn(struct SL_Code *code,
 		}
 		else if (strcmp(libstr, "list") == 0 && used_list == 0) {
 			used_list = 1;
+			LISTS = calloc(SL_INIT, sizeof(struct SL_List));
 			sl_add_func(code, "List.new", List_new_fn);
 			sl_add_func(code, "List.push", List_push_fn);
 			sl_add_func(code, "List.pop", List_pop_fn);
@@ -2105,14 +2114,6 @@ init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv)
 		arguments[i] = strdup(argv[i]);
 	}
 	argcN = argc;
-	LISTS = calloc(SL_INIT, sizeof(struct SL_List));
-	collections.collections =
-		calloc(SL_INIT, sizeof(struct SL_Collection));
-	collections.collections->attrs = calloc(SL_INIT, sizeof(char *));
-	collections.collections->functions =
-		calloc(SL_INIT, sizeof(struct SL_Function));
-	collections.size = 0;
-	collections.capacity = SL_INIT;
 	use_code = sl_code;
 	sl_add_func(sl_code, "use", use_fn);
 }
