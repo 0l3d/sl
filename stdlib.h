@@ -1,3 +1,8 @@
+/* 
+ * SL Standart Library 
+ */
+
+
 #include "sl.h"
 #include <stdio.h>
 #include <string.h>
@@ -7,6 +12,8 @@
 
 struct SL_Code *use_code = NULL;
 
+
+/* Example Function for function definition ref. */ 
 struct SL_Variable
 example_fn(struct SL_Code *code,
 	   struct SL_L_Function func, struct SL_Function rfunc)
@@ -17,12 +24,15 @@ example_fn(struct SL_Code *code,
 
 	return return_var;
 }
+/* Example Function for function definition ref. */ 
 
 
-
+/* Global Arguments */
 char          **arguments = NULL;
 int             argcN;
+/* Global Arguments */
 
+/* Lists struct */ 
 struct SL_List
 {
 	int             capacity;
@@ -32,7 +42,7 @@ struct SL_List
 	int             current;
 };
 
-
+/* Single Collection Struct */ 
 struct SL_Collection
 {
 	char           *name;
@@ -42,6 +52,7 @@ struct SL_Collection
 	int             total_funcs;
 };
 
+/* Collections struct  */ 
 struct SL_Collections
 {
 	struct SL_Collection *collections;
@@ -50,12 +61,12 @@ struct SL_Collections
 };
 
 
-// LISTS
+/* LISTS */ 
 int             LISTS_count = 0;
 int             LISTS_capacity = SL_INIT;
 struct SL_List *LISTS = { 0 };
 
-// COLLECTIONS
+/* COLLECTIONS */
 struct SL_Collections collections = { 0 };
 
 
@@ -172,7 +183,7 @@ list_remove(struct SL_List *list, int index)
 
 /* LIST FUNCTIONS */
 
-// IO
+/* Input/Output for stdout/stdin*/
 struct SL_Variable
 print_fn(struct SL_Code *code,
 	 struct SL_L_Function func, struct SL_Function rfunc)
@@ -272,7 +283,9 @@ io_getchar_fn(struct SL_Code *code,
 	return_var.type = CHAR;
 	return return_var;
 }
+/* Input/Output for stdout/stdin */
 
+/* Input/Output for file/dir */
 struct SL_Variable
 file_read_to_str_fn(struct SL_Code *code,
 		    struct SL_L_Function func, struct SL_Function rfunc)
@@ -384,10 +397,10 @@ file_append_from_str_fn(struct SL_Code *code,
 	free(file_name);
 	return return_var;
 }
+/* Input/Output for file/dir */
 
 
-
-// EXTRA
+/* Extra C Standart Library Functions */
 struct SL_Variable
 random_fn(struct SL_Code *code,
 	  struct SL_L_Function func, struct SL_Function rfunc)
@@ -408,7 +421,7 @@ random_fn(struct SL_Code *code,
 	return return_var;
 }
 
-// TYPES
+/* Types for type checking/converting/more */ 
 struct SL_Variable
 str_to_int_fn(struct SL_Code *code,
 	      struct SL_L_Function func, struct SL_Function rfunc)
@@ -659,7 +672,7 @@ is_digit_fn(struct SL_Code *code,
 
 
 
-// STRING
+/* String Helper functions */ 
 struct SL_Variable
 string_charat_fn(struct SL_Code *code,
 		 struct SL_L_Function func, struct SL_Function rfunc)
@@ -699,9 +712,10 @@ string_charat_fn(struct SL_Code *code,
 		return_var.vals = "Buffer underflow!";
 		return return_var;
 	}
-
-	return_var.valc = first_arg.vals[second_arg.vali];
+	char* plain = sl_string_getter(first_arg.vals);
+	return_var.valc = plain[second_arg.vali];
 	return_var.type = CHAR;
+	free(plain);
 	return return_var;
 }
 
@@ -935,7 +949,7 @@ string_trim_fn(struct SL_Code *code,
 	return return_var;
 }
 
-// ERROR HANDLING
+/* Error handling */
 struct SL_Variable
 errors_string_fn(struct SL_Code *code,
 		 struct SL_L_Function func, struct SL_Function rfunc)
@@ -993,7 +1007,7 @@ errors_panic_fn(struct SL_Code *code,
 }
 
 
-// SYS
+/* SYS Library for more specific functions */
 struct SL_Variable
 sys_exit_fn(struct SL_Code *code,
 	    struct SL_L_Function func, struct SL_Function rfunc)
@@ -1035,7 +1049,7 @@ sys_get_arg_fn(struct SL_Code *code,
 
 
 
-// LISTS
+/* Dynamic/Static Array system for SL. */
 struct SL_Variable
 List_new_fn(struct SL_Code *code,
 	    struct SL_L_Function func, struct SL_Function rfunc)
@@ -1467,7 +1481,7 @@ List_len_fn(struct SL_Code *code,
 }
 
 
-// DB
+/* Simple Database system for SL */ 
 struct SL_Variable
 db_from_lists_fn(struct SL_Code *code,
 		 struct SL_L_Function func, struct SL_Function rfunc)
@@ -1678,7 +1692,7 @@ db_to_lists_fn(struct SL_Code *code,
 	return return_var;
 }
 
-// COLLECTIONS
+/* Object Like system for SL */
 struct SL_Variable
 collections_new_collection_fn(struct SL_Code *code,
 			      struct SL_L_Function func,
@@ -1852,14 +1866,14 @@ collections_create_collection_fn(struct SL_Code *code,
 		}
 		char           *raw_str = sl_string_getter(item.vals);
 		if (raw_str[0] == 'v' && raw_str[1] == ':') {
-			raw_str = raw_str + 2;	// v:name + 2 = name 
+			raw_str = raw_str + 2;	/* v:name + 2 = name */ 
 			collections.collections[index].
 				attrs[collections.collections
 				      [index].total_attrs++] =
 				strdup(raw_str);
 		}
 		else if (raw_str[0] == 'f' && raw_str[1] == ':') {
-			raw_str = raw_str + 2;	// f:name:link + 2 = name:link
+			raw_str = raw_str + 2;	/* f:name:link + 2 = name:link */
 			char           *token = strtok(raw_str, ":");
 			char           *actual_name = NULL;
 			char           *link_name = NULL;
@@ -1875,7 +1889,7 @@ collections_create_collection_fn(struct SL_Code *code,
 				sl_get_func(code, actual_name);
 			struct SL_Function link_func =
 				sl_copy_function(*link_func_p);
-			// [var] [self] [=] ["attr_name"] 4 more tokens
+			/* [var] [self] [=] ["attr_name"] 4 more tokens */
 			link_func.code_tokens =
 				realloc(link_func.code_tokens,
 					(link_func.code_len +
@@ -1960,7 +1974,7 @@ use_fn(struct SL_Code *code,
 		}
 		else if (strcmp(libstr, "types") == 0 && used_types == 0) {
 			used_types = 1;
-			// CONVERT
+			/* CONVERT */
 			sl_add_func(code, "types.str_to_int", str_to_int_fn);
 			sl_add_func(code, "types.int_to_char",
 				    int_to_char_fn);
@@ -1970,7 +1984,7 @@ use_fn(struct SL_Code *code,
 				    char_to_str_fn);
 			sl_add_func(code, "types.int_to_str", int_to_str_fn);
 
-			// TYPE CHECK
+			/* TYPE CHECK */
 			sl_add_func(code, "types.is_int", is_int_fn);
 			sl_add_func(code, "types.is_char", is_char_fn);
 			sl_add_func(code, "types.is_string", is_string_fn);
@@ -1979,7 +1993,7 @@ use_fn(struct SL_Code *code,
 				    is_not_initialized_fn);
 			sl_add_func(code, "types.typeof", typeof_fn);
 
-			// STRING TYPE CHECK
+			/* STRING TYPE CHECK */
 			sl_add_func(code, "types.is_digit", is_digit_fn);
 
 		}

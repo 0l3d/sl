@@ -31,7 +31,7 @@ sl_copy_variable(struct SL_Variable var)
 struct SL_Function
 sl_copy_function(struct SL_Function function)
 {
-	struct SL_Function copy = function;
+	struct SL_Function copy = function; 
 
 	if (function.name != NULL) {
 		copy.name = strdup(function.name);
