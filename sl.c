@@ -340,14 +340,6 @@ getvar_from_sl(struct SL_Code code, const char *name)
 
 
 
-enum ConditionTYPE
-{
-	EQUAL,
-	GREATER,
-	LESS,
-	EQUALORGREATER,
-	EQUALORLESS,
-};
 
 int
 check_number(const char *s)
@@ -458,7 +450,7 @@ enum SL_Types
 type_analyzer(char *word)
 {
 	int             check_num = check_number(word);
-	if (string_checker(word) == 1) {
+	if (string_checker(word) == 3 || string_checker(word) == 1) {
 		return STRING;
 	}
 	else if (word[0] == '0' && word[1] == 'x') {

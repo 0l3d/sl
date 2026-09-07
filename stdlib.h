@@ -653,23 +653,63 @@ is_digit_fn(struct SL_Code *code,
 	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 	char           *str = sl_string_getter(first_arg.vals);
 
-	int             len = strlen(str);
 	struct SL_Variable return_var = { 0 };
 	return_var.type = BOOLEAN;
 	return_var.valb = 0;
 
-	for (int i = 0; i < len; i++) {
-		if (!isdigit(str[i])) {
-			free(str);
-			return return_var;
+	if (first_arg.type == STRING) {
+		char           *str = sl_string_getter(first_arg.vals);
+		int             len = strlen(str);
+		for (int i = 0; i < len; i++) {
+			if (!isdigit(str[i])) {
+				free(str);
+				return return_var;
+			}
+
 		}
+		free(str);
 	}
+	else if (first_arg.type == CHAR)
+		if (!isdigit(first_arg.valc))
+			return return_var;
 
 	return_var.valb = 1;
-	free(str);
 	return return_var;
 }
 
+struct SL_Variable
+is_space_fn(struct SL_Code *code,
+	    struct SL_L_Function func, struct SL_Function rfunc)
+{
+	if (func.total_arguments < 1) {
+		fprintf(stderr,
+			"Error usage at types.str_to_int! Not enough arguments.");
+		exit(-1);
+	}
+	struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+	struct SL_Variable return_var = { 0 };
+	return_var.type = BOOLEAN;
+	return_var.valb = 0;
+	if (first_arg.type == STRING) {
+		char           *str = sl_string_getter(first_arg.vals);
+		int             len = strlen(str);
+		for (int i = 0; i < len; i++) {
+			if (!isspace(str[i])) {
+				free(str);
+				return return_var;
+			}
+		}
+		free(str);
+	}
+	else if (first_arg.type == CHAR)
+		if (!isspace(first_arg.valc))
+			return return_var;
+
+
+	return_var.valb = 1;
+	return return_var;
+}
 
 
 /* String Helper functions */ 
@@ -1995,6 +2035,7 @@ use_fn(struct SL_Code *code,
 
 			/* STRING TYPE CHECK */
 			sl_add_func(code, "types.is_digit", is_digit_fn);
+			sl_add_func(code, "types.is_space", is_space_fn);
 
 		}
 		else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
