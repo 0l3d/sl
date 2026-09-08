@@ -1,6 +1,8 @@
 #ifndef SL_H
 #define SL_H
 
+#include <stdint.h>
+
 #define SL_INIT 4096
 #define GENERAL_MALLOC_SIZE 131072
 #define MAX_CODE_SIZE 1048576
@@ -35,7 +37,7 @@ struct SL_Variable
         int valb;
         char valc;
         char *vals;
-        long valh;
+        intptr_t valh;
     };
 };
 

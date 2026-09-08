@@ -74,6 +74,11 @@ struct SL_Collections collections = { 0 };
 int
 create_new_list(int capacity, int fixed)
 {
+	if (LISTS_count >= LISTS_capacity) {
+		LISTS_capacity *= 2;
+		void* tmp = realloc(LISTS, capacity * sizeof(struct SL_List));
+	}
+	
 	LISTS[LISTS_count].vars =
 		calloc(capacity, sizeof(struct SL_Variable));
 	LISTS[LISTS_count].capacity = capacity;
