@@ -60,7 +60,6 @@ struct SL_Collections
 	int             capacity;
 };
 
-
 /* LISTS */ 
 int             LISTS_count = 0;
 int             LISTS_capacity = SL_INIT;
@@ -77,6 +76,10 @@ create_new_list(int capacity, int fixed)
 	if (LISTS_count >= LISTS_capacity) {
 		LISTS_capacity *= 2;
 		void* tmp = realloc(LISTS, capacity * sizeof(struct SL_List));
+		if (!tmp)
+			perror("Realloc failed.");
+
+		LISTS = tmp;
 	}
 	
 	LISTS[LISTS_count].vars =
