@@ -382,7 +382,10 @@ enum SL_Types type_analyzer(char *word) {
   int check_num = check_number(word);
   if (string_checker(word) == 3 || string_checker(word) == 1) {
     return STRING;
-  } else if (word[0] == '0' && word[1] == 'x') {
+  } else if ((word[0] == '-' && word[1] == '0' &&
+              (word[2] == 'x' || word[2] == 'o' || word[2] == 'b')) ||
+             word[0] == '0' &&
+                 (word[1] == 'x' || word[1] == 'b' || word[1] == 'o')) {
     return LONG;
   } else if (check_num == 1) {
     return INTEGER;
@@ -434,12 +437,18 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
       case 'b':
         base = 2;
         break;
+      case 'o':
+        base = 8;
+        break;
       default:
         base = 10;
         break;
       }
     }
-    v.valh = strtol(word, NULL, base);
+    if (base == 2 || base == 8)
+      v.valh = strtol(word + 2, NULL, base);
+    else
+      v.valh = strtol(word, NULL, base);
   } break;
   default:
     break;
@@ -624,7 +633,6 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
     right_side.type = DOUBLE;
     right_side.valf = right_side.vali;
   }
-
   struct SL_Variable error = {0};
   error.type = ERROR;
 
