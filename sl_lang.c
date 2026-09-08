@@ -27,7 +27,7 @@ struct SL_Variable builtin_not_fn(struct SL_Code *code,
     break;
   default:
     return_var.type = ERROR;
-    return_var.vals = "Unexpected return usage!";
+    return_var.vals = "Unexpected not() usage!";
     return return_var;
   }
 
