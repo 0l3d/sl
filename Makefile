@@ -7,7 +7,11 @@ TARGET  = sl
 CFLAGS := -O3 -DNDEBUG -flto -ffast-math -fno-math-errno -fno-trapping-math -fno-signed-zeros -ffp-contract=fast
 LDFLAGS := -flto
 
-.PHONY: all clean 
+ifeq ($(OS),Windows_NT)
+    LDFLAGS += -lws2_32
+endif
+
+.PHONY: all clean valgrind
 
 all: $(TARGET)
 
@@ -22,3 +26,4 @@ $(TARGET): $(OBJECTS)
 
 clean:
 	rm -f $(OBJECTS) $(TARGET)
+

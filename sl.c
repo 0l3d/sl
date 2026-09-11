@@ -1281,6 +1281,7 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
                            int max_tokens, int current_line) {
   int depth = 0;
   struct SL_Math_Splitter tree = {0};
+  tree.op = 0;
 
   while (current_token < max_tokens) {
     if (is_has_func(code, expression[current_token]) != -1) {
@@ -1343,6 +1344,7 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
     if (optype == 0 && strlen(expression[current_token]) > 1) {
       op_prec = 0;
     }
+
     if (op_prec != 0) {
       if (tree.op == 0) {
         tree.op = op;
@@ -1505,6 +1507,14 @@ struct SL_Variable run_sl_function(struct SL_Code *code, char *name,
           return_val.vali = 5;
           return return_val;
         }
+
+        if (function.linked_function != 1 && function.vaargs == 0 &&
+            how_much_go >= function.total_arguments) {
+          return_val.type = ERROR;
+          return_val.vali = 12;
+          return return_val;
+        }
+
         if (function.linked_function == 1) {
           if (lfunc.argument_indexes == NULL) {
             fprintf(stderr, "calloc() failed to allocate memory\n");
@@ -1555,12 +1565,23 @@ struct SL_Variable run_sl_function(struct SL_Code *code, char *name,
         current_token = commapos + 1;
 
         if (tokens[commapos][0] == ')') {
+          if (function.linked_function != 1 && function.vaargs == 0 &&
+              how_much_go + 1 < function.total_arguments) {
+            return_val.type = ERROR;
+            return_val.vali = 11;
+            return return_val;
+          }
           break;
         }
 
         how_much_go++;
       }
+    } else if (function.total_arguments > 0) {
+      return_val.type = ERROR;
+      return_val.vali = 11;
+      return return_val;
     }
+
   } else if (function.total_arguments == 0) {
     while (current_token < max_tokens) {
       if (current_token != max_tokens - 1 &&
@@ -1648,6 +1669,14 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
                           "STACK CALL OVERFLOW!",
                           "Expected: Use less recursion or arguments (TIP: "
                           "While loop is a good alternative!)");
+      else if (fn.vali == 11)
+        sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
+                          "NOT ENOUGH ARGUMENTS!",
+                          "Expected: Use all needed arguments.");
+      else if (fn.vali == 12)
+        sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
+                          "TOO MANY ARGUMENTS!",
+                          "Expected: Use less arguments.");
     }
     return fn;
   }
@@ -2140,6 +2169,8 @@ void identifier_tokenizer(struct SL_Code *code) {
       code->types[i] = T_SHLEFT;
     } else if (strcmp(code->code[i], ">>") == 0) {
       code->types[i] = T_SHRIGHT;
+    } else {
+      code->types[i] = T_UNKNOWN;
     }
   }
 }

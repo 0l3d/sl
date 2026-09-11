@@ -10,7 +10,7 @@ def App_get_title then
     return Collections.get_attr($self, "title")
 end
 
-def App_get_size -> width, height then
+def App_get_size then
     return 
     Collections.get_attr($self, "width") 
     +
