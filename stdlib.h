@@ -4,17 +4,17 @@
 
 #include "sl.h"
 #include <ctype.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <inttypes.h>
 
 #ifdef _WIN32
-#define CHAR    WIN32_CHAR
-#define LONG    WIN32_LONG
+#define CHAR WIN32_CHAR
+#define LONG WIN32_LONG
 #define BOOLEAN WIN32_BOOLEAN
-#define DOUBLE  WIN32_DOUBLE
+#define DOUBLE WIN32_DOUBLE
 
 #include <winsock2.h>
 #include <ws2tcpip.h>
@@ -25,12 +25,24 @@
 #undef DOUBLE
 #else
 #include <arpa/inet.h>
+#include <fcntl.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <unistd.h>
 #endif
 
 struct SL_Code *use_code = NULL;
 
+struct SL_FD_List {
+  fd_set *fd;
+  int is_set;
+};
+
+struct SL_FD_List *fd_list = NULL;
+int fd_list_size = 0;
+int fd_list_capacity = 0;
 /* Example Function for function definition ref. */
 struct SL_Variable example_fn(struct SL_Code *code, struct SL_L_Function func,
                               struct SL_Function rfunc) {
@@ -287,14 +299,12 @@ struct SL_Variable io_getchar_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable io_fflush_fn(struct SL_Code *code,
-                                 struct SL_L_Function func,
-                                 struct SL_Function rfunc) {
+struct SL_Variable io_fflush_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   fflush(stdout);
   return return_var;
 }
-
 
 /* Input/Output for stdout/stdin */
 
@@ -2338,6 +2348,254 @@ struct SL_Variable net_send_win_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable net_new_fd_win_fn(struct SL_Code *code,
+                                     struct SL_L_Function func,
+                                     struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.new_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (fd_list_size >= fd_list_capacity) {
+    fd_list_capacity = (fd_list_capacity == 0) ? 4 : fd_list_capacity * 2;
+    void *tmp = realloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+    if (tmp == NULL)
+      perror("Realloc failed.");
+    fd_list = tmp;
+  }
+  int id = fd_list_size++;
+  fd_list[id].fd = malloc(sizeof(fd_set));
+  FD_ZERO((fd_set *)fd_list[id].fd);
+  fd_list[id].is_set = 1;
+  return_var.type = INTEGER;
+  return_var.vali = id;
+  return return_var;
+}
+
+struct SL_Variable net_zero_fd_win_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.zero_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "First and second argument must be typed as fd! on net.zero_fd.";
+    return return_var;
+  }
+  if (first_arg.vali >= fd_list_size || first_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_ZERO((fd_set *)fd_list[first_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_add_fd_win_fn(struct SL_Code *code,
+                                     struct SL_L_Function func,
+                                     struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.add_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.add_fd.";
+    return return_var;
+  }
+  if (second_arg.vali >= fd_list_size || second_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_SET((SOCKET)first_arg.vali, (fd_set *)fd_list[second_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_check_fd_win_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.check_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.check_fd.";
+    return return_var;
+  }
+  if (second_arg.vali >= fd_list_size || second_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  int out =
+      FD_ISSET((SOCKET)first_arg.vali, (fd_set *)fd_list[second_arg.vali].fd);
+  return_var.type = BOOLEAN;
+  return_var.valb = (out != 0) ? 1 : 0;
+  return return_var;
+}
+
+struct SL_Variable net_remove_fd_win_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.remove_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.remove_fd.";
+    return return_var;
+  }
+  if (second_arg.vali >= fd_list_size || second_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_CLR((SOCKET)first_arg.vali, (fd_set *)fd_list[second_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_resolve_win_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.resolve! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != STRING) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Argument must be typed as string on net.resolve.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+  char *hostname = sl_string_getter(first_arg.vals);
+
+  struct hostent *he = gethostbyname(hostname);
+  free(hostname);
+
+  if (he == NULL || he->h_addr_list[0] == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not resolve hostname.";
+    return return_var;
+  }
+
+  struct in_addr **addr_list = (struct in_addr **)he->h_addr_list;
+
+  return_var.type = STRING;
+  return_var.vals = strdup(inet_ntoa(*addr_list[0]));
+  return return_var;
+}
+
+struct SL_Variable net_set_nonblocking_win_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at net.set_nonblocking! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Argument must be typed as socket_fd (integer).";
+    return return_var;
+  }
+
+  u_long mode = 1;
+  if (ioctlsocket((SOCKET)first_arg.vali, FIONBIO, &mode) != 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set socket to non-blocking.";
+    return return_var;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable net_setsockopt_win_fn(struct SL_Code *code,
+                                         struct SL_L_Function func,
+                                         struct SL_Function rfunc) {
+  if (func.total_arguments < 4) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at net.setsockopt! Needs fd, level, optname, optval.";
+    return return_var;
+  }
+
+  struct SL_Variable arg_fd = sl_get_argument(*code, func, 0);
+  struct SL_Variable arg_level = sl_get_argument(*code, func, 1);
+  struct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
+  struct SL_Variable arg_val = sl_get_argument(*code, func, 3);
+
+  struct SL_Variable return_var = {0};
+
+  if (arg_fd.type != INTEGER || arg_level.type != INTEGER ||
+      arg_opt.type != INTEGER || arg_val.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "All arguments must be integers for net.setsockopt.";
+    return return_var;
+  }
+
+  int optval = arg_val.vali;
+  if (setsockopt((SOCKET)arg_fd.vali, arg_level.vali, arg_opt.vali,
+                 (const char *)&optval, sizeof(optval)) == SOCKET_ERROR) {
+    return_var.type = ERROR;
+    return_var.vals = "setsockopt failed.";
+    perror("net.setsockopt failed!");
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 struct SL_Variable net_connect_win_fn(struct SL_Code *code,
                                       struct SL_L_Function func,
                                       struct SL_Function rfunc) {
@@ -2587,7 +2845,6 @@ struct SL_Variable net_accept_posix_fn(struct SL_Code *code,
   if (client_socket < 0) {
     return_var.type = ERROR;
     return_var.vals = "Socket failed to accept client.";
-    perror("net.accept failed!");
     return return_var;
   }
   return_var.type = INTEGER;
@@ -2652,6 +2909,259 @@ struct SL_Variable net_recv_posix_fn(struct SL_Code *code,
   return_var.type = STRING;
   return_var.vals = strdup(buffer);
   free(buffer);
+  return return_var;
+}
+
+struct SL_Variable net_new_fd_posix_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 0) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.new_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (fd_list_size >= fd_list_capacity) {
+    fd_list_capacity *= 2;
+    void *tmp = realloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+    if (tmp == NULL)
+      perror("Realloc failed.");
+    fd_list = tmp;
+  }
+  int id = fd_list_size++;
+  fd_list[id].fd = malloc(sizeof(fd_set));
+  FD_ZERO(fd_list[id].fd);
+  fd_list[id].is_set = 1;
+  return_var.type = INTEGER;
+  return_var.vali = id;
+  return return_var;
+}
+
+struct SL_Variable net_zero_fd_posix_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.zero_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "First and second argument must be typed as fd! on net.zero_fd.";
+    return return_var;
+  }
+  if (first_arg.vali > fd_list_size) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_ZERO(fd_list[first_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_add_fd_posix_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.add_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.add_fd.";
+    return return_var;
+  }
+  if (second_arg.vali < 0 || second_arg.vali >= fd_list_size) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_SET(first_arg.vali, fd_list[second_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_check_fd_posix_fn(struct SL_Code *code,
+                                         struct SL_L_Function func,
+                                         struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.check_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.check_fd.";
+    return return_var;
+  }
+  if (second_arg.vali < 0 || second_arg.vali >= fd_list_size) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  int out = FD_ISSET(first_arg.vali, fd_list[second_arg.vali].fd);
+  return_var.type = BOOLEAN;
+  return_var.valb = (out != 0) ? 1 : 0;
+  return return_var;
+}
+
+struct SL_Variable net_remove_fd_posix_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.remove_fd! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "All arguments must be typed as socket_fd and fd! on net.remove_fd.";
+    return return_var;
+  }
+  if (second_arg.vali < 0 || second_arg.vali >= fd_list_size) {
+    return_var.type = ERROR;
+    return_var.vals = "FD Not found!";
+    return return_var;
+  }
+
+  FD_CLR(first_arg.vali, fd_list[second_arg.vali].fd);
+  return return_var;
+}
+
+struct SL_Variable net_resolve_posix_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.resolve! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != STRING) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Argument must be typed as string on net.resolve.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+  char *hostname = sl_string_getter(first_arg.vals);
+
+  struct hostent *he = gethostbyname(hostname);
+  free(hostname);
+
+  if (he == NULL || he->h_addr_list[0] == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not resolve hostname.";
+    return return_var;
+  }
+
+  struct in_addr **addr_list = (struct in_addr **)he->h_addr_list;
+
+  return_var.type = STRING;
+  return_var.vals = strdup(inet_ntoa(*addr_list[0]));
+  return return_var;
+}
+
+struct SL_Variable net_set_nonblocking_posix_fn(struct SL_Code *code,
+                                                struct SL_L_Function func,
+                                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at net.set_nonblocking! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Argument must be typed as socket_fd (integer).";
+    return return_var;
+  }
+
+  int flags = fcntl(first_arg.vali, F_GETFL, 0);
+  if (flags == -1) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get socket flags.";
+    return return_var;
+  }
+
+  if (fcntl(first_arg.vali, F_SETFL, flags | O_NONBLOCK) == -1) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set socket to non-blocking.";
+    return return_var;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable net_setsockopt_posix_fn(struct SL_Code *code,
+                                           struct SL_L_Function func,
+                                           struct SL_Function rfunc) {
+  if (func.total_arguments < 4) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at net.setsockopt! Needs fd, level, optname, optval.";
+    return return_var;
+  }
+
+  struct SL_Variable arg_fd = sl_get_argument(*code, func, 0);
+  struct SL_Variable arg_level = sl_get_argument(*code, func, 1);
+  struct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
+  struct SL_Variable arg_val = sl_get_argument(*code, func, 3);
+
+  struct SL_Variable return_var = {0};
+
+  if (arg_fd.type != INTEGER || arg_level.type != INTEGER ||
+      arg_opt.type != INTEGER || arg_val.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "All arguments must be integers for net.setsockopt.";
+    return return_var;
+  }
+
+  int optval = arg_val.vali;
+  if (setsockopt(arg_fd.vali, arg_level.vali, arg_opt.vali, &optval,
+                 sizeof(optval)) < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "setsockopt failed.";
+    perror("net.setsockopt failed!");
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
   return return_var;
 }
 
@@ -2873,6 +3383,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "Enums.create_enum", enums_create_enum_fn);
     } else if (strcmp(libstr, "net") == 0 && used_net == 0) {
       used_net = 1;
+      fd_list_capacity = SL_INIT;
+      fd_list = calloc(fd_list_capacity, sizeof(struct SL_FD_List));
+      fd_list_size = 0;
       /* FIXEDS */
 #ifdef AF_UNSPEC
       sl_add_fixed_int(code, "AF_UNSPEC", AF_UNSPEC);
@@ -3577,6 +4090,14 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.recv", net_recv_win_fn);
       sl_add_func(code, "net.send", net_send_win_fn);
       sl_add_func(code, "net.connect", net_connect_win_fn);
+      sl_add_func(code, "net.new_fd", net_new_fd_win_fn);
+      sl_add_func(code, "net.zero_fd", net_zero_fd_win_fn);
+      sl_add_func(code, "net.add_fd", net_add_fd_win_fn);
+      sl_add_func(code, "net.remove_fd", net_remove_fd_win_fn);
+      sl_add_func(code, "net.check_fd", net_check_fd_win_fn);
+      sl_add_func(code, "net.resolve", net_resolve_win_fn);
+      sl_add_func(code, "net.setsockopt", net_setsockopt_win_fn);
+      sl_add_func(code, "net.set_nonblocking", net_set_nonblocking_win_fn);
       sl_add_func(code, "net.close", net_close_win_fn);
 #else
       sl_add_func(code, "net.new_socket", net_new_socket_posix_fn);
@@ -3586,6 +4107,14 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.recv", net_recv_posix_fn);
       sl_add_func(code, "net.send", net_send_posix_fn);
       sl_add_func(code, "net.connect", net_connect_posix_fn);
+      sl_add_func(code, "net.new_fd", net_new_fd_posix_fn);
+      sl_add_func(code, "net.zero_fd", net_zero_fd_posix_fn);
+      sl_add_func(code, "net.add_fd", net_add_fd_posix_fn);
+      sl_add_func(code, "net.remove_fd", net_remove_fd_posix_fn);
+      sl_add_func(code, "net.check_fd", net_check_fd_posix_fn);
+      sl_add_func(code, "net.resolve", net_resolve_posix_fn);
+      sl_add_func(code, "net.setsockopt", net_setsockopt_posix_fn);
+      sl_add_func(code, "net.set_nonblocking", net_set_nonblocking_posix_fn);
       sl_add_func(code, "net.close", net_close_posix_fn);
 #endif
     } else if (strcmp(libstr, "string") == 0 && used_string == 0) {
@@ -3643,113 +4172,127 @@ void close_sl_stdlib() {
   if (arguments != NULL)
     free(arguments);
 
-  for (int i = 0; i < LISTS_count; i++) {
-    for (int size = 0; size < LISTS[i].size; size++) {
+  if (used_list == 1) {
+    for (int i = 0; i < LISTS_count; i++) {
+      for (int size = 0; size < LISTS[i].size; size++) {
 
-      if (LISTS[i].vars[size].name != NULL) {
-        free(LISTS[i].vars[size].name);
-        LISTS[i].vars[size].name = NULL;
+        if (LISTS[i].vars[size].name != NULL) {
+          free(LISTS[i].vars[size].name);
+          LISTS[i].vars[size].name = NULL;
+        }
+
+        if ((LISTS[i].vars[size].type == STRING ||
+             LISTS[i].vars[size].type == RETURN) &&
+            LISTS[i].vars[size].vals != NULL) {
+          free(LISTS[i].vars[size].vals);
+          LISTS[i].vars[size].vals = NULL;
+        }
       }
 
-      if ((LISTS[i].vars[size].type == STRING ||
-           LISTS[i].vars[size].type == RETURN) &&
-          LISTS[i].vars[size].vals != NULL) {
-        free(LISTS[i].vars[size].vals);
-        LISTS[i].vars[size].vals = NULL;
+      if (LISTS[i].vars != NULL) {
+        free(LISTS[i].vars);
+        LISTS[i].vars = NULL;
       }
     }
 
-    if (LISTS[i].vars != NULL) {
-      free(LISTS[i].vars);
-      LISTS[i].vars = NULL;
-    }
+    free(LISTS);
   }
 
-  free(LISTS);
+  if (used_collections == 1) {
+    for (int i = 0; i < collections.size; i++) {
 
-  for (int i = 0; i < collections.size; i++) {
-
-    if (collections.collections[i].name != NULL) {
-      free(collections.collections[i].name);
-      collections.collections[i].name = NULL;
-    }
-
-    if (collections.collections[i].attrs != NULL) {
-      for (int j = 0; j < collections.collections[i].total_attrs; j++) {
-        if (collections.collections[i].attrs[j] != NULL) {
-          free(collections.collections[i].attrs[j]);
-          collections.collections[i].attrs[j] = NULL;
-        }
+      if (collections.collections[i].name != NULL) {
+        free(collections.collections[i].name);
+        collections.collections[i].name = NULL;
       }
 
-      free(collections.collections[i].attrs);
-      collections.collections[i].attrs = NULL;
-    }
-
-    if (collections.collections[i].functions != NULL) {
-      for (int j = 0; j < collections.collections[i].total_funcs; j++) {
-
-        struct SL_Function *func = &collections.collections[i].functions[j];
-
-        if (func->name != NULL) {
-          free(func->name);
-          func->name = NULL;
+      if (collections.collections[i].attrs != NULL) {
+        for (int j = 0; j < collections.collections[i].total_attrs; j++) {
+          if (collections.collections[i].attrs[j] != NULL) {
+            free(collections.collections[i].attrs[j]);
+            collections.collections[i].attrs[j] = NULL;
+          }
         }
 
-        if (func->code_tokens != NULL) {
-          for (int k = 0; k < func->code_len; k++) {
-            if (func->code_tokens[k] != NULL) {
-              free(func->code_tokens[k]);
-              func->code_tokens[k] = NULL;
-            }
+        free(collections.collections[i].attrs);
+        collections.collections[i].attrs = NULL;
+      }
+
+      if (collections.collections[i].functions != NULL) {
+        for (int j = 0; j < collections.collections[i].total_funcs; j++) {
+
+          struct SL_Function *func = &collections.collections[i].functions[j];
+
+          if (func->name != NULL) {
+            free(func->name);
+            func->name = NULL;
           }
 
-          free(func->code_tokens);
-          func->code_tokens = NULL;
-        }
-
-        if (func->types != NULL) {
-          free(func->types);
-          func->types = NULL;
-        }
-        if (func->arguments != NULL) {
-          for (int arg_idx = 0; arg_idx < func->total_arguments; arg_idx++) {
-            if (func->arguments[arg_idx].name != NULL) {
-              free(func->arguments[arg_idx].name);
-              func->arguments[arg_idx].name = NULL;
+          if (func->code_tokens != NULL) {
+            for (int k = 0; k < func->code_len; k++) {
+              if (func->code_tokens[k] != NULL) {
+                free(func->code_tokens[k]);
+                func->code_tokens[k] = NULL;
+              }
             }
 
-            if ((func->arguments[arg_idx].type == STRING ||
-                 func->arguments[arg_idx].type == RETURN) &&
-                func->arguments[arg_idx].vals != NULL) {
-
-              free(func->arguments[arg_idx].vals);
-              func->arguments[arg_idx].vals = NULL;
-            }
+            free(func->code_tokens);
+            func->code_tokens = NULL;
           }
 
-          free(func->arguments);
-          func->arguments = NULL;
+          if (func->types != NULL) {
+            free(func->types);
+            func->types = NULL;
+          }
+          if (func->arguments != NULL) {
+            for (int arg_idx = 0; arg_idx < func->total_arguments; arg_idx++) {
+              if (func->arguments[arg_idx].name != NULL) {
+                free(func->arguments[arg_idx].name);
+                func->arguments[arg_idx].name = NULL;
+              }
+
+              if ((func->arguments[arg_idx].type == STRING ||
+                   func->arguments[arg_idx].type == RETURN) &&
+                  func->arguments[arg_idx].vals != NULL) {
+
+                free(func->arguments[arg_idx].vals);
+                func->arguments[arg_idx].vals = NULL;
+              }
+            }
+
+            free(func->arguments);
+            func->arguments = NULL;
+          }
         }
+
+        free(collections.collections[i].functions);
+        collections.collections[i].functions = NULL;
       }
 
-      free(collections.collections[i].functions);
-      collections.collections[i].functions = NULL;
+      collections.collections[i].total_attrs = 0;
+      collections.collections[i].total_funcs = 0;
     }
 
-    collections.collections[i].total_attrs = 0;
-    collections.collections[i].total_funcs = 0;
+    if (collections.collections != NULL) {
+      free(collections.collections);
+      collections.collections = NULL;
+    }
+
+    collections.size = 0;
+    collections.capacity = 0;
   }
 
-  if (collections.collections != NULL) {
-    free(collections.collections);
-    collections.collections = NULL;
+  if (used_net == 1) {
+    for (int i = 0; i < fd_list_size; i++) {
+      if (fd_list[i].is_set == 1) {
+        free(fd_list[i].fd);
+      }
+    }
+    free(fd_list);
   }
 
-  collections.size = 0;
-  collections.capacity = 0;
 #ifdef _WIN32
-  if (used_net) {
+  if (used_net == 1) {
     WSACleanup();
   }
 #endif
