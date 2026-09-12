@@ -240,11 +240,33 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
   int end_line_modifier_sit = 0;
 
   while (fgets(buf, sizeof(buf), code_file)) {
-    char *character_pos = strchr(buf, '#');
+    char *character_pos = NULL;
     char *p = strchr(buf, '\n');
+
     if (p)
       *p = '\0';
 
+    int in_string = 0;
+    char *string_start = NULL;
+
+    for (char *q = buf; *q != '\0'; q++) {
+      if (*q == '"' && (q == buf || *(q - 1) != '\\')) {
+        if (!in_string) {
+          in_string = 1;
+          string_start = q;
+        } else {
+          in_string = 0;
+
+          int string_len = q - string_start;
+          (void)string_len;
+        }
+      }
+
+      if (*q == '#' && !in_string) {
+        character_pos = q;
+        break;
+      }
+    }
     int index = strlen(buf);
 
     if (character_pos != NULL)

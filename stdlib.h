@@ -854,7 +854,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at string.len! Not enough arguments.";
+    return_var.vals = "Error usage at string.split! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -892,13 +892,48 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable string_contains_fn(struct SL_Code *code,
+                                   struct SL_L_Function func,
+                                   struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.contains! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  if (first_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string as the first argument to string.contains.";
+    return return_var;
+  }
+  if (second_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string as the second argument to string.split.";
+    return return_var;
+  }
+
+  char *raw_string = sl_string_getter(first_arg.vals);
+  
+  char *searchingstr = sl_string_getter(second_arg.vals);
+  return_var.valb = strstr(raw_string, searchingstr) != NULL;
+  return_var.type = BOOLEAN;
+  free(raw_string);
+  free(searchingstr);
+  return return_var;
+}
+
+
+
 struct SL_Variable string_slice_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at string.len! Not enough arguments.";
+    return_var.vals = "Error usage at string.slice! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -4124,6 +4159,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "string.slice", string_slice_fn);
       sl_add_func(code, "string.trim", string_trim_fn);
       sl_add_func(code, "string.set_char_at", string_setcharat_fn);
+      sl_add_func(code, "string.contains", string_contains_fn);
       sl_add_func(code, "string.len", string_len_fn);
     } else if (strcmp(libstr, "list") == 0 && used_list == 0) {
       used_list = 1;
