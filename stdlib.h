@@ -3314,7 +3314,7 @@ struct SL_Variable net_setsockopt_posix_fn(struct SL_Code *code,
 
   struct SL_Variable arg_fd = sl_get_argument(*code, func, 0);
   struct SL_Variable arg_level = sl_get_argument(*code, func, 1);
-  stiruct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
+  struct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
   struct SL_Variable arg_val = sl_get_argument(*code, func, 3);
 
   struct SL_Variable return_var = {0};
@@ -3475,6 +3475,11 @@ struct SL_Variable net_close_posix_fn(struct SL_Code *code,
 }
 
 #endif
+/* NET */
+
+/* CONSOLE */ 
+
+/* CONSOLE */
 
 int used_io = 0;
 int used_file = 0;
@@ -3488,6 +3493,7 @@ int used_db = 0;
 int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
+int used_console = 0;
 
 struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                           struct SL_Function rfunc) {
@@ -4265,6 +4271,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.recv", net_recv_win_fn);
       sl_add_func(code, "net.send", net_send_win_fn);
       sl_add_func(code, "net.connect", net_connect_win_fn);
+      sl_add_func(code, "net.select", net_select_win_fn);
       sl_add_func(code, "net.new_fd", net_new_fd_win_fn);
       sl_add_func(code, "net.zero_fd", net_zero_fd_win_fn);
       sl_add_func(code, "net.add_fd", net_add_fd_win_fn);
@@ -4282,6 +4289,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.recv", net_recv_posix_fn);
       sl_add_func(code, "net.send", net_send_posix_fn);
       sl_add_func(code, "net.connect", net_connect_posix_fn);
+      sl_add_func(code, "net.select", net_select_posix_fn);
       sl_add_func(code, "net.new_fd", net_new_fd_posix_fn);
       sl_add_func(code, "net.zero_fd", net_zero_fd_posix_fn);
       sl_add_func(code, "net.add_fd", net_add_fd_posix_fn);
