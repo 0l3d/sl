@@ -15,10 +15,9 @@
 #define LONG WIN32_LONG
 #define BOOLEAN WIN32_BOOLEAN
 #define DOUBLE WIN32_DOUBLE
-
 #include <winsock2.h>
 #include <ws2tcpip.h>
-
+#include <windows.h>
 #undef CHAR
 #undef LONG
 #undef BOOLEAN
@@ -2383,6 +2382,76 @@ struct SL_Variable net_send_win_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable net_select_win_fn(struct SL_Code *code,
+                                     struct SL_L_Function func,
+                                     struct SL_Function rfunc) {
+  if (func.total_arguments < 4) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.select! Needs nfds, readfds, writefds, exceptfds (and optional timeout_ms).";
+    return return_var;
+  }
+
+  struct SL_Variable arg_nfds = sl_get_argument(*code, func, 0);
+  struct SL_Variable arg_read = sl_get_argument(*code, func, 1);
+  struct SL_Variable arg_write = sl_get_argument(*code, func, 2);
+  struct SL_Variable arg_except = sl_get_argument(*code, func, 3);
+  struct SL_Variable return_var = {0};
+
+  if (arg_nfds.type != INTEGER || arg_read.type != INTEGER || 
+      arg_write.type != INTEGER || arg_except.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "First 4 arguments must be integers on net.select.";
+    return return_var;
+  }
+
+  fd_set *readfds = NULL;
+  fd_set *writefds = NULL;
+  fd_set *exceptfds = NULL;
+
+  if (arg_read.vali >= 0) {
+    if (arg_read.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Read FD Not found!"; return return_var; }
+    readfds = (fd_set *)fd_list[arg_read.vali].fd;
+  }
+  if (arg_write.vali >= 0) {
+    if (arg_write.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Write FD Not found!"; return return_var; }
+    writefds = (fd_set *)fd_list[arg_write.vali].fd;
+  }
+  if (arg_except.vali >= 0) {
+    if (arg_except.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Except FD Not found!"; return return_var; }
+    exceptfds = (fd_set *)fd_list[arg_except.vali].fd;
+  }
+
+  struct timeval tv;
+  struct timeval *tv_ptr = NULL;
+
+  if (func.total_arguments > 4) {
+    struct SL_Variable arg_timeout = sl_get_argument(*code, func, 4);
+    if (arg_timeout.type == INTEGER && arg_timeout.vali >= 0) {
+      tv.tv_sec = arg_timeout.vali / 1000;
+      tv.tv_usec = (arg_timeout.vali % 1000) * 1000;
+      tv_ptr = &tv;
+    } else if (arg_timeout.type != INTEGER) {
+      return_var.type = ERROR;
+      return_var.vals = "Timeout argument must be an integer (ms).";
+      return return_var;
+    }
+  }
+
+  int res = select(arg_nfds.vali, readfds, writefds, exceptfds, tv_ptr);
+
+  if (res == SOCKET_ERROR) {
+    return_var.type = ERROR;
+    return_var.vals = "select() failed.";
+    perror("net.select failed!");
+    return return_var;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = res;
+  return return_var;
+}
+
 struct SL_Variable net_new_fd_win_fn(struct SL_Code *code,
                                      struct SL_L_Function func,
                                      struct SL_Function rfunc) {
@@ -2936,14 +3005,85 @@ struct SL_Variable net_recv_posix_fn(struct SL_Code *code,
     read_size = recv(first_arg.vali, buffer, buffer_size, third_arg.vali);
   else
     read_size = recv(first_arg.vali, buffer, buffer_size, 0);
-  if (read_size < 0) {
+  if (read_size <= 0) {
     return_var.type = ERROR;
     return_var.vals = "Nothing received from client.";
     return return_var;
   }
+  buffer[read_size] = '\0';
   return_var.type = STRING;
   return_var.vals = strdup(buffer);
   free(buffer);
+  return return_var;
+}
+
+struct SL_Variable net_select_posix_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 4) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at net.select! Needs nfds, readfds, writefds, exceptfds (and optional timeout_ms).";
+    return return_var;
+  }
+
+  struct SL_Variable arg_nfds = sl_get_argument(*code, func, 0);
+  struct SL_Variable arg_read = sl_get_argument(*code, func, 1);
+  struct SL_Variable arg_write = sl_get_argument(*code, func, 2);
+  struct SL_Variable arg_except = sl_get_argument(*code, func, 3);
+  struct SL_Variable return_var = {0};
+
+  if (arg_nfds.type != INTEGER || arg_read.type != INTEGER ||
+      arg_write.type != INTEGER || arg_except.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "First 4 arguments must be integers on net.select.";
+    return return_var;
+  }
+
+  fd_set *readfds = NULL;
+  fd_set *writefds = NULL;
+  fd_set *exceptfds = NULL;
+
+  if (arg_read.vali >= 0) {
+    if (arg_read.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Read FD Not found!"; return return_var; }
+    readfds = (fd_set *)fd_list[arg_read.vali].fd;
+  }
+  if (arg_write.vali >= 0) {
+    if (arg_write.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Write FD Not found!"; return return_var; }
+    writefds = (fd_set *)fd_list[arg_write.vali].fd;
+  }
+  if (arg_except.vali >= 0) {
+    if (arg_except.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Except FD Not found!"; return return_var; }
+    exceptfds = (fd_set *)fd_list[arg_except.vali].fd;
+  }
+
+  struct timeval tv;
+  struct timeval *tv_ptr = NULL;
+
+  if (func.total_arguments > 4) {
+    struct SL_Variable arg_timeout = sl_get_argument(*code, func, 4);
+    if (arg_timeout.type == INTEGER && arg_timeout.vali >= 0) {
+      tv.tv_sec = arg_timeout.vali / 1000;
+      tv.tv_usec = (arg_timeout.vali % 1000) * 1000;
+      tv_ptr = &tv;
+    } else if (arg_timeout.type != INTEGER) {
+      return_var.type = ERROR;
+      return_var.vals = "Timeout argument must be an integer (ms).";
+      return return_var;
+    }
+  }
+
+  int res = select(arg_nfds.vali, readfds, writefds, exceptfds, tv_ptr);
+
+  if (res < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "select() failed.";
+    perror("net.select failed!");
+    return return_var;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = res;   
   return return_var;
 }
 
@@ -3174,7 +3314,7 @@ struct SL_Variable net_setsockopt_posix_fn(struct SL_Code *code,
 
   struct SL_Variable arg_fd = sl_get_argument(*code, func, 0);
   struct SL_Variable arg_level = sl_get_argument(*code, func, 1);
-  struct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
+  stiruct SL_Variable arg_opt = sl_get_argument(*code, func, 2);
   struct SL_Variable arg_val = sl_get_argument(*code, func, 3);
 
   struct SL_Variable return_var = {0};
