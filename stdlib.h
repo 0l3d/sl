@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef _WIN32
 #define CHAR WIN32_CHAR
@@ -109,6 +110,20 @@
 #define SL_COLOR_BRIGHT_CYAN 15
 #define SL_COLOR_BRIGHT_WHITE 16
 /* CONSOLE API */
+
+#include <math.h>
+
+static int sl_get_double(struct SL_Variable var, double *out) {
+  if (var.type == DOUBLE) {
+    *out = var.valf;
+    return 1;
+  }
+  if (var.type == INTEGER) {
+    *out = (double)var.vali;
+    return 1;
+  }
+  return 0;
+}
 
 struct SL_Code *use_code = NULL;
 
@@ -930,6 +945,236 @@ struct SL_Variable string_len_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable string_replace_fn(struct SL_Code *code,
+                                     struct SL_L_Function func,
+                                     struct SL_Function rfunc) {
+  if (func.total_arguments < 3) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.replace! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+
+  if (first_arg.type != STRING || second_arg.type != STRING ||
+      third_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string arguments for string.replace.";
+    return return_var;
+  }
+
+  char *str = sl_string_getter(first_arg.vals);
+  char *sub = sl_string_getter(second_arg.vals);
+  char *replace = sl_string_getter(third_arg.vals);
+
+  int sub_len = strlen(sub);
+  int replace_len = strlen(replace);
+
+  if (sub_len == 0) {
+    return_var.type = STRING;
+    return_var.vals = strdup(str);
+    free(str);
+    free(sub);
+    free(replace);
+    return return_var;
+  }
+
+  int count = 0;
+  char *tmp = str;
+  while ((tmp = strstr(tmp, sub)) != NULL) {
+    count++;
+    tmp += sub_len;
+  }
+
+  size_t result_len = strlen(str) + count * (replace_len - sub_len) + 1;
+  char *result = malloc(result_len);
+  result[0] = '\0';
+
+  char *current = str;
+  while ((tmp = strstr(current, sub)) != NULL) {
+    strncat(result, current, tmp - current);
+    strcat(result, replace);
+    current = tmp + sub_len;
+  }
+  strcat(result, current);
+
+  return_var.type = STRING;
+  return_var.vals = strdup(result);
+
+  free(result);
+  free(str);
+  free(sub);
+  free(replace);
+  return return_var;
+}
+
+struct SL_Variable string_startswith_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.startswith! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  if (first_arg.type != STRING || second_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string arguments for string.startswith.";
+    return return_var;
+  }
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  char *prefix = sl_string_getter(second_arg.vals);
+
+  int prefix_len = strlen(prefix);
+  return_var.type = BOOLEAN;
+  return_var.valb = (strncmp(raw_str, prefix, prefix_len) == 0);
+
+  free(raw_str);
+  free(prefix);
+  return return_var;
+}
+
+struct SL_Variable string_endswith_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.endswith! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  if (first_arg.type != STRING || second_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string arguments for string.endswith.";
+    return return_var;
+  }
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  char *suffix = sl_string_getter(second_arg.vals);
+
+  int str_len = strlen(raw_str);
+  int suffix_len = strlen(suffix);
+
+  return_var.type = BOOLEAN;
+  if (suffix_len > str_len) {
+    return_var.valb = 0;
+  } else {
+    return_var.valb = (strcmp(raw_str + str_len - suffix_len, suffix) == 0);
+  }
+
+  free(raw_str);
+  free(suffix);
+  return return_var;
+}
+
+struct SL_Variable string_remove_at_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.remove_at! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  if (first_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string as first argument to string.remove_at.";
+    return return_var;
+  }
+  if (second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected integer as second argument to string.remove_at.";
+    return return_var;
+  }
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  int len = strlen(raw_str);
+  int idx = second_arg.vali;
+
+  if (idx < 0 || idx >= len) {
+    return_var.type = ERROR;
+    return_var.vals = "Buffer over/underflow!";
+    free(raw_str);
+    return return_var;
+  }
+
+  char *result = malloc(len);
+  strncpy(result, raw_str, idx);
+  strcpy(result + idx, raw_str + idx + 1);
+
+  return_var.type = STRING;
+  return_var.vals = strdup(result);
+
+  free(result);
+  free(raw_str);
+  return return_var;
+}
+
+struct SL_Variable string_index_of_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.index_of! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  if (first_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string as first argument to string.index_of.";
+    return return_var;
+  }
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  int found_idx = -1;
+
+  if (second_arg.type == CHAR) {
+    char *ptr = strchr(raw_str, second_arg.valc);
+    if (ptr != NULL) {
+      found_idx = (int)(ptr - raw_str);
+    }
+  } else if (second_arg.type == STRING) {
+    char *search_str = sl_string_getter(second_arg.vals);
+    char *ptr = strstr(raw_str, search_str);
+    if (ptr != NULL) {
+      found_idx = (int)(ptr - raw_str);
+    }
+    free(search_str);
+  } else {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected char or string as second argument to string.index_of.";
+    free(raw_str);
+    return return_var;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = found_idx;
+  free(raw_str);
+  return return_var;
+}
+
 struct SL_Variable string_split_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
@@ -1193,6 +1438,33 @@ struct SL_Variable sys_get_arg_fn(struct SL_Code *code,
     return_var.type = ERROR;
     return_var.vals = "Argument not found!";
   }
+  return return_var;
+}
+
+struct SL_Variable sys_get_env_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  struct SL_Variable arg = sl_get_argument(*code, func, 0);
+
+  if (arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string argument for env.get";
+    return return_var;
+  }
+
+  char *var_name = sl_string_getter(arg.vals);
+  char *env_val = getenv(var_name);
+  free(var_name);
+
+  if (env_val == NULL) {
+    return_var.type = STRING;
+    return_var.vals = strdup("");
+  } else {
+    return_var.type = STRING;
+    return_var.vals = strdup(env_val);
+  }
+
   return return_var;
 }
 
@@ -4932,6 +5204,279 @@ struct SL_Variable console_mouse_event_get_y_posix_fn(
 #endif
 /* CONSOLE */
 
+/* MATH */
+struct SL_Variable math_pow_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.pow! Not enough arguments.";
+    return return_var;
+  }
+  double base, exp;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &base) ||
+      !sl_get_double(sl_get_argument(*code, func, 1), &exp)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double arguments for math.pow.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = pow(base, exp);
+  return return_var;
+}
+
+struct SL_Variable math_sqrt_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.sqrt! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.sqrt.";
+    return return_var;
+  }
+  if (val < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Math domain error: sqrt of negative number!";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = sqrt(val);
+  return return_var;
+}
+
+struct SL_Variable math_abs_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.abs! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable arg = sl_get_argument(*code, func, 0);
+  if (arg.type == INTEGER) {
+    return_var.type = INTEGER;
+    return_var.vali = labs(arg.vali);
+  } else if (arg.type == DOUBLE) {
+    return_var.type = DOUBLE;
+    return_var.valf = fabs(arg.valf);
+  } else {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.abs.";
+  }
+  return return_var;
+}
+
+struct SL_Variable math_floor_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.floor! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.floor.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = floor(val);
+  return return_var;
+}
+
+struct SL_Variable math_ceil_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.ceil! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.ceil.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = ceil(val);
+  return return_var;
+}
+
+struct SL_Variable math_round_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.round! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.round.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = round(val);
+  return return_var;
+}
+
+struct SL_Variable math_sin_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.sin! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.sin.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = sin(val);
+  return return_var;
+}
+
+struct SL_Variable math_cos_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.cos! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.cos.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = cos(val);
+  return return_var;
+}
+
+struct SL_Variable math_tan_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.tan! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.tan.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = tan(val);
+  return return_var;
+}
+
+struct SL_Variable math_log_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.log! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.log.";
+    return return_var;
+  }
+  if (val <= 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Math domain error: log argument must be positive!";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = log(val);
+  return return_var;
+}
+
+struct SL_Variable math_log10_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.log10! Not enough arguments.";
+    return return_var;
+  }
+  double val;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &val)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double argument for math.log10.";
+    return return_var;
+  }
+  if (val <= 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Math domain error: log10 argument must be positive!";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = log10(val);
+  return return_var;
+}
+
+struct SL_Variable math_min_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.min! Not enough arguments.";
+    return return_var;
+  }
+  double a, b;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &a) ||
+      !sl_get_double(sl_get_argument(*code, func, 1), &b)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double arguments for math.min.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = fmin(a, b);
+  return return_var;
+}
+
+struct SL_Variable math_max_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at math.max! Not enough arguments.";
+    return return_var;
+  }
+  double a, b;
+  if (!sl_get_double(sl_get_argument(*code, func, 0), &a) ||
+      !sl_get_double(sl_get_argument(*code, func, 1), &b)) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer or double arguments for math.max.";
+    return return_var;
+  }
+  return_var.type = DOUBLE;
+  return_var.valf = fmax(a, b);
+  return return_var;
+}
+/* MATH */
+
 int used_io = 0;
 int used_file = 0;
 int used_types = 0;
@@ -4941,6 +5486,7 @@ int used_errors = 0;
 int used_list = 0;
 int used_extra = 0;
 int used_db = 0;
+int used_math = 0;
 int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
@@ -4970,6 +5516,21 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "file.read_to_str", file_read_to_str_fn);
       sl_add_func(code, "file.write_from_str", file_write_from_str_fn);
       sl_add_func(code, "file.append_from_str", file_append_from_str_fn);
+    } else if (strcmp(libstr, "math") == 0 && used_math == 0) {
+      used_math = 1;
+      sl_add_func(code, "math.pow", math_pow_fn);
+      sl_add_func(code, "math.sqrt", math_sqrt_fn);
+      sl_add_func(code, "math.abs", math_abs_fn);
+      sl_add_func(code, "math.floor", math_floor_fn);
+      sl_add_func(code, "math.ceil", math_ceil_fn);
+      sl_add_func(code, "math.round", math_round_fn);
+      sl_add_func(code, "math.sin", math_sin_fn);
+      sl_add_func(code, "math.cos", math_cos_fn);
+      sl_add_func(code, "math.tan", math_tan_fn);
+      sl_add_func(code, "math.log", math_log_fn);
+      sl_add_func(code, "math.log10", math_log10_fn);
+      sl_add_func(code, "math.min", math_min_fn);
+      sl_add_func(code, "math.max", math_max_fn);
     } else if (strcmp(libstr, "types") == 0 && used_types == 0) {
       used_types = 1;
       /* CONVERT */
@@ -4995,6 +5556,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       used_sys = 1;
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
+      sl_add_func(code, "sys.get_env", sys_get_env_fn);
       sl_add_func(code, "sys.popen", sys_popen_fn);
     } else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
       used_errors = 1;
@@ -5912,6 +6474,11 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "string.set_char_at", string_setcharat_fn);
       sl_add_func(code, "string.contains", string_contains_fn);
       sl_add_func(code, "string.len", string_len_fn);
+      sl_add_func(code, "string.replace", string_replace_fn);
+      sl_add_func(code, "string.starts_with", string_startswith_fn);
+      sl_add_func(code, "string.ends_with", string_endswith_fn);
+      sl_add_func(code, "string.remove_at", string_remove_at_fn);
+      sl_add_func(code, "string.index_of", string_index_of_fn);
     } else if (strcmp(libstr, "list") == 0 && used_list == 0) {
       used_list = 1;
       LISTS = calloc(SL_INIT, sizeof(struct SL_List));

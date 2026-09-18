@@ -1,11 +1,13 @@
-CC      = cc
+CC      = musl-gcc
 SOURCES = sl.c sl_lang.c
 OBJECTS = $(SOURCES:.c=.o)
 TARGET  = sl
 
-CFLAGS = -g -O0
-# CFLAGS := -O3 -DNDEBUG -flto -ffast-math -fno-math-errno -fno-trapping-math -fno-signed-zeros -ffp-contract=fast
-LDFLAGS := -flto
+# CFLAGS = -g -O0 # debug 
+CFLAGS  := -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden # standart release 
+# CFLAGS  := -O3 -DNDEBUG -fno-strict-aliasing # MUSL Release
+# LDFLAGS := -O3 -flto -lm -static # MUSL
+LDFLAGS := -O3 -flto -lm # STANDART 
 
 ifeq ($(OS),Windows_NT)
     LDFLAGS += -lws2_32
