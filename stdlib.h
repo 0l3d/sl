@@ -15,9 +15,9 @@
 #define LONG WIN32_LONG
 #define BOOLEAN WIN32_BOOLEAN
 #define DOUBLE WIN32_DOUBLE
+#include <windows.h>
 #include <winsock2.h>
 #include <ws2tcpip.h>
-#include <windows.h>
 #undef CHAR
 #undef LONG
 #undef BOOLEAN
@@ -27,10 +27,88 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <poll.h>
+#include <sys/ioctl.h>
 #include <sys/select.h>
 #include <sys/socket.h>
+#include <termios.h>
 #include <unistd.h>
 #endif
+
+/* CONSOLE API */
+#define SL_UNDEFINED_EVENT -1
+#define SL_KEY_EVENT 0
+#define SL_MOUSE_EVENT 1
+#define SL_WINDOW_RESIZE_EVENT 1
+
+#define SL_KEY_UNKNOWN 0
+#define SL_KEY_CHAR 1
+
+#define SL_KEY_ENTER 2
+#define SL_KEY_ESCAPE 3
+#define SL_KEY_BACKSPACE 4
+#define SL_KEY_TAB 5
+
+#define SL_MOUSE_NONE 0
+#define SL_MOUSE_LEFT_PRESSED 1
+#define SL_MOUSE_RIGHT_PRESSED 2
+#define SL_MOUSE_MIDDLE_PRESSED 3
+#define SL_MOUSE_MOVED 4
+#define SL_MOUSE_DOUBLE_CLICK 5
+#define SL_MOUSE_WHEEL_UP 6
+#define SL_MOUSE_WHEEL_DOWN 7
+
+#define SL_KEY_UP 10
+#define SL_KEY_DOWN 11
+#define SL_KEY_LEFT 12
+#define SL_KEY_RIGHT 13
+
+#define SL_KEY_HOME 20
+#define SL_KEY_END 21
+#define SL_KEY_INSERT 22
+#define SL_KEY_DELETE 23
+
+#define SL_KEY_PAGE_UP 24
+#define SL_KEY_PAGE_DOWN 25
+
+#define SL_KEY_F1 30
+#define SL_KEY_F2 31
+#define SL_KEY_F3 32
+#define SL_KEY_F4 33
+#define SL_KEY_F5 34
+#define SL_KEY_F6 35
+#define SL_KEY_F7 36
+#define SL_KEY_F8 37
+#define SL_KEY_F9 38
+#define SL_KEY_F10 39
+#define SL_KEY_F11 40
+#define SL_KEY_F12 41
+
+#define SL_MOD_NONE 0
+#define SL_MOD_SHIFT (1 << 0)
+#define SL_MOD_CTRL (1 << 1)
+#define SL_MOD_ALT (1 << 2)
+#define SL_MOD_SUPER (1 << 3)
+#define SL_COLOR_DEFAULT 0
+
+#define SL_COLOR_BLACK 1
+#define SL_COLOR_RED 2
+#define SL_COLOR_GREEN 3
+#define SL_COLOR_YELLOW 4
+#define SL_COLOR_BLUE 5
+#define SL_COLOR_MAGENTA 6
+#define SL_COLOR_CYAN 7
+#define SL_COLOR_WHITE 8
+
+#define SL_COLOR_BRIGHT_BLACK 9
+#define SL_COLOR_BRIGHT_RED 10
+#define SL_COLOR_BRIGHT_GREEN 11
+#define SL_COLOR_BRIGHT_YELLOW 12
+#define SL_COLOR_BRIGHT_BLUE 13
+#define SL_COLOR_BRIGHT_MAGENTA 14
+#define SL_COLOR_BRIGHT_CYAN 15
+#define SL_COLOR_BRIGHT_WHITE 16
+/* CONSOLE API */
 
 struct SL_Code *use_code = NULL;
 
@@ -892,8 +970,8 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 }
 
 struct SL_Variable string_contains_fn(struct SL_Code *code,
-                                   struct SL_L_Function func,
-                                   struct SL_Function rfunc) {
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -905,7 +983,8 @@ struct SL_Variable string_contains_fn(struct SL_Code *code,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   if (first_arg.type != STRING) {
     return_var.type = ERROR;
-    return_var.vals = "Expected string as the first argument to string.contains.";
+    return_var.vals =
+        "Expected string as the first argument to string.contains.";
     return return_var;
   }
   if (second_arg.type != STRING) {
@@ -915,7 +994,7 @@ struct SL_Variable string_contains_fn(struct SL_Code *code,
   }
 
   char *raw_string = sl_string_getter(first_arg.vals);
-  
+
   char *searchingstr = sl_string_getter(second_arg.vals);
   return_var.valb = strstr(raw_string, searchingstr) != NULL;
   return_var.type = BOOLEAN;
@@ -923,8 +1002,6 @@ struct SL_Variable string_contains_fn(struct SL_Code *code,
   free(searchingstr);
   return return_var;
 }
-
-
 
 struct SL_Variable string_slice_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
@@ -1111,6 +1188,72 @@ struct SL_Variable sys_get_arg_fn(struct SL_Code *code,
     return_var.type = ERROR;
     return_var.vals = "Argument not found!";
   }
+  return return_var;
+}
+
+struct SL_Variable sys_popen_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at sys.popen! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  if (first_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected a plain-text shell command.";
+  }
+
+  char *command = sl_string_getter(first_arg.vals);
+  FILE *cmd_out = popen(command, "r");
+  if (!cmd_out) {
+    free(command);
+    return_var.vals = "Popen failed to open process.";
+    return_var.type = ERROR;
+  }
+
+  size_t capacity = 4096;
+  size_t length = 0;
+  char *buffer = malloc(capacity);
+
+  if (!buffer) {
+    pclose(cmd_out);
+    free(command);
+    return_var.vals = "buffer failed to allocate memory";
+    return_var.type = ERROR;
+  }
+
+  int c;
+  while ((c = fgetc(cmd_out)) != EOF) {
+    if (length + 1 >= capacity) {
+      capacity *= 2;
+
+      char *tmp = realloc(buffer, capacity);
+      if (!tmp) {
+        free(buffer);
+        pclose(cmd_out);
+        free(command);
+        return_var.vals = "realloc failed to allocate memory.";
+        return_var.type = ERROR;
+      }
+
+      buffer = tmp;
+    }
+
+    buffer[length++] = (char)c;
+  }
+
+  buffer[length] = '\0';
+
+  int status = pclose(cmd_out);
+  free(command);
+
+  return_var.type = STRING;
+  return_var.vals = strdup(buffer);
+  free(buffer);
+
   return return_var;
 }
 
@@ -2388,7 +2531,8 @@ struct SL_Variable net_select_win_fn(struct SL_Code *code,
   if (func.total_arguments < 4) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at net.select! Needs nfds, readfds, writefds, exceptfds (and optional timeout_ms).";
+    return_var.vals = "Error usage at net.select! Needs nfds, readfds, "
+                      "writefds, exceptfds (and optional timeout_ms).";
     return return_var;
   }
 
@@ -2398,7 +2542,7 @@ struct SL_Variable net_select_win_fn(struct SL_Code *code,
   struct SL_Variable arg_except = sl_get_argument(*code, func, 3);
   struct SL_Variable return_var = {0};
 
-  if (arg_nfds.type != INTEGER || arg_read.type != INTEGER || 
+  if (arg_nfds.type != INTEGER || arg_read.type != INTEGER ||
       arg_write.type != INTEGER || arg_except.type != INTEGER) {
     return_var.type = ERROR;
     return_var.vals = "First 4 arguments must be integers on net.select.";
@@ -2410,15 +2554,27 @@ struct SL_Variable net_select_win_fn(struct SL_Code *code,
   fd_set *exceptfds = NULL;
 
   if (arg_read.vali >= 0) {
-    if (arg_read.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Read FD Not found!"; return return_var; }
+    if (arg_read.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Read FD Not found!";
+      return return_var;
+    }
     readfds = (fd_set *)fd_list[arg_read.vali].fd;
   }
   if (arg_write.vali >= 0) {
-    if (arg_write.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Write FD Not found!"; return return_var; }
+    if (arg_write.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Write FD Not found!";
+      return return_var;
+    }
     writefds = (fd_set *)fd_list[arg_write.vali].fd;
   }
   if (arg_except.vali >= 0) {
-    if (arg_except.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Except FD Not found!"; return return_var; }
+    if (arg_except.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Except FD Not found!";
+      return return_var;
+    }
     exceptfds = (fd_set *)fd_list[arg_except.vali].fd;
   }
 
@@ -3023,7 +3179,8 @@ struct SL_Variable net_select_posix_fn(struct SL_Code *code,
   if (func.total_arguments < 4) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at net.select! Needs nfds, readfds, writefds, exceptfds (and optional timeout_ms).";
+    return_var.vals = "Error usage at net.select! Needs nfds, readfds, "
+                      "writefds, exceptfds (and optional timeout_ms).";
     return return_var;
   }
 
@@ -3045,15 +3202,27 @@ struct SL_Variable net_select_posix_fn(struct SL_Code *code,
   fd_set *exceptfds = NULL;
 
   if (arg_read.vali >= 0) {
-    if (arg_read.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Read FD Not found!"; return return_var; }
+    if (arg_read.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Read FD Not found!";
+      return return_var;
+    }
     readfds = (fd_set *)fd_list[arg_read.vali].fd;
   }
   if (arg_write.vali >= 0) {
-    if (arg_write.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Write FD Not found!"; return return_var; }
+    if (arg_write.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Write FD Not found!";
+      return return_var;
+    }
     writefds = (fd_set *)fd_list[arg_write.vali].fd;
   }
   if (arg_except.vali >= 0) {
-    if (arg_except.vali >= fd_list_size) { return_var.type = ERROR; return_var.vals = "Except FD Not found!"; return return_var; }
+    if (arg_except.vali >= fd_list_size) {
+      return_var.type = ERROR;
+      return_var.vals = "Except FD Not found!";
+      return return_var;
+    }
     exceptfds = (fd_set *)fd_list[arg_except.vali].fd;
   }
 
@@ -3083,7 +3252,7 @@ struct SL_Variable net_select_posix_fn(struct SL_Code *code,
   }
 
   return_var.type = INTEGER;
-  return_var.vali = res;   
+  return_var.vali = res;
   return return_var;
 }
 
@@ -3477,8 +3646,1285 @@ struct SL_Variable net_close_posix_fn(struct SL_Code *code,
 #endif
 /* NET */
 
-/* CONSOLE */ 
+/* CONSOLE */
+#ifdef _WIN32
+HANDLE hStdIn, hStdOut;
+DWORD oldSettings;
+WORD OldColorAttrs;
+DWORD OldConsoleMode;
+INPUT_RECORD irInBuf[1];
 
+struct SL_Variable console_clear_win_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  DWORD mode = 0;
+  if (!GetConsoleMode(hStdOut, &mode)) {
+    return_var.vals = "Cannot get console mode.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+  const DWORD original_mode = mode;
+  mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+
+  if (!SetConsoleMode(hStdOut, mode)) {
+    return_var.vals = "Cannot set console mode.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  DWORD written = 0;
+  PCWSTR sequence = L"\x1b[2J";
+  if (!WriteConsoleW(hStdOut, sequence, (DWORD)wcslen(sequence), &written,
+                     NULL)) {
+    SetConsoleMode(hStdOut, original_mode);
+    return_var.vals = "Cannot clear console.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  written = 0;
+  sequence = L"\x1b[3J";
+  if (!WriteConsoleW(hStdOut, sequence, (DWORD)wcslen(sequence), &written,
+                     NULL)) {
+    SetConsoleMode(hStdOut, original_mode);
+    return_var.vals = "Cannot clear console.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  SetConsoleMode(hStdOut, original_mode);
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.color! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  if (first_arg.type != INTEGER) {
+    return_var.vals = "All items must be typed as COLOR(integer fixed) on "
+                      "console.foreground_color";
+  }
+
+  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+  if (!GetConsoleScreenBufferInfo(hStdOut, &csbiInfo)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get console screen buffer info.";
+    return return_var;
+  }
+
+  WORD wColor = 0;
+
+  switch (first_arg.vali) {
+  case SL_COLOR_BLACK:
+    wColor = 0;
+    break;
+  case SL_COLOR_RED:
+    wColor = FOREGROUND_RED;
+    break;
+  case SL_COLOR_GREEN:
+    wColor = FOREGROUND_GREEN;
+    break;
+  case SL_COLOR_YELLOW:
+    wColor = FOREGROUND_RED | FOREGROUND_GREEN;
+    break;
+  case SL_COLOR_BLUE:
+    wColor = FOREGROUND_BLUE;
+    break;
+  case SL_COLOR_MAGENTA:
+    wColor = FOREGROUND_RED | FOREGROUND_BLUE;
+    break;
+  case SL_COLOR_CYAN:
+    wColor = FOREGROUND_GREEN | FOREGROUND_BLUE;
+    break;
+  case SL_COLOR_WHITE:
+    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+    break;
+
+  case SL_COLOR_BRIGHT_BLACK:
+    wColor = FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_RED:
+    wColor = FOREGROUND_RED | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_GREEN:
+    wColor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_YELLOW:
+    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_BLUE:
+    wColor = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_MAGENTA:
+    wColor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_CYAN:
+    wColor = FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_WHITE:
+    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE |
+             FOREGROUND_INTENSITY;
+    break;
+
+  case SL_COLOR_DEFAULT:
+  default:
+    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+    break;
+  }
+  wColor = (csbiInfo.wAttributes & 0x00F0) | wColor;
+
+  if (!SetConsoleTextAttribute(hStdOut, wColor)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.background_color! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  if (first_arg.type != INTEGER) {
+    return_var.vals = "All items must be typed as COLOR(integer fixed) on "
+                      "console.background_color";
+  }
+
+  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+
+  if (!GetConsoleScreenBufferInfo(hStdOut, &csbiInfo)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get console screen buffer info.";
+    return return_var;
+  }
+
+  WORD wBgColor = 0;
+
+  switch (first_arg.vali) {
+  case SL_COLOR_BLACK:
+    wBgColor = 0;
+    break;
+  case SL_COLOR_RED:
+    wBgColor = BACKGROUND_RED;
+    break;
+  case SL_COLOR_GREEN:
+    wBgColor = BACKGROUND_GREEN;
+    break;
+  case SL_COLOR_YELLOW:
+    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN;
+    break;
+  case SL_COLOR_BLUE:
+    wBgColor = BACKGROUND_BLUE;
+    break;
+  case SL_COLOR_MAGENTA:
+    wBgColor = BACKGROUND_RED | BACKGROUND_BLUE;
+    break;
+  case SL_COLOR_CYAN:
+    wBgColor = BACKGROUND_GREEN | BACKGROUND_BLUE;
+    break;
+  case SL_COLOR_WHITE:
+    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
+    break;
+
+  case SL_COLOR_BRIGHT_BLACK:
+    wBgColor = BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_RED:
+    wBgColor = BACKGROUND_RED | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_GREEN:
+    wBgColor = BACKGROUND_GREEN | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_YELLOW:
+    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_BLUE:
+    wBgColor = BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_MAGENTA:
+    wBgColor = BACKGROUND_RED | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_CYAN:
+    wBgColor = BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    break;
+  case SL_COLOR_BRIGHT_WHITE:
+    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE |
+               BACKGROUND_INTENSITY;
+    break;
+
+  case SL_COLOR_DEFAULT:
+  default:
+    wBgColor = 0;
+    break;
+  }
+
+  WORD finalColor = (csbiInfo.wAttributes & 0x000F) | wBgColor;
+
+  if (!SetConsoleTextAttribute(hStdOut, finalColor)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
+                                                  struct SL_L_Function func,
+                                                  struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.cursor_position! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  if (first_arg.type != INTEGER || second_arg.type != INTEGER) {
+    return_var.vals =
+        "All items must be typed as integer on console.cursor_position";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+  csbiInfo.dwCursorPosition.X = first_arg.vali;
+  csbiInfo.dwCursorPosition.Y = second_arg.vali;
+  if (!SetConsoleCursorPosition(hStdOut, csbiInfo.dwCursorPosition)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor position.";
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.cursor_visibility! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  CONSOLE_CURSOR_INFO ConsoleCursorInfo;
+  if (!GetConsoleCursorInfo(hStdOut, &ConsoleCursorInfo)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get cursor info.";
+    return return_var;
+  }
+
+  if (first_arg.type != BOOLEAN) {
+    return_var.vals =
+        "All items must be typed as bool on console.cursor_visibility";
+  }
+
+  if (first_arg.valb == 1)
+    ConsoleCursorInfo.bVisible = TRUE;
+  else
+    ConsoleCursorInfo.bVisible = FALSE;
+
+  if (!SetConsoleCursorInfo(hStdOut, &ConsoleCursorInfo)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor visibility.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_raw_mode_win_fn(struct SL_Code *code,
+                                           struct SL_L_Function func,
+                                           struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.raw_mode! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  CONSOLE_CURSOR_INFO ConsoleCursorInfo;
+  if (!GetConsoleCursorInfo(hStdOut, &ConsoleCursorInfo)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get cursor info.";
+    return return_var;
+  }
+
+  if (first_arg.type != BOOLEAN) {
+    return_var.vals = "All items must be typed as bool on console.raw_mode";
+  }
+
+  DWORD mode;
+  mode = (ENABLE_WINDOW_INPUT | ENABLE_MOUSE_INPUT | ENABLE_EXTENDED_FLAGS) &
+         ~ENABLE_QUICK_EDIT_MODE;
+
+  if (first_arg.valb == 1) {
+    if (!SetConsoleMode(hStdIn, mode)) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to set console raw mode.";
+      return return_var;
+    }
+  } else {
+    if (!SetConsoleMode(hStdIn, OldConsoleMode)) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to set console raw mode.";
+      return return_var;
+    }
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_get_event_win_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+
+  DWORD events_read = 0;
+  struct SL_Variable return_var = {0};
+  if (!ReadConsoleInput(hStdIn, irInBuf, 1, &events_read)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to get event";
+    return return_var;
+  }
+
+  switch (irInBuf[0].EventType) {
+  case KEY_EVENT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_EVENT;
+    break;
+  case MOUSE_EVENT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_MOUSE_EVENT;
+    break;
+  case WINDOW_BUFFER_SIZE_EVENT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_WINDOW_RESIZE_EVENT;
+    break;
+  case FOCUS_EVENT:
+  case MENU_EVENT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_UNDEFINED_EVENT;
+    break;
+  default:
+    return_var.type = INTEGER;
+    return_var.vali = SL_UNDEFINED_EVENT;
+    break;
+  }
+  return return_var;
+}
+
+struct SL_Variable console_key_event_is_pressed_win_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (irInBuf[0].Event.KeyEvent.bKeyDown) {
+    return_var.type = BOOLEAN;
+    return_var.valb = 1;
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+  return return_var;
+}
+
+struct SL_Variable console_key_event_get_key_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  KEY_EVENT_RECORD key_event = irInBuf[0].Event.KeyEvent;
+
+  switch (key_event.wVirtualKeyCode) {
+  case VK_RETURN:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_ENTER;
+    break;
+  case VK_ESCAPE:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_ESCAPE;
+    break;
+  case VK_BACK:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_BACKSPACE;
+    break;
+  case VK_TAB:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_TAB;
+    break;
+
+  case VK_UP:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_UP;
+    break;
+  case VK_DOWN:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_DOWN;
+    break;
+  case VK_LEFT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_LEFT;
+    break;
+  case VK_RIGHT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_RIGHT;
+    break;
+
+  case VK_HOME:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_HOME;
+    break;
+  case VK_END:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_END;
+    break;
+  case VK_INSERT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_INSERT;
+    break;
+  case VK_DELETE:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_DELETE;
+    break;
+  case VK_PRIOR:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_PAGE_UP;
+    break;
+  case VK_NEXT:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_PAGE_DOWN;
+    break;
+
+  case VK_F1:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F1;
+    break;
+  case VK_F2:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F2;
+    break;
+  case VK_F3:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F3;
+    break;
+  case VK_F4:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F4;
+    break;
+  case VK_F5:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F5;
+    break;
+  case VK_F6:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F6;
+    break;
+  case VK_F7:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F7;
+    break;
+  case VK_F8:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F8;
+    break;
+  case VK_F9:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F9;
+    break;
+  case VK_F10:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F10;
+    break;
+  case VK_F11:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F11;
+    break;
+  case VK_F12:
+    return_var.type = INTEGER;
+    return_var.vali = SL_KEY_F12;
+    break;
+
+  default:
+    if (key_event.wVirtualKeyCode >= 'A' && key_event.wVirtualKeyCode <= 'Z') {
+      return_var.type = CHAR;
+      BOOL is_shift = (key_event.dwControlKeyState & SHIFT_PRESSED) != 0;
+      BOOL is_caps = (key_event.dwControlKeyState & CAPSLOCK_ON) != 0;
+      if (is_shift ^ is_caps) {
+        return_var.valc = (char)key_event.wVirtualKeyCode;
+      } else {
+        return_var.valc = (char)(key_event.wVirtualKeyCode + 32);
+      }
+    } else if (key_event.uChar.AsciiChar != 0) {
+      return_var.type = CHAR;
+      return_var.valc = key_event.uChar.AsciiChar;
+    } else {
+      return_var.type = CHAR;
+      return_var.valc = 0;
+    }
+    break;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable console_key_event_get_mod_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  DWORD state = irInBuf[0].Event.KeyEvent.dwControlKeyState;
+  int mods = SL_MOD_NONE;
+
+  if (state & SHIFT_PRESSED) {
+    mods |= SL_MOD_SHIFT;
+  }
+  if (state & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED)) {
+    mods |= SL_MOD_CTRL;
+  }
+  if (state & (LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) {
+    mods |= SL_MOD_ALT;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = mods;
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_type_win_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  MOUSE_EVENT_RECORD mer = irInBuf[0].Event.MouseEvent;
+
+  return_var.type = INTEGER;
+
+  switch (mer.dwEventFlags) {
+  case 0:
+    if (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) {
+      return_var.vali = SL_MOUSE_LEFT_PRESSED;
+    } else if (mer.dwButtonState & RIGHTMOST_BUTTON_PRESSED) {
+      return_var.vali = SL_MOUSE_RIGHT_PRESSED;
+    } else if (mer.dwButtonState & FROM_LEFT_2ND_BUTTON_PRESSED) {
+      return_var.vali = SL_MOUSE_MIDDLE_PRESSED;
+    } else {
+      return_var.vali = SL_MOUSE_NONE;
+    }
+    break;
+
+  case MOUSE_MOVED:
+    return_var.vali = SL_MOUSE_MOVED;
+    break;
+
+  case DOUBLE_CLICK:
+    if (mer.dwButtonState & FROM_LEFT_1ST_BUTTON_PRESSED) {
+      return_var.vali = SL_MOUSE_DOUBLE_CLICK;
+    } else {
+      return_var.vali = SL_MOUSE_DOUBLE_CLICK;
+    }
+    break;
+
+  case MOUSE_WHEELED:
+    if ((short)HIWORD(mer.dwButtonState) > 0) {
+      return_var.vali = SL_MOUSE_WHEEL_UP;
+    } else {
+      return_var.vali = SL_MOUSE_WHEEL_DOWN;
+    }
+    break;
+
+  default:
+    return_var.vali = SL_MOUSE_NONE;
+    break;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_x_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = irInBuf[0].Event.MouseEvent.dwMousePosition.X;
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_y_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = irInBuf[0].Event.MouseEvent.dwMousePosition.Y;
+  return return_var;
+}
+
+struct SL_Variable console_get_width_win_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+  return_var.type = INTEGER;
+  if (GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+    return_var.vali = csbi.srWindow.Right - csbi.srWindow.Left + 1;
+  } else {
+    return_var.vali = 0;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable console_get_height_win_fn(struct SL_Code *code,
+                                             struct SL_L_Function func,
+                                             struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  CONSOLE_SCREEN_BUFFER_INFO csbi;
+  HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+
+  return_var.type = INTEGER;
+  if (GetConsoleScreenBufferInfo(hConsole, &csbi)) {
+    return_var.vali = csbi.srWindow.Bottom - csbi.srWindow.Top + 1;
+  } else {
+    return_var.vali = 0;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+
+  if (!SetConsoleTextAttribute(hStdOut, OldColorAttrs)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to reset console colors.";
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+#else
+struct termios orig_termios;
+int posix_last_event_type = 0;
+int posix_last_key_code = 0;
+int posix_last_key_pressed = 0;
+int posix_last_key_mod = 0;
+int posix_last_mouse_type = 0;
+int posix_last_mouse_x = 0;
+int posix_last_mouse_y = 0;
+
+void disableRawMode() {
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+  fflush(stdout);
+  const char *disable_mouse = "\x1b[?1003l\x1b[?1006l\x1b[?7h";
+  write(STDOUT_FILENO, disable_mouse, strlen(disable_mouse));
+}
+
+struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
+                                             struct SL_L_Function func,
+                                             struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.raw_mode! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  if (first_arg.type != BOOLEAN) {
+    return_var.vals = "All items must be typed as bool on console.raw_mode";
+  }
+
+  if (first_arg.valb == 1) {
+    tcgetattr(STDIN_FILENO, &orig_termios);
+    struct termios raw = orig_termios;
+    raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+    raw.c_oflag &= ~(OPOST);
+    raw.c_cflag |= (CS8);
+    raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+    raw.c_cc[VMIN] = 0;
+    raw.c_cc[VTIME] = 1;
+
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to set console raw mode.";
+      return return_var;
+    }
+
+    fflush(stdout);
+    const char *enable_mouse = "\x1b[?1003h\x1b[?1006h\x1b[?7l";
+    write(STDOUT_FILENO, enable_mouse, strlen(enable_mouse));
+  } else {
+    disableRawMode();
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_clear_posix_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  const char *clear_seq = "\x1b[2J\x1b[3J\x1b[H";
+
+  fflush(stdout);
+  if (write(STDOUT_FILENO, clear_seq, strlen(clear_seq)) == -1) {
+    return_var.vals = "Cannot clear console.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_fgcolor_posix_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.color! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  const char *color_seq = "\x1b[39m";
+  switch (first_arg.vali) {
+  case SL_COLOR_BLACK:
+    color_seq = "\x1b[30m";
+    break;
+  case SL_COLOR_RED:
+    color_seq = "\x1b[31m";
+    break;
+  case SL_COLOR_GREEN:
+    color_seq = "\x1b[32m";
+    break;
+  case SL_COLOR_YELLOW:
+    color_seq = "\x1b[33m";
+    break;
+  case SL_COLOR_BLUE:
+    color_seq = "\x1b[34m";
+    break;
+  case SL_COLOR_MAGENTA:
+    color_seq = "\x1b[35m";
+    break;
+  case SL_COLOR_CYAN:
+    color_seq = "\x1b[36m";
+    break;
+  case SL_COLOR_WHITE:
+    color_seq = "\x1b[37m";
+    break;
+  case SL_COLOR_BRIGHT_BLACK:
+    color_seq = "\x1b[90m";
+    break;
+  case SL_COLOR_BRIGHT_RED:
+    color_seq = "\x1b[91m";
+    break;
+  case SL_COLOR_BRIGHT_GREEN:
+    color_seq = "\x1b[92m";
+    break;
+  case SL_COLOR_BRIGHT_YELLOW:
+    color_seq = "\x1b[93m";
+    break;
+  case SL_COLOR_BRIGHT_BLUE:
+    color_seq = "\x1b[94m";
+    break;
+  case SL_COLOR_BRIGHT_MAGENTA:
+    color_seq = "\x1b[95m";
+    break;
+  case SL_COLOR_BRIGHT_CYAN:
+    color_seq = "\x1b[96m";
+    break;
+  case SL_COLOR_BRIGHT_WHITE:
+    color_seq = "\x1b[97m";
+    break;
+  case SL_COLOR_DEFAULT:
+  default:
+    color_seq = "\x1b[39m";
+    break;
+  }
+
+  fflush(stdout);
+  write(STDOUT_FILENO, color_seq, strlen(color_seq));
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_bgcolor_posix_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.background_color! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  const char *color_seq = "\x1b[49m";
+  switch (first_arg.vali) {
+  case SL_COLOR_BLACK:
+    color_seq = "\x1b[40m";
+    break;
+  case SL_COLOR_RED:
+    color_seq = "\x1b[41m";
+    break;
+  case SL_COLOR_GREEN:
+    color_seq = "\x1b[42m";
+    break;
+  case SL_COLOR_YELLOW:
+    color_seq = "\x1b[43m";
+    break;
+  case SL_COLOR_BLUE:
+    color_seq = "\x1b[44m";
+    break;
+  case SL_COLOR_MAGENTA:
+    color_seq = "\x1b[45m";
+    break;
+  case SL_COLOR_CYAN:
+    color_seq = "\x1b[46m";
+    break;
+  case SL_COLOR_WHITE:
+    color_seq = "\x1b[47m";
+    break;
+  case SL_COLOR_BRIGHT_BLACK:
+    color_seq = "\x1b[100m";
+    break;
+  case SL_COLOR_BRIGHT_RED:
+    color_seq = "\x1b[101m";
+    break;
+  case SL_COLOR_BRIGHT_GREEN:
+    color_seq = "\x1b[102m";
+    break;
+  case SL_COLOR_BRIGHT_YELLOW:
+    color_seq = "\x1b[103m";
+    break;
+  case SL_COLOR_BRIGHT_BLUE:
+    color_seq = "\x1b[104m";
+    break;
+  case SL_COLOR_BRIGHT_MAGENTA:
+    color_seq = "\x1b[105m";
+    break;
+  case SL_COLOR_BRIGHT_CYAN:
+    color_seq = "\x1b[106m";
+    break;
+  case SL_COLOR_BRIGHT_WHITE:
+    color_seq = "\x1b[107m";
+    break;
+  case SL_COLOR_DEFAULT:
+  default:
+    color_seq = "\x1b[49m";
+    break;
+  }
+
+  fflush(stdout);
+  write(STDOUT_FILENO, color_seq, strlen(color_seq));
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_reset_color_posix_fn(struct SL_Code *code,
+                                                struct SL_L_Function func,
+                                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  const char *reset_seq = "\x1b[0m";
+
+  fflush(stdout);
+  write(STDOUT_FILENO, reset_seq, strlen(reset_seq));
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_cursor_position_posix_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.cursor_position! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
+           first_arg.vali + 1);
+
+  fflush(stdout);
+  write(STDOUT_FILENO, buf, strlen(buf));
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_cursor_visibility_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.cursor_visibility! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  fflush(stdout);
+  if (first_arg.valb == 1) {
+    write(STDOUT_FILENO, "\x1b[?25h", 6);
+  } else {
+    write(STDOUT_FILENO, "\x1b[?25l", 6);
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_get_width_posix_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  struct winsize w;
+
+  return_var.type = INTEGER;
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
+    return_var.vali = w.ws_col;
+  } else {
+    return_var.vali = 0;
+  }
+  return return_var;
+}
+
+struct SL_Variable console_get_height_posix_fn(struct SL_Code *code,
+                                               struct SL_L_Function func,
+                                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  struct winsize w;
+
+  return_var.type = INTEGER;
+  if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &w) != -1) {
+    return_var.vali = w.ws_row;
+  } else {
+    return_var.vali = 0;
+  }
+  return return_var;
+}
+
+struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  char c;
+  int nread = read(STDIN_FILENO, &c, 1);
+
+  if (nread != 1) {
+    return_var.type = INTEGER;
+    return_var.vali = SL_UNDEFINED_EVENT;
+    return return_var;
+  }
+
+  if (c == '\x1b') {
+    char seq[3];
+    if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+      posix_last_event_type = SL_KEY_EVENT;
+      posix_last_key_code = SL_KEY_ESCAPE;
+      posix_last_key_pressed = 1;
+      posix_last_key_mod = SL_MOD_NONE;
+
+      return_var.type = INTEGER;
+      return_var.vali = posix_last_event_type;
+      return return_var;
+    }
+    if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+      return_var.type = INTEGER;
+      return_var.vali = SL_UNDEFINED_EVENT;
+      return return_var;
+    }
+
+    if (seq[0] == '[') {
+      if ((seq[1] >= '0' && seq[1] <= '9') || seq[1] == '<') {
+        char ext[32];
+        ext[0] = seq[1];
+        int i = 1;
+        while (i < 31) {
+          if (read(STDIN_FILENO, &ext[i], 1) != 1)
+            break;
+          if (ext[i] == '~' || ext[i] == 'M' || ext[i] == 'm' ||
+              (ext[i] >= 'A' && ext[i] <= 'Z'))
+            break;
+          i++;
+        }
+        ext[i + 1] = '\0';
+
+        if (ext[i] == 'M' || ext[i] == 'm') {
+          if (ext[0] == '<') {
+            int b, x, y;
+            sscanf(ext, "<%d;%d;%d", &b, &x, &y);
+            posix_last_event_type = SL_MOUSE_EVENT;
+            posix_last_mouse_x = x - 1;
+            posix_last_mouse_y = y - 1;
+
+            if (ext[i] == 'M') {
+              if (b == 0)
+                posix_last_mouse_type = SL_MOUSE_LEFT_PRESSED;
+              else if (b == 1)
+                posix_last_mouse_type = SL_MOUSE_MIDDLE_PRESSED;
+              else if (b == 2)
+                posix_last_mouse_type = SL_MOUSE_RIGHT_PRESSED;
+              else if (b == 64)
+                posix_last_mouse_type = SL_MOUSE_WHEEL_UP;
+              else if (b == 65)
+                posix_last_mouse_type = SL_MOUSE_WHEEL_DOWN;
+              else
+                posix_last_mouse_type = SL_MOUSE_MOVED;
+            } else {
+              posix_last_mouse_type = SL_MOUSE_NONE;
+            }
+          }
+        } else if (ext[i] == '~') {
+          posix_last_event_type = SL_KEY_EVENT;
+          posix_last_key_pressed = 1;
+          posix_last_key_mod = SL_MOD_NONE;
+          int code = atoi(ext);
+          switch (code) {
+          case 1:
+          case 7:
+            posix_last_key_code = SL_KEY_HOME;
+            break;
+          case 2:
+            posix_last_key_code = SL_KEY_INSERT;
+            break;
+          case 3:
+            posix_last_key_code = SL_KEY_DELETE;
+            break;
+          case 4:
+          case 8:
+            posix_last_key_code = SL_KEY_END;
+            break;
+          case 5:
+            posix_last_key_code = SL_KEY_PAGE_UP;
+            break;
+          case 6:
+            posix_last_key_code = SL_KEY_PAGE_DOWN;
+            break;
+          case 15:
+            posix_last_key_code = SL_KEY_F5;
+            break;
+          case 17:
+            posix_last_key_code = SL_KEY_F6;
+            break;
+          case 18:
+            posix_last_key_code = SL_KEY_F7;
+            break;
+          case 19:
+            posix_last_key_code = SL_KEY_F8;
+            break;
+          case 20:
+            posix_last_key_code = SL_KEY_F9;
+            break;
+          case 21:
+            posix_last_key_code = SL_KEY_F10;
+            break;
+          case 23:
+            posix_last_key_code = SL_KEY_F11;
+            break;
+          case 24:
+            posix_last_key_code = SL_KEY_F12;
+            break;
+          }
+        }
+      } else {
+        posix_last_event_type = SL_KEY_EVENT;
+        posix_last_key_pressed = 1;
+        posix_last_key_mod = SL_MOD_NONE;
+        switch (seq[1]) {
+        case 'A':
+          posix_last_key_code = SL_KEY_UP;
+          break;
+        case 'B':
+          posix_last_key_code = SL_KEY_DOWN;
+          break;
+        case 'C':
+          posix_last_key_code = SL_KEY_RIGHT;
+          break;
+        case 'D':
+          posix_last_key_code = SL_KEY_LEFT;
+          break;
+        case 'H':
+          posix_last_key_code = SL_KEY_HOME;
+          break;
+        case 'F':
+          posix_last_key_code = SL_KEY_END;
+          break;
+        default:
+          posix_last_event_type = SL_UNDEFINED_EVENT;
+          break;
+        }
+      }
+    } else if (seq[0] == 'O') {
+      posix_last_event_type = SL_KEY_EVENT;
+      posix_last_key_pressed = 1;
+      posix_last_key_mod = SL_MOD_NONE;
+      switch (seq[1]) {
+      case 'P':
+        posix_last_key_code = SL_KEY_F1;
+        break;
+      case 'Q':
+        posix_last_key_code = SL_KEY_F2;
+        break;
+      case 'R':
+        posix_last_key_code = SL_KEY_F3;
+        break;
+      case 'S':
+        posix_last_key_code = SL_KEY_F4;
+        break;
+      }
+    }
+  } else {
+    posix_last_event_type = SL_KEY_EVENT;
+    posix_last_key_pressed = 1;
+    posix_last_key_mod = SL_MOD_NONE;
+
+    if (c == '\n' || c == '\r') {
+      posix_last_key_code = SL_KEY_ENTER;
+    } else if (c == '\t') {
+      posix_last_key_code = SL_KEY_TAB;
+    } else if (c == 127 || c == '\b') {
+      posix_last_key_code = SL_KEY_BACKSPACE;
+    } else if (c >= 1 && c <= 26) {
+      posix_last_key_mod = SL_MOD_CTRL;
+      posix_last_key_code = c + 'a' - 1;
+    } else {
+      posix_last_key_code = c;
+    }
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = posix_last_event_type;
+  return return_var;
+}
+
+struct SL_Variable console_key_event_is_pressed_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = posix_last_key_pressed;
+  return return_var;
+}
+
+struct SL_Variable console_key_event_get_key_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (posix_last_key_code >= 32 && posix_last_key_code <= 126) {
+    return_var.type = CHAR;
+    return_var.valc = (char)posix_last_key_code;
+  } else {
+    return_var.type = INTEGER;
+    return_var.vali = posix_last_key_code;
+  }
+
+  return return_var;
+}
+
+struct SL_Variable console_key_event_get_mod_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = posix_last_key_mod;
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_type_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = posix_last_mouse_type;
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_x_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = posix_last_mouse_x;
+  return return_var;
+}
+
+struct SL_Variable console_mouse_event_get_y_posix_fn(
+    struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = posix_last_mouse_y;
+  return return_var;
+}
+#endif
 /* CONSOLE */
 
 int used_io = 0;
@@ -3544,6 +4990,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       used_sys = 1;
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
+      sl_add_func(code, "sys.popen", sys_popen_fn);
     } else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
       used_errors = 1;
       sl_add_func(code, "errors.string", errors_string_fn);
@@ -3561,7 +5008,158 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "Collections.get_attr", collections_get_attr_fn);
     } else if (strcmp(libstr, "enums") == 0 && used_enums == 0) {
       used_enums = 1;
-      sl_add_func(code, "Enums.create_enum", enums_create_enum_fn);
+      sl_add_func(code, "enums.create_enum", enums_create_enum_fn);
+    } else if (strcmp(libstr, "console") == 0 && used_console == 0) {
+      used_console = 1;
+      sl_add_fixed_int(code, "UNDEFINED_EVENT", SL_UNDEFINED_EVENT);
+      sl_add_fixed_int(code, "KEY_EVENT", SL_KEY_EVENT);
+      sl_add_fixed_int(code, "MOUSE_EVENT", SL_MOUSE_EVENT);
+      sl_add_fixed_int(code, "WINDOW_RESIZE", SL_WINDOW_RESIZE_EVENT);
+      sl_add_fixed_int(code, "KEY_UNKNOWN", SL_KEY_UNKNOWN);
+      sl_add_fixed_int(code, "KEY_CHAR", SL_KEY_CHAR);
+
+      sl_add_fixed_int(code, "KEY_ENTER", SL_KEY_ENTER);
+      sl_add_fixed_int(code, "KEY_ESCAPE", SL_KEY_ESCAPE);
+      sl_add_fixed_int(code, "KEY_BACKSPACE", SL_KEY_BACKSPACE);
+      sl_add_fixed_int(code, "KEY_TAB", SL_KEY_TAB);
+
+      sl_add_fixed_int(code, "MOUSE_NONE", SL_MOUSE_NONE);
+      sl_add_fixed_int(code, "MOUSE_LEFT_PRESSED", SL_MOUSE_LEFT_PRESSED);
+      sl_add_fixed_int(code, "MOUSE_RIGHT_PRESSED", SL_MOUSE_RIGHT_PRESSED);
+      sl_add_fixed_int(code, "MOUSE_MIDDLE_PRESSED", SL_MOUSE_MIDDLE_PRESSED);
+      sl_add_fixed_int(code, "MOUSE_MOVED", SL_MOUSE_MOVED);
+      sl_add_fixed_int(code, "MOUSE_DOUBLE_CLICK", SL_MOUSE_DOUBLE_CLICK);
+      sl_add_fixed_int(code, "MOUSE_WHEEL_UP", SL_MOUSE_WHEEL_UP);
+      sl_add_fixed_int(code, "MOUSE_WHEEL_DOWN", SL_MOUSE_WHEEL_DOWN);
+
+      sl_add_fixed_int(code, "KEY_UP", SL_KEY_UP);
+      sl_add_fixed_int(code, "KEY_DOWN", SL_KEY_DOWN);
+      sl_add_fixed_int(code, "KEY_LEFT", SL_KEY_LEFT);
+      sl_add_fixed_int(code, "KEY_RIGHT", SL_KEY_RIGHT);
+
+      sl_add_fixed_int(code, "KEY_HOME", SL_KEY_HOME);
+      sl_add_fixed_int(code, "KEY_END", SL_KEY_END);
+      sl_add_fixed_int(code, "KEY_INSERT", SL_KEY_INSERT);
+      sl_add_fixed_int(code, "KEY_DELETE", SL_KEY_DELETE);
+
+      sl_add_fixed_int(code, "KEY_PAGE_UP", SL_KEY_PAGE_UP);
+      sl_add_fixed_int(code, "KEY_PAGE_DOWN", SL_KEY_PAGE_DOWN);
+
+      sl_add_fixed_int(code, "KEY_F1", SL_KEY_F1);
+      sl_add_fixed_int(code, "KEY_F2", SL_KEY_F2);
+      sl_add_fixed_int(code, "KEY_F3", SL_KEY_F3);
+      sl_add_fixed_int(code, "KEY_F4", SL_KEY_F4);
+      sl_add_fixed_int(code, "KEY_F5", SL_KEY_F5);
+      sl_add_fixed_int(code, "KEY_F6", SL_KEY_F6);
+      sl_add_fixed_int(code, "KEY_F7", SL_KEY_F7);
+      sl_add_fixed_int(code, "KEY_F8", SL_KEY_F8);
+      sl_add_fixed_int(code, "KEY_F9", SL_KEY_F9);
+      sl_add_fixed_int(code, "KEY_F10", SL_KEY_F10);
+      sl_add_fixed_int(code, "KEY_F11", SL_KEY_F11);
+      sl_add_fixed_int(code, "KEY_F12", SL_KEY_F12);
+
+      sl_add_fixed_int(code, "MOD_NONE", SL_MOD_NONE);
+      sl_add_fixed_int(code, "MOD_SHIFT", SL_MOD_SHIFT);
+      sl_add_fixed_int(code, "MOD_CTRL", SL_MOD_CTRL);
+      sl_add_fixed_int(code, "MOD_ALT", SL_MOD_ALT);
+      sl_add_fixed_int(code, "MOD_SUPER", SL_MOD_SUPER);
+
+      sl_add_fixed_int(code, "COLOR_DEFAULT", SL_COLOR_DEFAULT);
+
+      sl_add_fixed_int(code, "COLOR_BLACK", SL_COLOR_BLACK);
+      sl_add_fixed_int(code, "COLOR_RED", SL_COLOR_RED);
+      sl_add_fixed_int(code, "COLOR_GREEN", SL_COLOR_GREEN);
+      sl_add_fixed_int(code, "COLOR_YELLOW", SL_COLOR_YELLOW);
+      sl_add_fixed_int(code, "COLOR_BLUE", SL_COLOR_BLUE);
+      sl_add_fixed_int(code, "COLOR_MAGENTA", SL_COLOR_MAGENTA);
+      sl_add_fixed_int(code, "COLOR_CYAN", SL_COLOR_CYAN);
+      sl_add_fixed_int(code, "COLOR_WHITE", SL_COLOR_WHITE);
+
+      sl_add_fixed_int(code, "COLOR_BRIGHT_BLACK", SL_COLOR_BRIGHT_BLACK);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_RED", SL_COLOR_BRIGHT_RED);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_GREEN", SL_COLOR_BRIGHT_GREEN);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_YELLOW", SL_COLOR_BRIGHT_YELLOW);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_BLUE", SL_COLOR_BRIGHT_BLUE);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_MAGENTA", SL_COLOR_BRIGHT_MAGENTA);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_CYAN", SL_COLOR_BRIGHT_CYAN);
+      sl_add_fixed_int(code, "COLOR_BRIGHT_WHITE", SL_COLOR_BRIGHT_WHITE);
+#ifdef _WIN32
+      /* For windows, i just read windows-console.pdf from microsoft. */
+      hStdIn = GetStdHandle(STD_INPUT_HANDLE);
+      hStdOut = GetStdHandle(STD_OUTPUT_HANDLE);
+      if (hStdIn == INVALID_HANDLE_VALUE || hStdOut == INVALID_HANDLE_VALUE) {
+        MessageBox(NULL, TEXT("Invalid Console"),
+                   TEXT("Cannot get console Standart Output/Input handle."),
+                   MB_OK);
+        exit(-1);
+      }
+      CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
+      if (!GetConsoleScreenBufferInfo(hStdOut, &csbiInfo)) {
+        MessageBox(NULL, TEXT("Invalid Console"),
+                   TEXT("Cannot get console attributes!"), MB_OK);
+        exit(-1);
+      }
+      if (!GetConsoleMode(hStdIn, &OldConsoleMode)) {
+        MessageBox(NULL, TEXT("Invalid Console"),
+                   TEXT("Cannot get console mode!"), MB_OK);
+        exit(-1);
+      }
+      /* STAAAY, STAAAY AWAAAY, STAY AWAAAAY */
+
+      OldColorAttrs = csbiInfo.wAttributes;
+      sl_add_func(code, "console.clear", console_clear_win_fn);
+      sl_add_func(code, "console.foreground_color", console_fgcolor_win_fn);
+      sl_add_func(code, "console.background_color", console_bgcolor_win_fn);
+      sl_add_func(code, "console.cursor_position",
+                  console_cursor_position_win_fn);
+      sl_add_func(code, "console.raw_mode", console_raw_mode_win_fn);
+      sl_add_func(code, "console.get_event", console_get_event_win_fn);
+      sl_add_func(code, "console.key_event.is_pressed",
+                  console_key_event_is_pressed_win_fn);
+      sl_add_func(code, "console.key_event.get_key",
+                  console_key_event_get_key_win_fn);
+      sl_add_func(code, "console.key_event.get_mod",
+                  console_key_event_get_mod_win_fn);
+      sl_add_func(code, "console.mouse_event.get_type",
+                  console_mouse_event_get_type_win_fn);
+      sl_add_func(code, "console.mouse_event.get_x",
+                  console_mouse_event_get_x_win_fn);
+      sl_add_func(code, "console.mouse_event.get_y",
+                  console_mouse_event_get_y_win_fn);
+      sl_add_func(code, "console.get_width", console_get_width_win_fn);
+      sl_add_func(code, "console.get_height", console_get_height_win_fn);
+      sl_add_func(code, "console.cursor_visibility",
+                  console_cursor_visibility_win_fn);
+      sl_add_func(code, "console.reset_color", console_reset_color_win_fn);
+#else
+      /* FOR TERMIOS: https://viewsourcecode.org/snaptoken/kilo/ */
+      tcgetattr(STDIN_FILENO, &orig_termios);
+      atexit(disableRawMode);
+      sl_add_func(code, "console.clear", console_clear_posix_fn);
+      sl_add_func(code, "console.foreground_color", console_fgcolor_posix_fn);
+      sl_add_func(code, "console.background_color", console_bgcolor_posix_fn);
+      sl_add_func(code, "console.cursor_position",
+                  console_cursor_position_posix_fn);
+      sl_add_func(code, "console.raw_mode", console_raw_mode_posix_fn);
+      sl_add_func(code, "console.get_event", console_get_event_posix_fn);
+      sl_add_func(code, "console.key_event.is_pressed",
+                  console_key_event_is_pressed_posix_fn);
+      sl_add_func(code, "console.key_event.get_key",
+                  console_key_event_get_key_posix_fn);
+      sl_add_func(code, "console.key_event.get_mod",
+                  console_key_event_get_mod_posix_fn);
+      sl_add_func(code, "console.mouse_event.get_type",
+                  console_mouse_event_get_type_posix_fn);
+      sl_add_func(code, "console.mouse_event.get_x",
+                  console_mouse_event_get_x_posix_fn);
+      sl_add_func(code, "console.mouse_event.get_y",
+                  console_mouse_event_get_y_posix_fn);
+      sl_add_func(code, "console.get_width", console_get_width_posix_fn);
+      sl_add_func(code, "console.get_height", console_get_height_posix_fn);
+      sl_add_func(code, "console.cursor_visibility",
+                  console_cursor_visibility_posix_fn);
+      sl_add_func(code, "console.reset_color", console_reset_color_posix_fn);
+#endif
     } else if (strcmp(libstr, "net") == 0 && used_net == 0) {
       used_net = 1;
       fd_list_capacity = SL_INIT;
@@ -4478,6 +6076,9 @@ void close_sl_stdlib() {
 #ifdef _WIN32
   if (used_net == 1) {
     WSACleanup();
+  }
+  if (used_console == 1) {
+    SetConsoleMode(hStdIn, OldConsoleMode);
   }
 #endif
 }
