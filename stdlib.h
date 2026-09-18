@@ -216,7 +216,12 @@ int list_push(struct SL_List *list, struct SL_Variable value) {
         realloc(list->vars, list->capacity * sizeof(struct SL_Variable));
   }
 
-  list->vars[list->size++] = sl_copy_variable(value);
+  list->vars[list->size] = sl_copy_variable(value);
+  if (list->vars[list->size].name != NULL) {
+    free(list->vars[list->size].name);
+    list->vars[list->size].name = NULL;
+  }
+  list->size++;
 
   return 1;
 }
