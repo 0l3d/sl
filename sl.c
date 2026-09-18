@@ -124,7 +124,7 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
   int token_count = 0;
   const char *p = bufin;
   while (*p != '\0') {
-    if (token_count + 1 == size_s) {
+    if (token_count >= size_s) {
       size_s *= 2;
       char **tmp = realloc(*bufout, size_s * sizeof(char *));
       if (tmp == NULL)
@@ -177,7 +177,8 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
         p += 2;
         continue;
       }
-      if ((p == bufin || !isdigit((unsigned char)*(p - 1))) &&
+      if ((p == bufin || (!isalnum((unsigned char)*(p - 1)) &&
+                          *(p - 1) != '_' && *(p - 1) != ')')) &&
           (*p == '-' || *p == '+') && isdigit((unsigned char)*(p + 1))) {
         const char *word_start = p++;
 

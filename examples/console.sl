@@ -2,10 +2,10 @@ use("console", "io", "types", "errors", "sys")
 
 console.clear()
 
-var end_x = console.get_width() - 1
-var starting_x_y = console.get_height() - 1
-var starting_y_x = console.get_width() - 1
-var end_y = console.get_height() - 1
+var end_x = console.get_width()-1
+var starting_x_y = console.get_height()-1
+var starting_y_x = console.get_width()-1
+var end_y = console.get_height()-1
 
 # WINDOW
 var counter = 0
