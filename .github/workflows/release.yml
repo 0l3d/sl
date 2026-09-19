@@ -159,7 +159,7 @@ jobs:
 
       - name: Build and package on FreeBSD
         uses: vmactions/freebsd@v1
-         with:
+        with:
           release: 14.2
           usesh: true
           copyback: true
