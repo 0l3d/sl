@@ -1,13 +1,35 @@
-CC      = musl-gcc
+CC = cc
+# MUSL 
+# CC      = musl-gcc
 SOURCES = sl.c sl_lang.c
 OBJECTS = $(SOURCES:.c=.o)
 TARGET  = sl
 
-# CFLAGS = -g -O0 # debug 
-CFLAGS  := -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden # standart release 
-# CFLAGS  := -O3 -DNDEBUG -fno-strict-aliasing # MUSL Release
-# LDFLAGS := -O3 -flto -lm -static # MUSL
+# TESTED On:
+# MSYS2 Clang 
+# MSYS2 Gcc
+# Debian Clang 
+# Debian Gcc
+#					 
+#  DEBUG 
+#					 
+# CFLAGS = -g -O0 # DEBUG 
+#
+#  WITHOUT NETWORK STACK MUSL AND STANDART CFLAGS
+# 
+# CFLAGS  := -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden 
+# 
+#  WITH NETWORK STACK MUSL AND STANDART
+#
+CFLAGS  := -O3 -DNDEBUG -DENABLE_NET -flto -fno-strict-aliasing -fvisibility=hidden
+# 
+# LDFLAGS
+# 
 LDFLAGS := -O3 -flto -lm # STANDART 
+#
+# LDFLAGS := -O3 -flto -lm -static # MUSL
+# 
+
 
 ifeq ($(OS),Windows_NT)
     LDFLAGS += -lws2_32

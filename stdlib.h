@@ -1,15 +1,14 @@
 /*
  * SL Standart Library
  */
-
 #include "sl.h"
 #include <ctype.h>
 #include <inttypes.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <math.h>
 
 #ifdef _WIN32
 #define CHAR WIN32_CHAR
@@ -17,23 +16,28 @@
 #define BOOLEAN WIN32_BOOLEAN
 #define DOUBLE WIN32_DOUBLE
 #include <windows.h>
+#ifdef ENABLE_NET
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#endif
 #undef CHAR
 #undef LONG
 #undef BOOLEAN
 #undef DOUBLE
 #else
-#include <arpa/inet.h>
 #include <fcntl.h>
-#include <netdb.h>
-#include <netinet/in.h>
 #include <poll.h>
 #include <sys/ioctl.h>
 #include <sys/select.h>
-#include <sys/socket.h>
 #include <termios.h>
 #include <unistd.h>
+
+#ifdef ENABLE_NET
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#endif
 #endif
 
 /* CONSOLE API */
@@ -813,6 +817,266 @@ struct SL_Variable is_space_fn(struct SL_Code *code, struct SL_L_Function func,
       return return_var;
 
   return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_alpha_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_alpha! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!isalpha((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!isalpha((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_alnum_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_alnum! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!isalnum((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!isalnum((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_upper_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_upper! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!isupper((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!isupper((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_lower_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_lower! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!islower((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!islower((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_punct_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_punct! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!ispunct((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!ispunct((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable is_xdigit_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at is_xdigit! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  struct SL_Variable return_var = {0};
+  return_var.type = BOOLEAN;
+  return_var.valb = 0;
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      if (!isxdigit((unsigned char)str[i])) {
+        free(str);
+        return return_var;
+      }
+    }
+    free(str);
+  } else if (first_arg.type == CHAR) {
+    if (!isxdigit((unsigned char)first_arg.valc))
+      return return_var;
+  }
+
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable to_lower_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at to_lower! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      str[i] = (char)tolower((unsigned char)str[i]);
+    }
+    return_var.type = STRING;
+    return_var.vals = str;
+  } else if (first_arg.type == CHAR) {
+    return_var.type = CHAR;
+    return_var.valc = (char)tolower((unsigned char)first_arg.valc);
+  } else {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at to_lower! Expected STRING or CHAR argument.";
+  }
+
+  return return_var;
+}
+
+struct SL_Variable to_upper_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at to_upper! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type == STRING) {
+    char *str = sl_string_getter(first_arg.vals);
+    int len = strlen(str);
+    for (int i = 0; i < len; i++) {
+      str[i] = (char)toupper((unsigned char)str[i]);
+    }
+    return_var.type = STRING;
+    return_var.vals = str;
+  } else if (first_arg.type == CHAR) {
+    return_var.type = CHAR;
+    return_var.valc = (char)toupper((unsigned char)first_arg.valc);
+  } else {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at to_upper! Expected STRING or CHAR argument.";
+  }
+
   return return_var;
 }
 
@@ -2519,6 +2783,7 @@ struct SL_Variable enums_create_enum_fn(struct SL_Code *code,
 }
 
 /* NET */
+#ifdef ENABLE_NET
 #ifdef _WIN32
 struct SL_Variable net_new_socket_win_fn(struct SL_Code *code,
                                          struct SL_L_Function func,
@@ -3920,6 +4185,7 @@ struct SL_Variable net_close_posix_fn(struct SL_Code *code,
   return return_var;
 }
 
+#endif
 #endif
 /* NET */
 
@@ -5551,7 +5817,14 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       /* STRING TYPE CHECK */
       sl_add_func(code, "types.is_digit", is_digit_fn);
       sl_add_func(code, "types.is_space", is_space_fn);
-
+      sl_add_func(code, "types.is_alpha", is_alpha_fn);
+      sl_add_func(code, "types.is_alnum", is_alnum_fn);
+      sl_add_func(code, "types.is_upper", is_upper_fn);
+      sl_add_func(code, "types.is_lower", is_lower_fn);
+      sl_add_func(code, "types.is_punct", is_punct_fn);
+      sl_add_func(code, "types.is_xdigit", is_xdigit_fn);
+      sl_add_func(code, "types.to_lower", to_lower_fn);
+      sl_add_func(code, "types.to_upper", to_upper_fn);
     } else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
       used_sys = 1;
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
@@ -5727,7 +6000,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                   console_cursor_visibility_posix_fn);
       sl_add_func(code, "console.reset_color", console_reset_color_posix_fn);
 #endif
-    } else if (strcmp(libstr, "net") == 0 && used_net == 0) {
+    }
+#ifdef ENABLE_NET
+    else if (strcmp(libstr, "net") == 0 && used_net == 0) {
       used_net = 1;
       fd_list_capacity = SL_INIT;
       fd_list = calloc(fd_list_capacity, sizeof(struct SL_FD_List));
@@ -6465,7 +6740,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.set_nonblocking", net_set_nonblocking_posix_fn);
       sl_add_func(code, "net.close", net_close_posix_fn);
 #endif
-    } else if (strcmp(libstr, "string") == 0 && used_string == 0) {
+    } 
+#endif
+    else if (strcmp(libstr, "string") == 0 && used_string == 0) {
       used_string = 1;
       sl_add_func(code, "string.char_at", string_charat_fn);
       sl_add_func(code, "string.split", string_split_fn);

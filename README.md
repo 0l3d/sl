@@ -1,4 +1,4 @@
-# SL
+# $L
 
 SL is a simple scripting language for C.
 
