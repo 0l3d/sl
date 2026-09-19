@@ -1,0 +1,237 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  CFLAGS: "-O3 -DNDEBUG -DENABLE_NET -flto -fno-strict-aliasing -fvisibility=hidden"
+  LDFLAGS: "-O3 -flto -lm"
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build with full network API
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cc $CFLAGS -c sl.c -o sl.o
+          cc $CFLAGS -c sl_lang.c -o sl_lang.o
+          cc sl.o sl_lang.o $LDFLAGS -o sl
+
+      - name: Strip binary
+        run: |
+          strip --strip-all sl
+
+      - name: Smoke test
+        run: |
+          ./sl examples/basic_calculator.sl
+
+      - name: Package Linux tar.gz
+        run: |
+          set -euxo pipefail
+          mkdir -p package/sl-linux-x86_64
+          cp sl README.md LICENSE.md package/sl-linux-x86_64/
+          tar -C package -czf "sl-linux-x86_64-${GITHUB_REF_NAME}.tar.gz" sl-linux-x86_64
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-linux-x86_64
+          path: sl-linux-x86_64-${{ github.ref_name }}.tar.gz
+
+  build-macos:
+    name: Build macOS
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build with full network API
+        shell: bash
+        run: |
+          set -euxo pipefail
+          cc $CFLAGS -c sl.c -o sl.o
+          cc $CFLAGS -c sl_lang.c -o sl_lang.o
+          cc sl.o sl_lang.o $LDFLAGS -o sl
+
+      - name: Strip binary
+        run: |
+          # macOS strip uses -x to remove local symbols.
+          strip -x sl
+
+      - name: Smoke test
+        run: |
+          ./sl examples/basic_calculator.sl
+
+      - name: Package macOS tar.gz
+        run: |
+          set -euxo pipefail
+          mkdir -p package/sl-macos-arm64
+          cp sl README.md LICENSE.md package/sl-macos-arm64/
+          tar -C package -czf "sl-macos-arm64-${GITHUB_REF_NAME}.tar.gz" sl-macos-arm64
+
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-macos-arm64
+          path: sl-macos-arm64-${{ github.ref_name }}.tar.gz
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2022
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install MSYS2 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-make
+            mingw-w64-ucrt-x86_64-binutils
+
+      - name: Build with full network API
+        run: |
+          set -euxo pipefail
+          gcc $CFLAGS -c sl.c -o sl.o
+          gcc $CFLAGS -c sl_lang.c -o sl_lang.o
+          gcc sl.o sl_lang.o -O3 -flto -lws2_32 -lm -o sl.exe
+
+      - name: Strip binary
+        run: |
+          strip --strip-all sl.exe
+
+      - name: Smoke test
+        run: |
+          ./sl.exe examples/basic_calculator.sl
+
+      - name: Package Windows zip
+        run: |
+          set -euxo pipefail
+          mkdir -p package/sl-windows-x86_64
+          cp sl.exe README.md LICENSE.md package/sl-windows-x86_64/
+          7z a "sl-windows-x86_64-${GITHUB_REF_NAME}.zip" package/sl-windows-x86_64/*
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-windows-x86_64
+          path: sl-windows-x86_64-${{ github.ref_name }}.zip
+
+  build-freebsd:
+    name: Build FreeBSD
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build and package on FreeBSD
+        uses: vmactions/freebsd@v1
+        with:
+          release: 14.2
+          usesh: true
+          copyback: true
+          prepare: |
+            pkg install -y gmake
+          run: |
+            set -eux
+            cc $CFLAGS -c sl.c -o sl.o
+            cc $CFLAGS -c sl_lang.c -o sl_lang.o
+            cc sl.o sl_lang.o $LDFLAGS -o sl
+            strip -s sl
+            ./sl examples/basic_calculator.sl
+            mkdir -p package/sl-freebsd-amd64
+            cp sl README.md LICENSE.md package/sl-freebsd-amd64/
+            tar -C package -czf "sl-freebsd-amd64-${GITHUB_REF_NAME}.tgz" sl-freebsd-amd64
+
+      - name: Upload FreeBSD package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-freebsd-amd64
+          path: sl-freebsd-amd64-${{ github.ref_name }}.tgz
+
+  build-openbsd:
+    name: Build OpenBSD
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Build and package on OpenBSD
+        uses: vmactions/openbsd@v1
+        with:
+          release: 7.6
+          usesh: true
+          copyback: true
+          prepare: |
+            pkg_add gmake
+          run: |
+            set -eux
+            cc $CFLAGS -c sl.c -o sl.o
+            cc $CFLAGS -c sl_lang.c -o sl_lang.o
+            cc sl.o sl_lang.o $LDFLAGS -o sl
+            strip -s sl
+            ./sl examples/basic_calculator.sl
+            mkdir -p package/sl-openbsd-amd64
+            cp sl README.md LICENSE.md package/sl-openbsd-amd64/
+            tar -C package -czf "sl-openbsd-amd64-${GITHUB_REF_NAME}.tgz" sl-openbsd-amd64
+
+      - name: Upload OpenBSD package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-openbsd-amd64
+          path: sl-openbsd-amd64-${{ github.ref_name }}.tgz
+
+  release:
+    name: Publish GitHub Release
+    needs:
+      - build-linux
+      - build-macos
+      - build-windows
+      - build-freebsd
+      - build-openbsd
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Verify release files
+        run: |
+          set -euxo pipefail
+          find dist -type f -maxdepth 2 -print
+          test "$(find dist -type f | wc -l)" -eq 5
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "SL ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            dist/*
