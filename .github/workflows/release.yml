@@ -1,0 +1,445 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux x86_64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Linux binary
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl.c \
+            -o sl.o
+
+          cc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl_lang.c \
+            -o sl_lang.o
+
+          cc \
+            -O3 \
+            -flto \
+            sl.o \
+            sl_lang.o \
+            -lm \
+            -o sl
+
+      - name: Strip Linux binary
+        shell: bash
+        run: |
+          set -euxo pipefail
+          strip --strip-all sl
+          test -x sl
+
+      - name: Run Linux smoke test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          printf '1 + 2\n' | ./sl examples/basic_calculator.sl
+
+      - name: Package Linux tar.gz
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          rm -rf package
+          mkdir -p package/sl-linux-x86_64
+
+          cp sl package/sl-linux-x86_64/
+          cp README.md package/sl-linux-x86_64/
+          cp LICENSE.md package/sl-linux-x86_64/
+          cp -R examples package/sl-linux-x86_64/
+
+          tar \
+            -C package \
+            -czf "sl-linux-x86_64-${GITHUB_REF_NAME}.tar.gz" \
+            sl-linux-x86_64
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-linux-x86_64
+          path: sl-linux-x86_64-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+
+  build-macos:
+    name: Build macOS ARM64
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build macOS binary
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          cc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl.c \
+            -o sl.o
+
+          cc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl_lang.c \
+            -o sl_lang.o
+
+          cc \
+            -O3 \
+            -flto \
+            sl.o \
+            sl_lang.o \
+            -lm \
+            -o sl
+
+      - name: Strip macOS binary
+        shell: bash
+        run: |
+          set -euxo pipefail
+          strip -x sl
+          test -x sl
+
+      - name: Run macOS smoke test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          printf '1 + 2\n' | ./sl examples/basic_calculator.sl
+
+      - name: Package macOS tar.gz
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          rm -rf package
+          mkdir -p package/sl-macos-arm64
+
+          cp sl package/sl-macos-arm64/
+          cp README.md package/sl-macos-arm64/
+          cp LICENSE.md package/sl-macos-arm64/
+          cp -R examples package/sl-macos-arm64/
+
+          tar \
+            -C package \
+            -czf "sl-macos-arm64-${GITHUB_REF_NAME}.tar.gz" \
+            sl-macos-arm64
+
+      - name: Upload macOS package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-macos-arm64
+          path: sl-macos-arm64-${{ github.ref_name }}.tar.gz
+          if-no-files-found: error
+
+  build-windows:
+    name: Build Windows x86_64
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install MSYS2 UCRT64 toolchain
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-binutils
+      
+      - name: Build Windows binary
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+
+          gcc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl.c \
+            -o sl.o
+
+          gcc \
+            -O3 \
+            -DNDEBUG \
+            -DENABLE_NET \
+            -flto \
+            -fno-strict-aliasing \
+            -fvisibility=hidden \
+            -c sl_lang.c \
+            -o sl_lang.o
+
+          gcc \
+            -O3 \
+            -flto \
+            sl.o \
+            sl_lang.o \
+            -lws2_32 \
+            -lm \
+            -o sl.exe
+
+      - name: Strip Windows binary
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          strip --strip-all sl.exe
+          test -f sl.exe
+
+      - name: Run Windows smoke test
+        shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          printf '1 + 2\n' | ./sl.exe examples/basic_calculator.sl
+
+      - name: Package Windows zip
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $package = "package/sl-windows-x86_64"
+
+          New-Item -ItemType Directory -Force -Path $package | Out-Null
+
+          Copy-Item "sl.exe" "$package/sl.exe"
+          Copy-Item "README.md" "$package/README.md"
+          Copy-Item "LICENSE.md" "$package/LICENSE.md"
+          Copy-Item "examples" "$package/examples" -Recurse
+
+          Compress-Archive `
+            -Path "$package/*" `
+            -DestinationPath "sl-windows-x86_64-$env:GITHUB_REF_NAME.zip" `
+            -Force
+
+          if (-not (Test-Path "sl-windows-x86_64-$env:GITHUB_REF_NAME.zip")) {
+            throw "Windows archive was not created."
+          }
+
+      - name: Upload Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-windows-x86_64
+          path: sl-windows-x86_64-${{ github.ref_name }}.zip
+          if-no-files-found: error
+
+  build-freebsd:
+    name: Build FreeBSD amd64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and package on FreeBSD
+        uses: vmactions/freebsd-vm@main
+        with:
+          release: "14.2"
+          usesh: true
+          copyback: true
+          run: |
+            set -eux
+
+            cc \
+              -O3 \
+              -DNDEBUG \
+              -DENABLE_NET \
+              -flto \
+              -fno-strict-aliasing \
+              -fvisibility=hidden \
+              -c sl.c \
+              -o sl.o
+
+            cc \
+              -O3 \
+              -DNDEBUG \
+              -DENABLE_NET \
+              -flto \
+              -fno-strict-aliasing \
+              -fvisibility=hidden \
+              -c sl_lang.c \
+              -o sl_lang.o
+
+            cc \
+              -O3 \
+              -flto \
+              sl.o \
+              sl_lang.o \
+              -lm \
+              -o sl
+
+            strip -s sl
+            test -x sl
+
+            printf '1 + 2\n' | ./sl examples/basic_calculator.sl
+
+            rm -rf package
+            mkdir -p package/sl-freebsd-amd64
+
+            cp sl package/sl-freebsd-amd64/
+            cp README.md package/sl-freebsd-amd64/
+            cp LICENSE.md package/sl-freebsd-amd64/
+            cp -R examples package/sl-freebsd-amd64/
+
+            tar \
+              -C package \
+              -czf "sl-freebsd-amd64-${GITHUB_REF_NAME}.tgz" \
+              sl-freebsd-amd64
+
+      - name: Upload FreeBSD package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-freebsd-amd64
+          path: sl-freebsd-amd64-${{ github.ref_name }}.tgz
+          if-no-files-found: error
+
+  build-openbsd:
+    name: Build OpenBSD amd64
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build and package on OpenBSD
+        uses: vmactions/openbsd-vm@main
+        with:
+          release: "7.6"
+          usesh: true
+          copyback: true
+          run: |
+            set -eux
+
+            cc \
+              -O3 \
+              -DNDEBUG \
+              -DENABLE_NET \
+              -flto \
+              -fno-strict-aliasing \
+              -fvisibility=hidden \
+              -c sl.c \
+              -o sl.o
+
+            cc \
+              -O3 \
+              -DNDEBUG \
+              -DENABLE_NET \
+              -flto \
+              -fno-strict-aliasing \
+              -fvisibility=hidden \
+              -c sl_lang.c \
+              -o sl_lang.o
+
+            cc \
+              -O3 \
+              -flto \
+              sl.o \
+              sl_lang.o \
+              -lm \
+              -o sl
+
+            strip -s sl
+            test -x sl
+
+            printf '1 + 2\n' | ./sl examples/basic_calculator.sl
+
+            rm -rf package
+            mkdir -p package/sl-openbsd-amd64
+
+            cp sl package/sl-openbsd-amd64/
+            cp README.md package/sl-openbsd-amd64/
+            cp LICENSE.md package/sl-openbsd-amd64/
+            cp -R examples package/sl-openbsd-amd64/
+
+            tar \
+              -C package \
+              -czf "sl-openbsd-amd64-${GITHUB_REF_NAME}.tgz" \
+              sl-openbsd-amd64
+
+      - name: Upload OpenBSD package
+        uses: actions/upload-artifact@v4
+        with:
+          name: sl-openbsd-amd64
+          path: sl-openbsd-amd64-${{ github.ref_name }}.tgz
+          if-no-files-found: error
+
+  release:
+    name: Create GitHub Release
+    needs:
+      - build-linux
+      - build-macos
+      - build-windows
+      - build-freebsd
+      - build-openbsd
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Download all packages
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Verify all five packages exist
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          find dist -maxdepth 1 -type f -print
+
+          test -f "dist/sl-linux-x86_64-${GITHUB_REF_NAME}.tar.gz"
+          test -f "dist/sl-macos-arm64-${GITHUB_REF_NAME}.tar.gz"
+          test -f "dist/sl-windows-x86_64-${GITHUB_REF_NAME}.zip"
+          test -f "dist/sl-freebsd-amd64-${GITHUB_REF_NAME}.tgz"
+          test -f "dist/sl-openbsd-amd64-${GITHUB_REF_NAME}.tgz"
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euxo pipefail
+
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "SL ${GITHUB_REF_NAME}" \
+            --generate-notes \
+            dist/*
