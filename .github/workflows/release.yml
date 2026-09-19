@@ -270,7 +270,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and package on FreeBSD
-        uses: vmactions/freebsd@v1
+        uses: vmactions/freebsd-vm@main
         with:
           release: "14.2"
           usesh: true
@@ -340,7 +340,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build and package on OpenBSD
-        uses: vmactions/openbsd@v1
+        uses: vmactions/openbsd-vm@main
         with:
           release: "7.6"
           usesh: true
