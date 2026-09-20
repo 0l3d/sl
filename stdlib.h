@@ -4196,6 +4196,10 @@ DWORD oldSettings;
 WORD OldColorAttrs;
 DWORD OldConsoleMode;
 INPUT_RECORD irInBuf[1];
+HANDLE hOriginalOut;
+HANDLE hAlternateOut;
+DWORD originalOutMode;
+DWORD originalInMode;
 
 struct SL_Variable console_clear_win_fn(struct SL_Code *code,
                                         struct SL_L_Function func,
@@ -4908,6 +4912,8 @@ void disableRawMode() {
   fflush(stdout);
   const char *disable_mouse = "\x1b[?1003l\x1b[?1006l\x1b[?7h";
   write(STDOUT_FILENO, disable_mouse, strlen(disable_mouse));
+  printf("\x1b[?1049l\x1b[?25h");
+  fflush(stdout);
 }
 
 struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
@@ -5944,6 +5950,18 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                    TEXT("Cannot get console mode!"), MB_OK);
         exit(-1);
       }
+
+      GetConsoleMode(hStdIn, &originalInMode);
+      GetConsoleMode(hStdOut, &originalOutMode);
+      hAlternateOut = CreateConsoleScreenBuffer(
+          GENERIC_READ | GENERIC_WRITE,
+          FILE_SHARE_READ | FILE_SHARE_WRITE,
+          NULL,
+          CONSOLE_TEXTMODE_BUFFER,
+          NULL
+      );
+
+      SetConsoleActiveScreenBuffer(hAlternateOut);
       /* STAAAY, STAAAY AWAAAY, STAY AWAAAAY */
 
       OldColorAttrs = csbiInfo.wAttributes;
@@ -5974,7 +5992,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
 #else
       /* FOR TERMIOS: https://viewsourcecode.org/snaptoken/kilo/ */
       tcgetattr(STDIN_FILENO, &orig_termios);
+      printf("\x1b[?1049h");
       atexit(disableRawMode);
+      fflush(stdout);
       sl_add_func(code, "console.clear", console_clear_posix_fn);
       sl_add_func(code, "console.foreground_color", console_fgcolor_posix_fn);
       sl_add_func(code, "console.background_color", console_bgcolor_posix_fn);
@@ -6778,12 +6798,19 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       used_db = 1;
       sl_add_func(code, "db.from_lists", db_from_lists_fn);
       sl_add_func(code, "db.to_lists", db_to_lists_fn);
+    } else {
+      if (strncmp(libstr, "lib:", 4) == 0) {
+
+      } else {
+        fprintf(stderr, "Package undefined! PKG_NAME: %s\n", libstr);
+      }
     }
     free(libstr);
   }
 
   return return_var;
 }
+void close_sl_stdlib();
 
 void init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv) {
   srand(time(NULL));
@@ -6927,7 +6954,12 @@ void close_sl_stdlib() {
     WSACleanup();
   }
   if (used_console == 1) {
-    SetConsoleMode(hStdIn, OldConsoleMode);
+    SetConsoleMode(hStdIn, originalInMode);
+    SetConsoleMode(hOriginalOut, originalOutMode);
+    SetConsoleActiveScreenBuffer(hOriginalOut);
+    if (hAlternateOut != INVALID_HANDLE_VALUE) {
+        CloseHandle(hAlternateOut);
+    }
   }
 #endif
 }

@@ -381,6 +381,8 @@ char *sl_string_getter(char *word) {
       case 'v':
         our_word[j++] = '\v';
         break;
+      case '0':
+        our_word[j++] = '\0';
       case '"':
         our_word[j++] = '\"';
         break;
@@ -443,7 +445,33 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
       v.valb = 1;
     break;
   case CHAR:
-    v.valc = word[1];
+    if (word[1] == '\\') {
+      switch (word[2]) {
+      case '0':
+        v.valc = '\0';
+        break;
+      case 'n':
+        v.valc = '\n';
+        break;
+      case 't':
+        v.valc = '\t';
+        break;
+      case 'r':
+        v.valc = '\r';
+        break;
+      case '\\':
+        v.valc = '\\';
+        break;
+      case '\'':
+        v.valc = '\'';
+        break;
+      default:
+        v.valc = word[2];
+        break;
+      }
+    } else {
+      v.valc = word[1];
+    }
     break;
   case RETURN:
     v.type = RETURN;
