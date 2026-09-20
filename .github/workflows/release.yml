@@ -438,8 +438,10 @@ jobs:
         run: |
           set -euxo pipefail
 
+          test -f CHANGELOG.md
+
           gh release create "${GITHUB_REF_NAME}" \
             --repo "${GITHUB_REPOSITORY}" \
             --title "SL ${GITHUB_REF_NAME}" \
-            --generate-notes \
+            --notes-file CHANGELOG.md \
             dist/*
