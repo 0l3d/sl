@@ -15,11 +15,11 @@
 #define LONG WIN32_LONG
 #define BOOLEAN WIN32_BOOLEAN
 #define DOUBLE WIN32_DOUBLE
-#include <windows.h>
 #ifdef ENABLE_NET
 #include <winsock2.h>
 #include <ws2tcpip.h>
 #endif
+#include <windows.h>
 #undef CHAR
 #undef LONG
 #undef BOOLEAN
@@ -4881,6 +4881,24 @@ struct SL_Variable console_get_height_win_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable console_enter_alt_win_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  printf("\x1b[?1049h");
+  fflush(stdout);
+  return return_var;
+}
+
+struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  printf("\x1b[?1049l");
+  fflush(stdout);
+  return return_var;
+}
+
 struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
@@ -4912,7 +4930,7 @@ void disableRawMode() {
   fflush(stdout);
   const char *disable_mouse = "\x1b[?1003l\x1b[?1006l\x1b[?7h";
   write(STDOUT_FILENO, disable_mouse, strlen(disable_mouse));
-  printf("\x1b[?1049l\x1b[?25h");
+  printf("\x1b[?25h");
   fflush(stdout);
 }
 
@@ -5222,6 +5240,24 @@ struct SL_Variable console_get_height_posix_fn(struct SL_Code *code,
   } else {
     return_var.vali = 0;
   }
+  return return_var;
+}
+
+struct SL_Variable console_enter_alt_posix_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  printf("\x1b[?1049h");
+  fflush(stdout);
+  return return_var;
+}
+
+struct SL_Variable console_leave_alt_posix_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  printf("\x1b[?1049l");
+  fflush(stdout);
   return return_var;
 }
 
@@ -5950,18 +5986,12 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                    TEXT("Cannot get console mode!"), MB_OK);
         exit(-1);
       }
-
-      GetConsoleMode(hStdIn, &originalInMode);
-      GetConsoleMode(hStdOut, &originalOutMode);
-      hAlternateOut = CreateConsoleScreenBuffer(
-          GENERIC_READ | GENERIC_WRITE,
-          FILE_SHARE_READ | FILE_SHARE_WRITE,
-          NULL,
-          CONSOLE_TEXTMODE_BUFFER,
-          NULL
-      );
-
-      SetConsoleActiveScreenBuffer(hAlternateOut);
+	  
+	  DWORD dwOutMode = 0;
+      if (GetConsoleMode(hStdOut, &dwOutMode)) {
+        dwOutMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+        SetConsoleMode(hStdOut, dwOutMode);
+      }
       /* STAAAY, STAAAY AWAAAY, STAY AWAAAAY */
 
       OldColorAttrs = csbiInfo.wAttributes;
@@ -5986,13 +6016,14 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                   console_mouse_event_get_y_win_fn);
       sl_add_func(code, "console.get_width", console_get_width_win_fn);
       sl_add_func(code, "console.get_height", console_get_height_win_fn);
+      sl_add_func(code, "console.enter_alt_screen", console_enter_alt_win_fn);
+      sl_add_func(code, "console.leave_alt_screen", console_leave_alt_win_fn);
       sl_add_func(code, "console.cursor_visibility",
                   console_cursor_visibility_win_fn);
       sl_add_func(code, "console.reset_color", console_reset_color_win_fn);
 #else
       /* FOR TERMIOS: https://viewsourcecode.org/snaptoken/kilo/ */
       tcgetattr(STDIN_FILENO, &orig_termios);
-      printf("\x1b[?1049h");
       atexit(disableRawMode);
       fflush(stdout);
       sl_add_func(code, "console.clear", console_clear_posix_fn);
@@ -6016,6 +6047,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                   console_mouse_event_get_y_posix_fn);
       sl_add_func(code, "console.get_width", console_get_width_posix_fn);
       sl_add_func(code, "console.get_height", console_get_height_posix_fn);
+      sl_add_func(code, "console.enter_alt_screen", console_enter_alt_posix_fn);
+      sl_add_func(code, "console.leave_alt_screen", console_leave_alt_posix_fn);
       sl_add_func(code, "console.cursor_visibility",
                   console_cursor_visibility_posix_fn);
       sl_add_func(code, "console.reset_color", console_reset_color_posix_fn);
@@ -6760,7 +6793,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "net.set_nonblocking", net_set_nonblocking_posix_fn);
       sl_add_func(code, "net.close", net_close_posix_fn);
 #endif
-    } 
+    }
 #endif
     else if (strcmp(libstr, "string") == 0 && used_string == 0) {
       used_string = 1;
@@ -6952,14 +6985,6 @@ void close_sl_stdlib() {
 #ifdef _WIN32
   if (used_net == 1) {
     WSACleanup();
-  }
-  if (used_console == 1) {
-    SetConsoleMode(hStdIn, originalInMode);
-    SetConsoleMode(hOriginalOut, originalOutMode);
-    SetConsoleActiveScreenBuffer(hOriginalOut);
-    if (hAlternateOut != INVALID_HANDLE_VALUE) {
-        CloseHandle(hAlternateOut);
-    }
   }
 #endif
 }
