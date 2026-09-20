@@ -4265,75 +4265,68 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
                       "console.foreground_color";
   }
 
-  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
-  if (!GetConsoleScreenBufferInfo(hStdOut, &csbiInfo)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to get console screen buffer info.";
-    return return_var;
-  }
-
-  WORD wColor = 0;
+  const char *color_seq = "\x1b[39m";
 
   switch (first_arg.vali) {
   case SL_COLOR_BLACK:
-    wColor = 0;
+    color_seq = "\x1b[30m";
     break;
   case SL_COLOR_RED:
-    wColor = FOREGROUND_RED;
+    color_seq = "\x1b[31m";
     break;
   case SL_COLOR_GREEN:
-    wColor = FOREGROUND_GREEN;
+    color_seq = "\x1b[32m";
     break;
   case SL_COLOR_YELLOW:
-    wColor = FOREGROUND_RED | FOREGROUND_GREEN;
+    color_seq = "\x1b[33m";
     break;
   case SL_COLOR_BLUE:
-    wColor = FOREGROUND_BLUE;
+    color_seq = "\x1b[34m";
     break;
   case SL_COLOR_MAGENTA:
-    wColor = FOREGROUND_RED | FOREGROUND_BLUE;
+    color_seq = "\x1b[35m";
     break;
   case SL_COLOR_CYAN:
-    wColor = FOREGROUND_GREEN | FOREGROUND_BLUE;
+    color_seq = "\x1b[36m";
     break;
   case SL_COLOR_WHITE:
-    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+    color_seq = "\x1b[37m";
     break;
 
   case SL_COLOR_BRIGHT_BLACK:
-    wColor = FOREGROUND_INTENSITY;
+    color_seq = "\x1b[90m";
     break;
   case SL_COLOR_BRIGHT_RED:
-    wColor = FOREGROUND_RED | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[91m";
     break;
   case SL_COLOR_BRIGHT_GREEN:
-    wColor = FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[92m";
     break;
   case SL_COLOR_BRIGHT_YELLOW:
-    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[93m";
     break;
   case SL_COLOR_BRIGHT_BLUE:
-    wColor = FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[94m";
     break;
   case SL_COLOR_BRIGHT_MAGENTA:
-    wColor = FOREGROUND_RED | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[95m";
     break;
   case SL_COLOR_BRIGHT_CYAN:
-    wColor = FOREGROUND_GREEN | FOREGROUND_BLUE | FOREGROUND_INTENSITY;
+    color_seq = "\x1b[96m";
     break;
   case SL_COLOR_BRIGHT_WHITE:
-    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE |
-             FOREGROUND_INTENSITY;
+    color_seq = "\x1b[97m";
     break;
 
   case SL_COLOR_DEFAULT:
   default:
-    wColor = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE;
+    color_seq = "\x1b[39m";
     break;
   }
-  wColor = (csbiInfo.wAttributes & 0x00F0) | wColor;
 
-  if (!SetConsoleTextAttribute(hStdOut, wColor)) {
+  DWORD written;
+  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq),
+                 &written, NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set console text attribute.";
     return return_var;
@@ -4343,6 +4336,7 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+
 
 struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
@@ -4364,77 +4358,68 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
                       "console.background_color";
   }
 
-  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
-
-  if (!GetConsoleScreenBufferInfo(hStdOut, &csbiInfo)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to get console screen buffer info.";
-    return return_var;
-  }
-
-  WORD wBgColor = 0;
+  const char *color_seq = "\x1b[49m";
 
   switch (first_arg.vali) {
   case SL_COLOR_BLACK:
-    wBgColor = 0;
+    color_seq = "\x1b[40m";
     break;
   case SL_COLOR_RED:
-    wBgColor = BACKGROUND_RED;
+    color_seq = "\x1b[41m";
     break;
   case SL_COLOR_GREEN:
-    wBgColor = BACKGROUND_GREEN;
+    color_seq = "\x1b[42m";
     break;
   case SL_COLOR_YELLOW:
-    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN;
+    color_seq = "\x1b[43m";
     break;
   case SL_COLOR_BLUE:
-    wBgColor = BACKGROUND_BLUE;
+    color_seq = "\x1b[44m";
     break;
   case SL_COLOR_MAGENTA:
-    wBgColor = BACKGROUND_RED | BACKGROUND_BLUE;
+    color_seq = "\x1b[45m";
     break;
   case SL_COLOR_CYAN:
-    wBgColor = BACKGROUND_GREEN | BACKGROUND_BLUE;
+    color_seq = "\x1b[46m";
     break;
   case SL_COLOR_WHITE:
-    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE;
+    color_seq = "\x1b[47m";
     break;
 
   case SL_COLOR_BRIGHT_BLACK:
-    wBgColor = BACKGROUND_INTENSITY;
+    color_seq = "\x1b[100m";
     break;
   case SL_COLOR_BRIGHT_RED:
-    wBgColor = BACKGROUND_RED | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[101m";
     break;
   case SL_COLOR_BRIGHT_GREEN:
-    wBgColor = BACKGROUND_GREEN | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[102m";
     break;
   case SL_COLOR_BRIGHT_YELLOW:
-    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[103m";
     break;
   case SL_COLOR_BRIGHT_BLUE:
-    wBgColor = BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[104m";
     break;
   case SL_COLOR_BRIGHT_MAGENTA:
-    wBgColor = BACKGROUND_RED | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[105m";
     break;
   case SL_COLOR_BRIGHT_CYAN:
-    wBgColor = BACKGROUND_GREEN | BACKGROUND_BLUE | BACKGROUND_INTENSITY;
+    color_seq = "\x1b[106m";
     break;
   case SL_COLOR_BRIGHT_WHITE:
-    wBgColor = BACKGROUND_RED | BACKGROUND_GREEN | BACKGROUND_BLUE |
-               BACKGROUND_INTENSITY;
+    color_seq = "\x1b[107m";
     break;
 
   case SL_COLOR_DEFAULT:
   default:
-    wBgColor = 0;
+    color_seq = "\x1b[49m";
     break;
   }
 
-  WORD finalColor = (csbiInfo.wAttributes & 0x000F) | wBgColor;
-
-  if (!SetConsoleTextAttribute(hStdOut, finalColor)) {
+  DWORD written;
+  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq),
+                 &written, NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set console text attribute.";
     return return_var;
@@ -4444,6 +4429,28 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+
+
+struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+
+  const char *reset_seq = "\x1b[0m";
+
+  DWORD written;
+  if (!WriteFile(hStdOut, reset_seq, 4, &written, NULL)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 
 struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
                                                   struct SL_L_Function func,
@@ -4467,24 +4474,30 @@ struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
     return return_var;
   }
 
-  CONSOLE_SCREEN_BUFFER_INFO csbiInfo;
-  csbiInfo.dwCursorPosition.X = first_arg.vali;
-  csbiInfo.dwCursorPosition.Y = second_arg.vali;
-  if (!SetConsoleCursorPosition(hStdOut, csbiInfo.dwCursorPosition)) {
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
+           first_arg.vali + 1);
+
+  DWORD written;
+  if (!WriteFile(hStdOut, buf, (DWORD)strlen(buf), &written, NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set cursor position.";
     return return_var;
   }
+
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
 
-struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
-                                                    struct SL_L_Function func,
-                                                    struct SL_Function rfunc) {
+
+struct SL_Variable console_cursor_visibility_win_fn(
+    struct SL_Code *code,
+    struct SL_L_Function func,
+    struct SL_Function rfunc) {
 
   struct SL_Variable return_var = {0};
+
   if (func.total_arguments < 1) {
     return_var.type = ERROR;
     return_var.vals =
@@ -4494,24 +4507,22 @@ struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
 
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-  CONSOLE_CURSOR_INFO ConsoleCursorInfo;
-  if (!GetConsoleCursorInfo(hStdOut, &ConsoleCursorInfo)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to get cursor info.";
-    return return_var;
-  }
-
   if (first_arg.type != BOOLEAN) {
     return_var.vals =
         "All items must be typed as bool on console.cursor_visibility";
   }
 
-  if (first_arg.valb == 1)
-    ConsoleCursorInfo.bVisible = TRUE;
-  else
-    ConsoleCursorInfo.bVisible = FALSE;
+  const char *visibility_seq;
 
-  if (!SetConsoleCursorInfo(hStdOut, &ConsoleCursorInfo)) {
+  if (first_arg.valb == 1) {
+    visibility_seq = "\x1b[?25h";
+  } else {
+    visibility_seq = "\x1b[?25l";
+  }
+
+  DWORD written;
+  if (!WriteFile(hStdOut, visibility_seq, (DWORD)strlen(visibility_seq),
+                 &written, NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set cursor visibility.";
     return return_var;
@@ -4521,6 +4532,7 @@ struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+
 
 struct SL_Variable console_raw_mode_win_fn(struct SL_Code *code,
                                            struct SL_L_Function func,
@@ -4899,21 +4911,6 @@ struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
-                                              struct SL_L_Function func,
-                                              struct SL_Function rfunc) {
-
-  struct SL_Variable return_var = {0};
-
-  if (!SetConsoleTextAttribute(hStdOut, OldColorAttrs)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to reset console colors.";
-    return return_var;
-  }
-  return_var.type = BOOLEAN;
-  return_var.valb = 1;
-  return return_var;
-}
 
 #else
 struct termios orig_termios;
@@ -5992,6 +5989,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
         dwOutMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         SetConsoleMode(hStdOut, dwOutMode);
       }
+
       /* STAAAY, STAAAY AWAAAY, STAY AWAAAAY */
 
       OldColorAttrs = csbiInfo.wAttributes;
