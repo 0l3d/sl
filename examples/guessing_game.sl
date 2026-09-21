@@ -22,3 +22,4 @@ while $num neq $rand then
 end
 
 io.print("You made it! Number is : ", $rand, "\n")
+
