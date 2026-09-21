@@ -92,10 +92,21 @@ def line_renderer then
     while $screen_y < $total_renderable then
         console.cursor_position(0, $screen_y)
         console.clear_line()
-
         var line = List.get($lines, $i)
-        io.print($line)
-        io.fflush()
+        if not(errors.bool($line)) then 
+            var highlighting = errors.panic(string.split($line, " "))
+            while List.iter($highlighting) then 
+                var item = List.next($highlighting)
+                while List.iter($sl_highlighting) then 
+                    if $item equ List.next($sl_highlighting) then
+                        console.foreground_color($COLOR_MAGENTA)
+                    end
+                end
+                io.print($item + " ")
+                console.reset_color()
+            end
+            io.fflush()
+        end
         $i = $i + 1
         $screen_y = $screen_y + 1
     end
