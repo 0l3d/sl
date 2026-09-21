@@ -113,6 +113,25 @@
 #define SL_COLOR_BRIGHT_MAGENTA 14
 #define SL_COLOR_BRIGHT_CYAN 15
 #define SL_COLOR_BRIGHT_WHITE 16
+static int sl_console_write(const void *data, size_t size) {
+  if (data == NULL || size == 0) {
+    return 1;
+  }
+
+  return fwrite(data, 1, size, stdout) == size;
+}
+
+static int sl_console_write_cstr(const char *text) {
+  if (text == NULL) {
+    return 0;
+  }
+
+  return sl_console_write(text, strlen(text));
+}
+
+static int sl_console_flush(void) {
+  return fflush(stdout) == 0;
+}
 /* CONSOLE API */
 
 #include <math.h>
@@ -371,73 +390,109 @@ int list_remove(struct SL_List *list, int index) {
 /* LIST FUNCTIONS */
 
 /* Input/Output for stdout/stdin*/
-struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable print_fn(struct SL_Code *code,
+                            struct SL_L_Function func,
                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
+
   for (int i = 0; i < func.total_arguments; i++) {
     return_var = sl_get_argument(*code, func, i);
+
+    char buffer[64];
+    int length = 0;
+
     switch (return_var.type) {
     case INTEGER:
-      printf("%d", return_var.vali);
+      length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     case DOUBLE:
-      printf("%f", return_var.valf);
+      length = snprintf(buffer, sizeof(buffer), "%f", return_var.valf);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     case STRING: {
       char *string = sl_string_getter(return_var.vals);
-      printf("%s", string);
-      free(string);
-    } break;
+
+      if (string != NULL) {
+        sl_console_write_cstr(string);
+        free(string);
+      }
+      break;
+    }
+
     case BOOLEAN:
-      if (return_var.valb == 1)
-        printf("true");
-      else if (return_var.valb == 0)
-        printf("false");
+      if (return_var.valb) {
+        sl_console_write_cstr("true");
+      } else {
+        sl_console_write_cstr("false");
+      }
       break;
+
     case CHAR:
-      printf("%c", return_var.valc);
+      sl_console_write(&return_var.valc, 1);
       break;
+
     case LONG:
-      printf("%" PRIdPTR, return_var.valh);
+      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
+                        return_var.valh);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     default:
       break;
     }
   }
+
   return return_var;
 }
 
-struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable print_raw_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   for (int i = 0; i < func.total_arguments; i++) {
     struct SL_Variable value = sl_get_argument(*code, func, i);
 
+    char buffer[64];
+    int length = 0;
+
     switch (value.type) {
     case STRING:
       if (value.vals != NULL)
-        printf("%s", value.vals);
+        sl_console_write_cstr(value.vals);
       break;
 
     case CHAR:
-      printf("%c", value.valc);
+      sl_console_write(&value.valc, 1);
       break;
 
     case INTEGER:
-      printf("%d", value.vali);
+      length = snprintf(buffer, sizeof(buffer), "%d", value.vali);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
 
     case DOUBLE:
-      printf("%f", value.valf);
+      length = snprintf(buffer, sizeof(buffer), "%f", value.valf);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
 
     case BOOLEAN:
-      printf("%s", value.valb ? "true" : "false");
+      sl_console_write_cstr(value.valb ? "true" : "false");
       break;
 
     case LONG:
-      printf("%" PRIdPTR, value.valh);
+      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
+                        value.valh);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
 
     default:
@@ -448,46 +503,82 @@ struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
-struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable input_fn(struct SL_Code *code,
+                            struct SL_L_Function func,
                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
+
   for (int i = 0; i < func.total_arguments; i++) {
     return_var = sl_get_argument(*code, func, i);
+
+    char buffer[64];
+    int length = 0;
+
     switch (return_var.type) {
     case INTEGER:
-      printf("%d", return_var.vali);
+      length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     case DOUBLE:
-      printf("%f", return_var.valf);
+      length = snprintf(buffer, sizeof(buffer), "%f", return_var.valf);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     case STRING: {
       char *string = sl_string_getter(return_var.vals);
-      printf("%s", string);
-      free(string);
-    } break;
+
+      if (string != NULL) {
+        sl_console_write_cstr(string);
+        free(string);
+      }
+      break;
+    }
+
     case BOOLEAN:
-      if (return_var.valb == 1)
-        printf("true");
-      else if (return_var.valb == 0)
-        printf("false");
+      sl_console_write_cstr(return_var.valb ? "true" : "false");
       break;
+
     case CHAR:
-      printf("%c", return_var.valc);
+      sl_console_write(&return_var.valc, 1);
       break;
+
     case LONG:
-      printf("%" PRIdPTR, return_var.valh);
+      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
+                        return_var.valh);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
       break;
+
     default:
       break;
     }
   }
+  sl_console_flush();
+
   char string[1024];
-  fgets(string, sizeof(string), stdin);
+
+  if (fgets(string, sizeof(string), stdin) == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to read input.";
+    return return_var;
+  }
+
   string[strcspn(string, "\n")] = '\0';
 
   return_var.type = STRING;
   return_var.vals = malloc(1024);
-  strncpy(return_var.vals, string, 1024);
+
+  if (return_var.vals == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to allocate input buffer.";
+    return return_var;
+  }
+
+  strncpy(return_var.vals, string, 1023);
+  return_var.vals[1023] = '\0';
 
   return return_var;
 }
@@ -496,15 +587,28 @@ struct SL_Variable io_getchar_fn(struct SL_Code *code,
                                  struct SL_L_Function func,
                                  struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
+
+  sl_console_flush();
+
   return_var.valc = getchar();
   return_var.type = CHAR;
+
   return return_var;
 }
 
-struct SL_Variable io_fflush_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable io_fflush_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  fflush(stdout);
+
+  if (sl_console_flush() != 0) {
+    return_var.type = BOOLEAN;
+    return_var.valb = 1;
+  } else {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to flush stdout.";
+  }
+
   return return_var;
 }
 
@@ -2016,7 +2120,7 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
     printf("Program panicked with error: %s\n", first_arg.vals);
     exit(-1);
   }
-  return sl_copy_variable(first_arg);
+  return return_var;
 }
 
 /* SYS Library for more specific functions */
@@ -4589,44 +4693,35 @@ DWORD originalInMode;
 struct SL_Variable console_clear_win_fn(struct SL_Code *code,
                                         struct SL_L_Function func,
                                         struct SL_Function rfunc) {
-
   struct SL_Variable return_var = {0};
   DWORD mode = 0;
+
   if (!GetConsoleMode(hStdOut, &mode)) {
-    return_var.vals = "Cannot get console mode.";
     return_var.type = ERROR;
+    return_var.vals = "Cannot get console mode.";
     return return_var;
   }
+
   const DWORD original_mode = mode;
   mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 
   if (!SetConsoleMode(hStdOut, mode)) {
+    return_var.type = ERROR;
     return_var.vals = "Cannot set console mode.";
-    return_var.type = ERROR;
     return return_var;
   }
 
-  DWORD written = 0;
-  PCWSTR sequence = L"\x1b[2J";
-  if (!WriteConsoleW(hStdOut, sequence, (DWORD)wcslen(sequence), &written,
-                     NULL)) {
-    SetConsoleMode(hStdOut, original_mode);
-    return_var.vals = "Cannot clear console.";
-    return_var.type = ERROR;
-    return return_var;
-  }
+  const char *clear_seq = "\x1b[2J\x1b[3J\x1b[H";
 
-  written = 0;
-  sequence = L"\x1b[3J";
-  if (!WriteConsoleW(hStdOut, sequence, (DWORD)wcslen(sequence), &written,
-                     NULL)) {
+  if (!sl_console_write_cstr(clear_seq)) {
     SetConsoleMode(hStdOut, original_mode);
-    return_var.vals = "Cannot clear console.";
     return_var.type = ERROR;
+    return_var.vals = "Cannot clear console.";
     return return_var;
   }
 
   SetConsoleMode(hStdOut, original_mode);
+
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -4709,15 +4804,12 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
     break;
   }
 
-  DWORD written;
-  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq), &written,
-                 NULL)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to set console text attribute.";
-    return return_var;
-  }
-
-  return_var.type = BOOLEAN;
+if (!sl_console_write_cstr(color_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set console text attribute.";
+  return return_var;
+}
+return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -4801,15 +4893,12 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
     break;
   }
 
-  DWORD written;
-  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq), &written,
-                 NULL)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to set console text attribute.";
-    return return_var;
-  }
-
-  return_var.type = BOOLEAN;
+if (!sl_console_write_cstr(color_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set console text attribute.";
+  return return_var;
+}
+return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -4822,13 +4911,11 @@ struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
 
   const char *reset_seq = "\x1b[0m";
 
-  DWORD written;
-  if (!WriteFile(hStdOut, reset_seq, 4, &written, NULL)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to set console text attribute.";
-    return return_var;
-  }
-
+if (!sl_console_write_cstr(reset_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set console text attribute.";
+  return return_var;
+}  
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -4860,14 +4947,12 @@ struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
            first_arg.vali + 1);
 
-  DWORD written;
-  if (!WriteFile(hStdOut, buf, (DWORD)strlen(buf), &written, NULL)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to set cursor position.";
-    return return_var;
-  }
-
-  return_var.type = BOOLEAN;
+if (!sl_console_write_cstr(buf)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set cursor position.";
+  return return_var;
+}
+return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -4900,14 +4985,11 @@ struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
     visibility_seq = "\x1b[?25l";
   }
 
-  DWORD written;
-  if (!WriteFile(hStdOut, visibility_seq, (DWORD)strlen(visibility_seq),
-                 &written, NULL)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to set cursor visibility.";
-    return return_var;
-  }
-
+if (!sl_console_write_cstr(visibility_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set cursor visibility.";
+  return return_var;
+}
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -5276,18 +5358,22 @@ struct SL_Variable console_enter_alt_win_fn(struct SL_Code *code,
                                             struct SL_L_Function func,
                                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  printf("\x1b[?1049h");
-  fflush(stdout);
+if (!sl_console_write_cstr("\x1b[?1049h")) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to enter alternate screen.";
   return return_var;
+}  return return_var;
 }
 
 struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
                                             struct SL_L_Function func,
                                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  printf("\x1b[?1049l");
-  fflush(stdout);
-  return return_var;
+  if (!sl_console_write_cstr("\x1b[?1049l")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to leave alternate screen.";
+    return return_var;
+  }  return return_var;
 }
 
 #else
@@ -5301,12 +5387,13 @@ int posix_last_mouse_x = 0;
 int posix_last_mouse_y = 0;
 
 void disableRawMode() {
+  sl_console_flush();
   tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
   fflush(stdout);
   const char *disable_mouse = "\x1b[?1003l\x1b[?1006l\x1b[?7h";
   write(STDOUT_FILENO, disable_mouse, strlen(disable_mouse));
   printf("\x1b[?25h");
-  fflush(stdout);
+  sl_console_flush();
 }
 
 struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
@@ -5326,6 +5413,7 @@ struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
   }
 
   if (first_arg.valb == 1) {
+    sl_console_flush();
     tcgetattr(STDIN_FILENO, &orig_termios);
     struct termios raw = orig_termios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
@@ -5359,14 +5447,11 @@ struct SL_Variable console_clear_posix_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   const char *clear_seq = "\x1b[2J\x1b[3J\x1b[H";
 
-  fflush(stdout);
-  if (write(STDOUT_FILENO, clear_seq, strlen(clear_seq)) == -1) {
-    return_var.vals = "Cannot clear console.";
-    return_var.type = ERROR;
-    return return_var;
-  }
-
-  return_var.type = BOOLEAN;
+if (!sl_console_write_cstr(clear_seq)) {
+  return_var.vals = "Cannot clear console.";
+  return_var.type = ERROR;
+  return return_var;
+}  return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -5438,10 +5523,11 @@ struct SL_Variable console_fgcolor_posix_fn(struct SL_Code *code,
     color_seq = "\x1b[39m";
     break;
   }
-
-  fflush(stdout);
-  write(STDOUT_FILENO, color_seq, strlen(color_seq));
-
+if (!sl_console_write_cstr(color_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set foreground color.";
+  return return_var;
+}
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -5516,8 +5602,11 @@ struct SL_Variable console_bgcolor_posix_fn(struct SL_Code *code,
     break;
   }
 
-  fflush(stdout);
-  write(STDOUT_FILENO, color_seq, strlen(color_seq));
+ if (!sl_console_write_cstr(color_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set background color.";
+  return return_var;
+}
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -5556,8 +5645,11 @@ struct SL_Variable console_cursor_position_posix_fn(struct SL_Code *code,
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
            first_arg.vali + 1);
 
-  fflush(stdout);
-  write(STDOUT_FILENO, buf, strlen(buf));
+if (!sl_console_write_cstr(buf)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set cursor position.";
+  return return_var;
+}
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -5576,13 +5668,19 @@ struct SL_Variable console_cursor_visibility_posix_fn(
 
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-  fflush(stdout);
-  if (first_arg.valb == 1) {
-    write(STDOUT_FILENO, "\x1b[?25h", 6);
-  } else {
-    write(STDOUT_FILENO, "\x1b[?25l", 6);
-  }
+const char *visibility_seq;
 
+if (first_arg.valb == 1) {
+  visibility_seq = "\x1b[?25h";
+} else {
+  visibility_seq = "\x1b[?25l";
+}
+
+if (!sl_console_write_cstr(visibility_seq)) {
+  return_var.type = ERROR;
+  return_var.vals = "Failed to set cursor visibility.";
+  return return_var;
+}
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -5622,8 +5720,11 @@ struct SL_Variable console_enter_alt_posix_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  printf("\x1b[?1049h");
-  fflush(stdout);
+    if (!sl_console_write_cstr("\x1b[?1049h")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to enter alternate screen.";
+    return return_var;
+  }
   return return_var;
 }
 
@@ -5631,8 +5732,13 @@ struct SL_Variable console_leave_alt_posix_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  printf("\x1b[?1049l");
-  fflush(stdout);
+  
+  if (!sl_console_write_cstr("\x1b[?1049l")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to leave alternate screen.";
+    return return_var;
+  }
+
   return return_var;
 }
 
@@ -5640,6 +5746,7 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
+  sl_console_flush();
   char c;
   int nread = read(STDIN_FILENO, &c, 1);
 
@@ -5889,10 +5996,46 @@ struct SL_Variable console_clear_line_fn(struct SL_Code *code,
                                          struct SL_L_Function func,
                                          struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  printf("\033[2K");
+    if (!sl_console_write_cstr("\033[2K")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to clear console line.";
+    return return_var;
+  }
+  return return_var;
+}
+struct SL_Variable console_begin_update_fn(
+    struct SL_Code *code,
+    struct SL_L_Function func,
+    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\x1b[?2026h")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to begin synchronized update.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
   return return_var;
 }
 
+struct SL_Variable console_end_update_fn(
+    struct SL_Code *code,
+    struct SL_L_Function func,
+    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\x1b[?2026l")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to end synchronized update.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
 /* CONSOLE */
 
 /* MATH */
@@ -6410,7 +6553,6 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       /* FOR TERMIOS: https://viewsourcecode.org/snaptoken/kilo/ */
       tcgetattr(STDIN_FILENO, &orig_termios);
       atexit(disableRawMode);
-      fflush(stdout);
       sl_add_func(code, "console.clear", console_clear_posix_fn);
       sl_add_func(code, "console.foreground_color", console_fgcolor_posix_fn);
       sl_add_func(code, "console.background_color", console_bgcolor_posix_fn);
@@ -6439,6 +6581,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.reset_color", console_reset_color_posix_fn);
 #endif
       sl_add_func(code, "console.clear_line", console_clear_line_fn);
+      sl_add_func(code, "console.begin_update", console_begin_update_fn);
+      sl_add_func(code, "console.end_update", console_end_update_fn);
+
     }
 #ifdef ENABLE_NET
     else if (strcmp(libstr, "net") == 0 && used_net == 0) {

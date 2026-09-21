@@ -2325,10 +2325,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
   while_loop.back_pos = calloc(SL_INIT, sizeof(int));
   while_loop.end = calloc(SL_INIT, sizeof(int));
   if (while_loop.back_pos == NULL || while_loop.end == NULL) {
-    if (while_loop.back_pos != NULL) {
-      /* only free 'back_pos' since 'end' must be NULL */
-      free(while_loop.back_pos);
-    }
+    free(while_loop.back_pos);
+    free(while_loop.end);
     fprintf(stderr, "calloc() failed to allocate memory\n");
     exit(-1);
   }
@@ -2440,42 +2438,58 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
     } else if (code_s->types[current_token] == T_WHILE) {
       int currpos = current_token;
       current_token++;
+
       if (while_loop.depth >= while_loop.capacity) {
         while_loop.capacity *= 2;
         while_loop.back_pos =
             realloc(while_loop.back_pos, while_loop.capacity * sizeof(int));
         while_loop.end =
             realloc(while_loop.end, while_loop.capacity * sizeof(int));
+
+        if (while_loop.back_pos == NULL || while_loop.end == NULL) {
+          fprintf(stderr, "realloc() failed to allocate memory\n");
+          exit(-1);
+        }
       }
 
       struct SL_Variable out_boolean =
           sl_if_parser(*code_s, code_s->types, code_s->code, &current_token,
                        current_token, code_s->token_count, 0);
 
+      int end = -1;
+
+      if (while_loop.depth > 0 &&
+          while_loop.back_pos[while_loop.depth - 1] == currpos) {
+        end = while_loop.end[while_loop.depth - 1];
+      }
+
+      if (end == -1) {
+        end = sl_find_end(code_s->code, code_s->types, current_token,
+                          code_s->token_count, 0);
+
+        if (end == -1) {
+          sl_throw_an_error(*code_s, code_s->code, current_token,
+                            code_s->token_count,
+                            "END NOT FOUND END OF THE WHILE",
+                            "Expected: while <expr> then <code> end");
+        }
+      }
+
       if (out_boolean.valb == 0) {
         if (while_loop.depth > 0 &&
             while_loop.back_pos[while_loop.depth - 1] == currpos) {
           current_token = while_loop.end[--while_loop.depth];
         } else {
-          current_token = sl_find_end(code_s->code, code_s->types,
-                                      current_token, code_s->token_count, 0);
+          current_token = end;
         }
       } else {
         if (while_loop.depth == 0 ||
             while_loop.back_pos[while_loop.depth - 1] != currpos) {
           while_loop.back_pos[while_loop.depth] = currpos;
-
-          int end = sl_find_end(code_s->code, code_s->types, current_token,
-                                code_s->token_count, 0);
-
-          if (end == -1) {
-            sl_throw_an_error(*code_s, code_s->code, current_token,
-                              code_s->token_count,
-                              "END NOT FOUND END OF THE WHILE",
-                              "Expected: while <expr> then <code> end");
-          }
-          while_loop.end[while_loop.depth++] = end;
+          while_loop.end[while_loop.depth] = end;
+          while_loop.depth++;
         }
+
         while_sit = 1;
       }
     } else if (code_s->types[current_token] == T_CONTINUE) {

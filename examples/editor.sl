@@ -1,6 +1,9 @@
 use("console", "io", "types", "sys", "string", "list", "errors", "file")
 
 var file_name = sys.get_arg(2)
+if errors.bool($file_name) then 
+    $file_name = "test.sl"
+end
 
 var lines = List.new()
 
@@ -59,6 +62,8 @@ def render_indicator then
     console.reset_color()
 end
 
+var smellslikeyouchangedsomethingspirit = true
+
 def set_cursor_pos then
     console.cursor_position($cursor_x, $cursor_y)
 end
@@ -87,17 +92,16 @@ var buffer = ""
 def line_renderer then
     var i = $rendering_start_line
     var screen_y = 0
-    var total_lines = List.len($lines)
-    var lines_len = string.len(types.int_to_str($total_lines))
     while $screen_y < $total_renderable then
         console.cursor_position(0, $screen_y)
         console.clear_line()
         var line = List.get($lines, $i)
-        if not(errors.bool($line)) then 
-            var highlighting = errors.panic(string.split($line, " "))
-            while List.iter($highlighting) then 
+        if not(errors.bool($line)) then
+            var highlighting = string.split($line, " ")
+            errors.panic($highlighting)
+            while List.iter($highlighting) then
                 var item = List.next($highlighting)
-                while List.iter($sl_highlighting) then 
+                while List.iter($sl_highlighting) then
                     if $item equ List.next($sl_highlighting) then
                         console.foreground_color($COLOR_MAGENTA)
                     end
@@ -105,7 +109,7 @@ def line_renderer then
                 io.print($item + " ")
                 console.reset_color()
             end
-            io.fflush()
+            List.free($highlighting)
         end
         $i = $i + 1
         $screen_y = $screen_y + 1
@@ -114,9 +118,12 @@ end
 
 
 def render_screen then
+    console.begin_update()
     console.cursor_visibility(false)
-
-    line_renderer()
+    if $smellslikeyouchangedsomethingspirit then
+        line_renderer()
+        $smellslikeyouchangedsomethingspirit = false
+    end
     render_indicator()
 
     if $cursor_x < $screen_width and $cursor_y < $screen_height then
@@ -127,6 +134,7 @@ def render_screen then
 
     console.cursor_visibility(true)
     io.fflush()
+    console.end_update()
 end
 
 set_cursor_pos()
@@ -134,12 +142,50 @@ console.raw_mode(true)
 
 def new_line -> middler, length then
     var actual_y = $rendering_start_line + $cursor_y
+    var left_part = ""
+    var right_part = ""
 
-    if errors.bool(List.set($lines, $actual_y, $buffer)) then
-        List.push($lines, $buffer)
+    if $middler then
+        if $cursor_x > 0 then
+            $left_part = string.slice($buffer, 0, $cursor_x)
+            if errors.bool($left_part) then
+                $left_part = ""
+            end
+        end
+
+        if $cursor_x < $length then
+            $right_part = string.slice($buffer, $cursor_x, $length)
+            if errors.bool($right_part) then
+                $right_part = ""
+            end
+        end
+    else
+        $left_part = $buffer
+        $right_part = ""
     end
 
-    if $cursor_y equ $screen_height then
+    if errors.bool(List.set($lines, $actual_y, $left_part)) then
+        List.push($lines, $left_part)
+    end
+
+    var next_y = $actual_y + 1
+    var total_lines = List.len($lines)
+
+    if $next_y eqg $total_lines then
+        List.push($lines, $right_part)
+    else
+        List.push($lines, "")
+        var i = List.len($lines) - 1
+        while $i > $next_y then
+            var prev_i = $i - 1
+            var prev_val = List.get($lines, $prev_i)
+            List.set($lines, $i, $prev_val)
+            $i = $i - 1
+        end
+        List.set($lines, $next_y, $right_part)
+    end
+
+    if $cursor_y eqg $total_renderable then
         $rendering_start_line = $rendering_start_line + 1
     else
         $cursor_y = $cursor_y + 1
@@ -151,9 +197,27 @@ def new_line -> middler, length then
     $rendering_end_line = $rendering_start_line + $total_renderable
 end
 
+def update_screen_size then
+    $screen_width = console.get_width() - 1
+    $screen_height = console.get_height() - 1
+    $total_renderable = $screen_height - 1
+    $rendering_end_line = $rendering_start_line + $total_renderable
+
+    if $cursor_y eqg $total_renderable then
+        $cursor_y = $total_renderable - 1
+    end
+
+    if $cursor_y < 0 then
+        $cursor_y = 0
+    end
+
+    $smellslikeyouchangedsomethingspirit = true
+end
+
 def backspace_b then
+    var actual_y = $rendering_start_line + $cursor_y
+
     if $cursor_x > 0 then
-        var actual_y = $rendering_start_line + $cursor_y
         var remove_index = $cursor_x - 1
         var new_buffer = string.remove_at($buffer, $remove_index)
 
@@ -167,8 +231,48 @@ def backspace_b then
                 List.push($lines, $buffer)
             end
         end
+        $smellslikeyouchangedsomethingspirit = true
     else
-        $status_message = "Theres no text to delete."
+        if $actual_y > 0 then
+            var prev_y = $actual_y - 1
+            var prev_line = List.get($lines, $prev_y)
+            var current_line = List.get($lines, $actual_y)
+
+            if errors.bool($prev_line) then
+                $prev_line = ""
+            end
+            if errors.bool($current_line) then
+                $current_line = ""
+            end
+
+            var prev_len = string.len($prev_line)
+            if errors.bool($prev_len) then
+                $prev_len = 0
+            end
+
+            if $current_line equ "" then
+                List.remove($lines, $actual_y)
+            else
+                var merged_line = $prev_line + $current_line
+                List.set($lines, $prev_y, $merged_line)
+                List.remove($lines, $actual_y)
+            end
+
+            $cursor_x = $prev_len
+
+            if $cursor_y > 0 then
+                $cursor_y = $cursor_y - 1
+            else
+                if $rendering_start_line > 0 then
+                    $rendering_start_line = $rendering_start_line - 1
+                    $rendering_end_line = $rendering_start_line + $total_renderable
+                end
+            end
+
+            $smellslikeyouchangedsomethingspirit = true
+        else
+            $status_message = "Theres no text to delete."
+        end
     end
 end
 
@@ -180,6 +284,7 @@ def ascii_entered then
     if errors.bool(List.set($lines, $actual_y, $buffer)) then
         List.push($lines, $buffer)
     end
+    $smellslikeyouchangedsomethingspirit = true
 end
 
 def page_down then
@@ -190,6 +295,7 @@ def page_down then
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
+    $smellslikeyouchangedsomethingspirit = true
 end
 
 def page_up then
@@ -198,24 +304,36 @@ def page_up then
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
+    $smellslikeyouchangedsomethingspirit = true
 end
 
 def ascii_entered_middle -> charkey, length then
-    var right = string.slice($buffer, $cursor_x, $length)
-    var left = string.slice($buffer, 0, $cursor_x)
+    var left = ""
+    var right = ""
 
-    if errors.bool($right) or errors.bool($left) then
-        $status_message = "Could not insert character."
-    else
-        var full_buffer = $left + types.char_to_str($charkey) + $right
-        var actual_y = $rendering_start_line + $cursor_y
-
-        $buffer = $full_buffer
-
-        if errors.bool(List.set($lines, $actual_y, $buffer)) then
-            List.push($lines, $buffer)
+    if $cursor_x > 0 then
+        $left = string.slice($buffer, 0, $cursor_x)
+        if errors.bool($left) then
+            $left = ""
         end
     end
+
+    if $cursor_x < $length then
+        $right = string.slice($buffer, $cursor_x, $length)
+        if errors.bool($right) then
+            $right = ""
+        end
+    end
+
+    var full_buffer = $left + types.char_to_str($charkey) + $right
+    var actual_y = $rendering_start_line + $cursor_y
+
+    $buffer = $full_buffer
+
+    if errors.bool(List.set($lines, $actual_y, $buffer)) then
+        List.push($lines, $buffer)
+    end
+    $smellslikeyouchangedsomethingspirit = true
 end
 
 render_screen()
@@ -259,40 +377,45 @@ while true then
 
                 else
                     if $ckey neq '\0' then
-                        io.print($ckey)
-
                         if $len > $cursor_x then
                             ascii_entered_middle($ckey, $len)
                         else
                             $buffer = $buffer + types.char_to_str($ckey)
+                            ascii_entered()
                         end
-
-                        ascii_entered()
                     end
                 end
 
             elif types.is_int($ckey) then
                 if $ckey equ $KEY_BACKSPACE then
                     backspace_b()
-
                 elif $ckey equ $KEY_TAB then
                     var spaces = "    "
+                    var left = ""
+                    var right = ""
 
-                    var left = string.slice($buffer, 0, $cursor_x)
-                    var right = string.slice($buffer, $cursor_x, $len)
-
-                    if errors.bool($left) or errors.bool($right) then
-                        $status_message = "Could not insert tab."
-                    else
-                        var actual_tab_y = $rendering_start_line + $cursor_y
-
-                        $buffer = $left + $spaces + $right
-                        $cursor_x = $cursor_x + 4
-
-                        if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
-                            List.push($lines, $buffer)
+                    if $cursor_x > 0 then
+                        $left = string.slice($buffer, 0, $cursor_x)
+                        if errors.bool($left) then
+                            $left = ""
                         end
                     end
+
+                    if $cursor_x < $len then
+                        $right = string.slice($buffer, $cursor_x, $len)
+                        if errors.bool($right) then
+                            $right = ""
+                        end
+                    end
+
+                    var actual_tab_y = $rendering_start_line + $cursor_y
+                    $buffer = $left + $spaces + $right
+                    $cursor_x = $cursor_x + 4
+
+                    if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
+                        List.push($lines, $buffer)
+                    end
+                    $smellslikeyouchangedsomethingspirit = true
 
                 elif $ckey equ $KEY_ENTER then
                     var middle = false
@@ -302,7 +425,7 @@ while true then
                     end
 
                     new_line($middle, $len)
-
+                    $smellslikeyouchangedsomethingspirit = true
                 elif $ckey equ $KEY_HOME then
                     $cursor_x = 0
 
@@ -352,7 +475,6 @@ while true then
                             end
                         end
                     end
-
                 elif $ckey equ $KEY_DOWN then
                     var len = List.len($lines)
 
@@ -412,11 +534,10 @@ while true then
             end
         end
 
-        io.fflush()
         set_cursor_pos()
         render_screen()
-    elif $event equ $WINDOW_RESIZE then 
+    elif $event equ $WINDOW_RESIZE then
+        update_screen_size()
         render_screen()
     end
 end
-
