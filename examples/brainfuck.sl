@@ -5,6 +5,7 @@ use("io", "file", "types", "sys", "errors", "string", "list")
 var file_name = sys.get_arg(2)
 errors.panic($file_name)
 var file_content = file.read_to_str($file_name)
+errors.panic($file_content)
 
 var memory = List.new(30000) # Memory Array
 var where_is = 0

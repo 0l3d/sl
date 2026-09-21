@@ -98,12 +98,13 @@ void sl_throw_an_error(struct SL_Code code, char **tokens, int current_token,
   exit(-1);
 }
 
-int lexer_special_tokens_ex(char *special_tokens, char letter) {
-  for (int i = 0; i < strlen(special_tokens); i++) {
-    if (letter == special_tokens[i]) {
+int lexer_special_tokens_ex(const char *special_tokens, char letter) {
+  for (const char *p = special_tokens; *p != '\0'; p++) {
+    if (*p == letter) {
       return 1;
     }
   }
+
   return 0;
 }
 
@@ -1419,7 +1420,7 @@ int prec_priority(char op, enum TokenTypes op_type, int is_op_type) {
 struct SL_Math_Splitter
 expression_parser_splitter(struct SL_Code code, char *expression[],
                            enum TokenTypes *types, int current_token,
-                           int max_tokens, int current_line) {
+                           int max_tokens, int old_curr) {
   int depth = 0;
   struct SL_Math_Splitter tree = {0};
   tree.op = 0;
@@ -1441,7 +1442,9 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
     }
 
     if (depth < 0) {
-      fprintf(stderr, "Error: One more ')' in %d line.", current_line);
+      sl_throw_an_error(code, expression, old_curr, max_tokens,
+                        "THERES AN EXTRA ')'(closing parenthesis)",
+                        "Expected: fewer ')' (closing parenthesis)");
       break;
     }
 
@@ -1869,7 +1872,7 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
   struct SL_Variable right = {0};
   struct SL_Variable result = {0};
   struct SL_Math_Splitter tree = expression_parser_splitter(
-      *code_s, expression, types, *current_token, max_tokens, current_line);
+      *code_s, expression, types, *current_token, max_tokens, old_curr);
 
   if (tree.op == 0) {
     result = resolve_variable(code_s, expression, types, *current_token,

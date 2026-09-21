@@ -201,20 +201,45 @@ int sl_add_fixed_int(struct SL_Code *code, char *name, int value) {
 
 /* LIST FUNCTIONS */
 int create_new_list(int capacity, int fixed) {
-  if (LISTS_count >= LISTS_capacity) {
-    LISTS_capacity *= 2;
-    void *tmp = realloc(LISTS, capacity * sizeof(struct SL_List));
-    if (!tmp)
-      perror("Realloc failed.");
+  if (LISTS == NULL) {
+    LISTS_capacity = SL_INIT;
+    LISTS = calloc(LISTS_capacity, sizeof(struct SL_List));
 
-    LISTS = tmp;
+    if (LISTS == NULL) {
+      return -1;
+    }
   }
 
-  LISTS[LISTS_count].vars = calloc(capacity, sizeof(struct SL_Variable));
+  if (LISTS_count >= LISTS_capacity) {
+    int new_capacity = LISTS_capacity * 2;
+
+    struct SL_List *tmp = realloc(LISTS, new_capacity * sizeof(struct SL_List));
+
+    if (tmp == NULL) {
+      return -1;
+    }
+
+    memset(tmp + LISTS_capacity, 0,
+           (new_capacity - LISTS_capacity) * sizeof(struct SL_List));
+
+    LISTS = tmp;
+    LISTS_capacity = new_capacity;
+  }
+
+  LISTS[LISTS_count].vars =
+      calloc((size_t)capacity, sizeof(struct SL_Variable));
+
+  if (LISTS[LISTS_count].vars == NULL) {
+    return -1;
+  }
+
   LISTS[LISTS_count].capacity = capacity;
-  if (fixed == 1) {
-    LISTS[LISTS_count].fixed = 1;
+  LISTS[LISTS_count].current = 0;
+  LISTS[LISTS_count].fixed = fixed;
+
+  if (fixed) {
     LISTS[LISTS_count].size = capacity;
+
     for (int i = 0; i < capacity; i++) {
       LISTS[LISTS_count].vars[i].type = INTEGER;
       LISTS[LISTS_count].vars[i].vali = 0;
@@ -222,25 +247,60 @@ int create_new_list(int capacity, int fixed) {
   } else {
     LISTS[LISTS_count].size = 0;
   }
-  int index = LISTS_count;
-  LISTS_count++;
-  return index;
+
+  return LISTS_count++;
 }
 
 int list_push(struct SL_List *list, struct SL_Variable value) {
-  if (list->size >= list->capacity) {
-    list->capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
+  if (list == NULL) {
+    return 0;
+  }
 
-    list->vars =
-        realloc(list->vars, list->capacity * sizeof(struct SL_Variable));
+  if (list->size >= list->capacity) {
+    int new_capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
+
+    struct SL_Variable *tmp =
+        realloc(list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
+
+    if (tmp == NULL) {
+      return 0;
+    }
+
+    list->vars = tmp;
+    list->capacity = new_capacity;
   }
 
   list->vars[list->size] = sl_copy_variable(value);
+
   if (list->vars[list->size].name != NULL) {
     free(list->vars[list->size].name);
     list->vars[list->size].name = NULL;
   }
+
   list->size++;
+  return 1;
+}
+
+int list_free(int index) {
+  if (index < 0 || index >= LISTS_count) {
+    return 0;
+  }
+
+  struct SL_List *list = &LISTS[index];
+
+  if (list->vars != NULL) {
+    for (int i = 0; i < list->size; i++) {
+      sl_free_variable(&list->vars[i]);
+    }
+
+    free(list->vars);
+  }
+
+  list->vars = NULL;
+  list->capacity = 0;
+  list->size = 0;
+  list->current = 0;
+  list->fixed = 0;
 
   return 1;
 }
@@ -347,8 +407,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
-struct SL_Variable print_raw_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -491,7 +550,7 @@ struct SL_Variable file_read_to_str_fn(struct SL_Code *code,
 struct SL_Variable file_write_from_str_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
                                           struct SL_Function rfunc) {
-  if (func.total_arguments < 1) {
+  if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals =
@@ -531,7 +590,7 @@ struct SL_Variable file_write_from_str_fn(struct SL_Code *code,
 struct SL_Variable file_append_from_str_fn(struct SL_Code *code,
                                            struct SL_L_Function func,
                                            struct SL_Function rfunc) {
-  if (func.total_arguments < 1) {
+  if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals =
@@ -1549,15 +1608,16 @@ struct SL_Variable string_index_of_fn(struct SL_Code *code,
 struct SL_Variable string_split_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
   if (func.total_arguments < 2) {
-    struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at string.split! Not enough arguments.";
     return return_var;
   }
 
-  struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
   if (first_arg.type != STRING) {
@@ -1575,20 +1635,38 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
   char *splt_string = sl_string_getter(first_arg.vals);
   char *splt_token = sl_string_getter(second_arg.vals);
 
-  if (strlen(splt_token) == 0) {
-    return_var.type = ERROR;
-    return_var.vals = "Expected non-empty delimiter for string.split.";
-
+  if (splt_string == NULL || splt_token == NULL) {
     free(splt_string);
     free(splt_token);
 
+    return_var.type = ERROR;
+    return_var.vals = "Could not allocate string buffer.";
+    return return_var;
+  }
+
+  if (strlen(splt_token) == 0) {
+    free(splt_string);
+    free(splt_token);
+
+    return_var.type = ERROR;
+    return_var.vals = "Expected non-empty delimiter for string.split.";
     return return_var;
   }
 
   int listind = create_new_list(256, 0);
 
+  if (listind < 0) {
+    free(splt_string);
+    free(splt_token);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not allocate split list.";
+    return return_var;
+  }
+
   char *current = splt_string;
-  char *tokenize;
+  char *tokenize = NULL;
+  size_t delimiter_len = strlen(splt_token);
 
   while ((tokenize = strstr(current, splt_token)) != NULL) {
     size_t token_len = (size_t)(tokenize - current);
@@ -1596,12 +1674,11 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
     char *part = malloc(token_len + 1);
 
     if (part == NULL) {
-      return_var.type = ERROR;
-      return_var.vals = "Memory allocation failed.";
-
       free(splt_string);
       free(splt_token);
 
+      return_var.type = ERROR;
+      return_var.vals = "Memory allocation failed.";
       return return_var;
     }
 
@@ -1609,25 +1686,42 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
     part[token_len] = '\0';
 
     struct SL_Variable push_val = {0};
-    push_val.vals = part;
     push_val.type = STRING;
+    push_val.vals = part;
 
-    list_push(&LISTS[listind], push_val);
+    if (!list_push(&LISTS[listind], push_val)) {
+      free(part);
+      free(splt_string);
+      free(splt_token);
 
-    current = tokenize + strlen(splt_token);
+      return_var.type = ERROR;
+      return_var.vals = "Could not push split item.";
+      return return_var;
+    }
+
+    free(part);
+
+    current = tokenize + delimiter_len;
   }
 
   struct SL_Variable push_val = {0};
-  push_val.vals = strdup(current);
   push_val.type = STRING;
+  push_val.vals = current;
 
-  list_push(&LISTS[listind], push_val);
+  if (!list_push(&LISTS[listind], push_val)) {
+    free(splt_string);
+    free(splt_token);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not push final split item.";
+    return return_var;
+  }
 
   free(splt_string);
   free(splt_token);
 
-  return_var.vali = listind;
   return_var.type = INTEGER;
+  return_var.vali = listind;
 
   return return_var;
 }
@@ -2298,6 +2392,35 @@ struct SL_Variable List_remove_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable List_free_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable result = {0};
+
+  if (func.total_arguments < 1) {
+    result.type = ERROR;
+    result.vals = "Error usage at List.free! Not enough arguments.";
+    return result;
+  }
+
+  struct SL_Variable arg = sl_get_argument(*code, func, 0);
+
+  if (arg.type != INTEGER) {
+    result.type = ERROR;
+    result.vals = "List.free expects a list variable.";
+    return result;
+  }
+
+  if (!list_free(arg.vali)) {
+    result.type = ERROR;
+    result.vals = "Invalid list variable.";
+    return result;
+  }
+
+  result.type = BOOLEAN;
+  result.valb = 1;
+  return result;
+}
+
 struct SL_Variable List_find_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   if (func.total_arguments < 2) {
@@ -2439,7 +2562,11 @@ struct SL_Variable List_next_fn(struct SL_Code *code, struct SL_L_Function func,
     return_var.vals = "List buffer overflow!";
     return return_var;
   }
-
+  if (LISTS[first_arg.vali].size <= 0) {
+    return_var.type = ERROR;
+    return_var.vals = "List is empty.";
+    return return_var;
+  }
   if (LISTS[first_arg.vali].current >= LISTS[first_arg.vali].size) {
     LISTS[first_arg.vali].current = 0;
   }
@@ -7016,6 +7143,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.peek", List_peek_fn);
       sl_add_func(code, "List.set", List_set_fn);
       sl_add_func(code, "List.get", List_get_fn);
+      sl_add_func(code, "List.free", List_free_fn);
       sl_add_func(code, "List.find", List_find_fn);
       sl_add_func(code, "List.next", List_next_fn);
       sl_add_func(code, "List.iter", List_iter_fn);
