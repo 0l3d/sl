@@ -37,6 +37,7 @@ char * sl_string_getter(char *word);
 char* sl_get_assignment_var();
 void sl_free_variable(struct SL_Variable *var);
 void sl_free_function(struct SL_Function *func);
+char *sl_quote_string(const char *str);
 int sl_get_scope(struct SL_Code *code);
 unsigned long sl_hash_string(const char *str);
 int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function);

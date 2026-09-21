@@ -531,13 +531,52 @@ struct SL_Variable file_read_to_str_fn(struct SL_Code *code,
     return return_var;
   }
 
-  fseek(file_open, 0, SEEK_END);
+  if (fseek(file_open, 0, SEEK_END) != 0) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not seek file.";
+    return return_var;
+  }
+
   long int size = ftell(file_open);
+
+  if (size < 0) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not determine file size.";
+    return return_var;
+  }
+
   rewind(file_open);
 
-  char *buffer = malloc(size + 1);
-  fread(buffer, 1, size, file_open);
-  buffer[size] = '\0';
+  char *buffer = malloc((size_t)size + 1);
+
+  if (buffer == NULL) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not allocate file buffer.";
+    return return_var;
+  }
+
+  size_t read_size = fread(buffer, 1, (size_t)size, file_open);
+
+  if (read_size != (size_t)size && ferror(file_open)) {
+    free(buffer);
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not read file.";
+    return return_var;
+  }
+
+  buffer[read_size] = '\0';
   fclose(file_open);
 
   return_var.type = STRING;
@@ -568,8 +607,18 @@ struct SL_Variable file_write_from_str_fn(struct SL_Code *code,
     return_var.vals = "File not found!";
     return return_var;
   }
-  size_t len = strlen(second_arg.vals);
   char *text = sl_string_getter(second_arg.vals);
+
+  if (text == NULL) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not decode string.";
+    return return_var;
+  }
+
+  size_t len = strlen(text);
   if (fwrite(text, 1, len, file_open) != len) {
     fclose(file_open);
 
@@ -608,8 +657,18 @@ struct SL_Variable file_append_from_str_fn(struct SL_Code *code,
     return_var.vals = "File not found!";
     return return_var;
   }
-  size_t len = strlen(second_arg.vals);
   char *text = sl_string_getter(second_arg.vals);
+
+  if (text == NULL) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not decode string.";
+    return return_var;
+  }
+
+  size_t len = strlen(text);
   if (fwrite(text, 1, len, file_open) != len) {
     fclose(file_open);
 
@@ -1137,7 +1196,8 @@ struct SL_Variable to_lower_fn(struct SL_Code *code, struct SL_L_Function func,
       str[i] = (char)tolower((unsigned char)str[i]);
     }
     return_var.type = STRING;
-    return_var.vals = str;
+    return_var.vals = sl_quote_string(str);
+free(str);  
   } else if (first_arg.type == CHAR) {
     return_var.type = CHAR;
     return_var.valc = (char)tolower((unsigned char)first_arg.valc);
@@ -1168,7 +1228,8 @@ struct SL_Variable to_upper_fn(struct SL_Code *code, struct SL_L_Function func,
       str[i] = (char)toupper((unsigned char)str[i]);
     }
     return_var.type = STRING;
-    return_var.vals = str;
+    return_var.vals = sl_quote_string(str);
+free(str);  
   } else if (first_arg.type == CHAR) {
     return_var.type = CHAR;
     return_var.valc = (char)toupper((unsigned char)first_arg.valc);
@@ -1399,7 +1460,7 @@ struct SL_Variable string_replace_fn(struct SL_Code *code,
   strcpy(dest, current);
 
   return_var.type = STRING;
-  return_var.vals = strdup(result);
+  return_var.vals = sl_quote_string(result);
 
   free(result);
   free(str);
@@ -1539,7 +1600,7 @@ struct SL_Variable string_remove_at_fn(struct SL_Code *code,
   strcpy(result + idx, raw_str + idx + 1);
 
   return_var.type = STRING;
-  return_var.vals = strdup(result);
+  return_var.vals = sl_quote_string(result);
 
   free(result);
   free(raw_str);
@@ -1687,7 +1748,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 
     struct SL_Variable push_val = {0};
     push_val.type = STRING;
-    push_val.vals = part;
+    push_val.vals = sl_quote_string(part);
 
     if (!list_push(&LISTS[listind], push_val)) {
       free(part);
@@ -1706,7 +1767,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 
   struct SL_Variable push_val = {0};
   push_val.type = STRING;
-  push_val.vals = current;
+  push_val.vals = sl_quote_string(current);
 
   if (!list_push(&LISTS[listind], push_val)) {
     free(splt_string);
@@ -1836,7 +1897,7 @@ struct SL_Variable string_slice_fn(struct SL_Code *code,
   result[slice_len] = '\0';
 
   return_var.type = STRING;
-  return_var.vals = strdup(result);
+  return_var.vals = sl_quote_string(result);
 
   free(result);
   free(raw_str);
@@ -1893,7 +1954,7 @@ struct SL_Variable string_trim_fn(struct SL_Code *code,
   result[len] = '\0';
 
   return_var.type = STRING;
-  return_var.vals = strdup(result);
+  return_var.vals = sl_quote_string(result);
 
   free(result);
   free(raw_str);
@@ -2017,7 +2078,7 @@ struct SL_Variable sys_get_env_fn(struct SL_Code *code,
     return_var.vals = strdup("");
   } else {
     return_var.type = STRING;
-    return_var.vals = strdup(env_val);
+    return_var.vals = sl_quote_string(env_val);
   }
 
   return return_var;

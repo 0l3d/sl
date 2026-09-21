@@ -128,7 +128,7 @@ static int sl_is_escaped(const char *start, const char *pos) {
   return slash_count % 2;
 }
 
-static char *sl_quote_string(const char *str) {
+char *sl_quote_string(const char *str) {
   if (str == NULL)
     return NULL;
 
