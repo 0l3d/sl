@@ -116,6 +116,49 @@ unsigned long sl_hash_string(const char *str) {
   return hash;
 }
 
+static int sl_is_escaped(const char *start, const char *pos) {
+  int slash_count = 0;
+
+  while (pos > start && pos[-1] == '\\') {
+    slash_count++;
+    pos--;
+  }
+
+  return slash_count % 2;
+}
+
+static char *sl_quote_string(const char *str) {
+  if (str == NULL)
+    return NULL;
+
+  size_t size = 3;
+
+  for (size_t i = 0; str[i] != '\0'; i++) {
+    if (str[i] == '"' || str[i] == '\\')
+      size++;
+    size++;
+  }
+
+  char *result = malloc(size);
+  if (result == NULL)
+    return NULL;
+
+  size_t j = 0;
+  result[j++] = '"';
+
+  for (size_t i = 0; str[i] != '\0'; i++) {
+    if (str[i] == '"' || str[i] == '\\')
+      result[j++] = '\\';
+
+    result[j++] = str[i];
+  }
+
+  result[j++] = '"';
+  result[j] = '\0';
+
+  return result;
+}
+
 int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
           int start_size) {
   int size_s = start_size;
@@ -156,17 +199,32 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
     } else if (*p == '"' || *p == '\'') {
       char in_string = *p;
       const char *string_start = p++;
-      while (*p && *p != in_string)
-        p++;
 
-      if (*p == in_string) {
+      while (*p != '\0') {
+        if (*p == '\\' && p[1] != '\0') {
+          p += 2;
+          continue;
+        }
+
+        if (*p == in_string) {
+          p++;
+          break;
+        }
+
         p++;
       }
-      int stringlen = p - string_start;
+
+      int stringlen = (int)(p - string_start);
       char *in_string_tokens = malloc(stringlen + 1);
-      strncpy(in_string_tokens, string_start, stringlen);
+
+      if (in_string_tokens == NULL)
+        return -1;
+
+      memcpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
+
       (*bufout)[token_count++] = in_string_tokens;
+
     } else {
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
         char *pot = malloc(3);
@@ -251,16 +309,15 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
     int in_char = 0;
 
     for (char *q = buf; *q != '\0'; q++) {
-      if (*q == '"' && !in_char && (q == buf || *(q - 1) != '\\')) {
+      if (*q == '"' && !in_char && !sl_is_escaped(buf, q)) {
         in_string = !in_string;
         continue;
       }
 
-      if (*q == '\'' && !in_string && (q == buf || *(q - 1) != '\\')) {
+      if (*q == '\'' && !in_string && !sl_is_escaped(buf, q)) {
         in_char = !in_char;
         continue;
       }
-
       if (*q == '#' && !in_string && !in_char) {
         character_pos = q;
         break;
@@ -383,6 +440,7 @@ char *sl_string_getter(char *word) {
         break;
       case '0':
         our_word[j++] = '\0';
+        break;
       case '"':
         our_word[j++] = '\"';
         break;
@@ -705,14 +763,47 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
       case STRING: {
         char *left_string = sl_string_getter(left_side.vals);
         char *right_string = sl_string_getter(right_side.vals);
-        size_t len = strlen(left_string) + strlen(right_string) + 4;
-        expression_result.vals = malloc(len);
-        snprintf(expression_result.vals, len, "\"%s%s\"", left_string,
-                 right_string);
+
+        if (left_string == NULL || right_string == NULL) {
+          free(left_string);
+          free(right_string);
+          free(left_side.vals);
+          free(right_side.vals);
+
+          expression_result.type = ERROR;
+          return expression_result;
+        }
+
+        size_t joined_len = strlen(left_string) + strlen(right_string);
+        char *joined_string = malloc(joined_len + 1);
+
+        if (joined_string == NULL) {
+          free(left_string);
+          free(right_string);
+          free(left_side.vals);
+          free(right_side.vals);
+
+          expression_result.type = ERROR;
+          return expression_result;
+        }
+
+        memcpy(joined_string, left_string, strlen(left_string));
+        memcpy(joined_string + strlen(left_string), right_string,
+               strlen(right_string));
+
+        joined_string[joined_len] = '\0';
+        expression_result.vals = sl_quote_string(joined_string);
+
+        free(joined_string);
         free(left_string);
         free(right_string);
         free(left_side.vals);
         free(right_side.vals);
+
+        if (expression_result.vals == NULL) {
+          expression_result.type = ERROR;
+          return expression_result;
+        }
       } break;
       case BOOLEAN:
         expression_result.valb = left_side.valb + right_side.valb;

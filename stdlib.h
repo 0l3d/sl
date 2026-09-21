@@ -347,6 +347,48 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
+struct SL_Variable print_raw_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable value = sl_get_argument(*code, func, i);
+
+    switch (value.type) {
+    case STRING:
+      if (value.vals != NULL)
+        printf("%s", value.vals);
+      break;
+
+    case CHAR:
+      printf("%c", value.valc);
+      break;
+
+    case INTEGER:
+      printf("%d", value.vali);
+      break;
+
+    case DOUBLE:
+      printf("%f", value.valf);
+      break;
+
+    case BOOLEAN:
+      printf("%s", value.valb ? "true" : "false");
+      break;
+
+    case LONG:
+      printf("%" PRIdPTR, value.valh);
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  return return_var;
+}
+
 struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
@@ -1202,10 +1244,11 @@ struct SL_Variable string_len_fn(struct SL_Code *code,
     return_var.vals = "Expected string as the first argument to string.len.";
     return return_var;
   }
-
-  int len = strlen(first_arg.vals);
+  char *raw_text = sl_string_getter(first_arg.vals);
+  int len = strlen(raw_text);
   return_var.vali = len;
   return_var.type = INTEGER;
+  free(raw_text);
   return return_var;
 }
 
@@ -1218,6 +1261,7 @@ struct SL_Variable string_replace_fn(struct SL_Code *code,
     return_var.vals = "Error usage at string.replace! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
@@ -1234,36 +1278,66 @@ struct SL_Variable string_replace_fn(struct SL_Code *code,
   char *sub = sl_string_getter(second_arg.vals);
   char *replace = sl_string_getter(third_arg.vals);
 
-  int sub_len = strlen(sub);
-  int replace_len = strlen(replace);
+  size_t str_len = strlen(str);
+  size_t sub_len = strlen(sub);
+  size_t replace_len = strlen(replace);
 
   if (sub_len == 0) {
     return_var.type = STRING;
     return_var.vals = strdup(str);
+
     free(str);
     free(sub);
     free(replace);
+
     return return_var;
   }
 
-  int count = 0;
+  size_t count = 0;
   char *tmp = str;
+
   while ((tmp = strstr(tmp, sub)) != NULL) {
     count++;
     tmp += sub_len;
   }
 
-  size_t result_len = strlen(str) + count * (replace_len - sub_len) + 1;
+  size_t result_len;
+
+  if (replace_len >= sub_len) {
+    result_len = str_len + count * (replace_len - sub_len) + 1;
+  } else {
+    result_len = str_len - count * (sub_len - replace_len) + 1;
+  }
+
   char *result = malloc(result_len);
-  result[0] = '\0';
+
+  if (result == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+
+    free(str);
+    free(sub);
+    free(replace);
+
+    return return_var;
+  }
 
   char *current = str;
+  char *dest = result;
+
   while ((tmp = strstr(current, sub)) != NULL) {
-    strncat(result, current, tmp - current);
-    strcat(result, replace);
+    size_t before_len = (size_t)(tmp - current);
+
+    memcpy(dest, current, before_len);
+    dest += before_len;
+
+    memcpy(dest, replace, replace_len);
+    dest += replace_len;
+
     current = tmp + sub_len;
   }
-  strcat(result, current);
+
+  strcpy(dest, current);
 
   return_var.type = STRING;
   return_var.vals = strdup(result);
@@ -1272,6 +1346,7 @@ struct SL_Variable string_replace_fn(struct SL_Code *code,
   free(str);
   free(sub);
   free(replace);
+
   return return_var;
 }
 
@@ -1284,6 +1359,7 @@ struct SL_Variable string_startswith_fn(struct SL_Code *code,
     return_var.vals = "Error usage at string.startswith! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
@@ -1297,12 +1373,14 @@ struct SL_Variable string_startswith_fn(struct SL_Code *code,
   char *raw_str = sl_string_getter(first_arg.vals);
   char *prefix = sl_string_getter(second_arg.vals);
 
-  int prefix_len = strlen(prefix);
+  size_t prefix_len = strlen(prefix);
+
   return_var.type = BOOLEAN;
   return_var.valb = (strncmp(raw_str, prefix, prefix_len) == 0);
 
   free(raw_str);
   free(prefix);
+
   return return_var;
 }
 
@@ -1315,6 +1393,7 @@ struct SL_Variable string_endswith_fn(struct SL_Code *code,
     return_var.vals = "Error usage at string.endswith! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
@@ -1328,10 +1407,11 @@ struct SL_Variable string_endswith_fn(struct SL_Code *code,
   char *raw_str = sl_string_getter(first_arg.vals);
   char *suffix = sl_string_getter(second_arg.vals);
 
-  int str_len = strlen(raw_str);
-  int suffix_len = strlen(suffix);
+  size_t str_len = strlen(raw_str);
+  size_t suffix_len = strlen(suffix);
 
   return_var.type = BOOLEAN;
+
   if (suffix_len > str_len) {
     return_var.valb = 0;
   } else {
@@ -1340,6 +1420,7 @@ struct SL_Variable string_endswith_fn(struct SL_Code *code,
 
   free(raw_str);
   free(suffix);
+
   return return_var;
 }
 
@@ -1352,6 +1433,7 @@ struct SL_Variable string_remove_at_fn(struct SL_Code *code,
     return_var.vals = "Error usage at string.remove_at! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
@@ -1361,6 +1443,7 @@ struct SL_Variable string_remove_at_fn(struct SL_Code *code,
     return_var.vals = "Expected string as first argument to string.remove_at.";
     return return_var;
   }
+
   if (second_arg.type != INTEGER) {
     return_var.type = ERROR;
     return_var.vals =
@@ -1369,18 +1452,31 @@ struct SL_Variable string_remove_at_fn(struct SL_Code *code,
   }
 
   char *raw_str = sl_string_getter(first_arg.vals);
-  int len = strlen(raw_str);
+
+  size_t len = strlen(raw_str);
   int idx = second_arg.vali;
 
-  if (idx < 0 || idx >= len) {
+  if (idx < 0 || (size_t)idx >= len) {
     return_var.type = ERROR;
     return_var.vals = "Buffer over/underflow!";
+
     free(raw_str);
+
     return return_var;
   }
 
   char *result = malloc(len);
-  strncpy(result, raw_str, idx);
+
+  if (result == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+
+    free(raw_str);
+
+    return return_var;
+  }
+
+  memcpy(result, raw_str, idx);
   strcpy(result + idx, raw_str + idx + 1);
 
   return_var.type = STRING;
@@ -1388,6 +1484,7 @@ struct SL_Variable string_remove_at_fn(struct SL_Code *code,
 
   free(result);
   free(raw_str);
+
   return return_var;
 }
 
@@ -1400,6 +1497,7 @@ struct SL_Variable string_index_of_fn(struct SL_Code *code,
     return_var.vals = "Error usage at string.index_of! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
@@ -1411,130 +1509,192 @@ struct SL_Variable string_index_of_fn(struct SL_Code *code,
   }
 
   char *raw_str = sl_string_getter(first_arg.vals);
+
   int found_idx = -1;
 
   if (second_arg.type == CHAR) {
     char *ptr = strchr(raw_str, second_arg.valc);
+
     if (ptr != NULL) {
       found_idx = (int)(ptr - raw_str);
     }
   } else if (second_arg.type == STRING) {
     char *search_str = sl_string_getter(second_arg.vals);
+
     char *ptr = strstr(raw_str, search_str);
+
     if (ptr != NULL) {
       found_idx = (int)(ptr - raw_str);
     }
+
     free(search_str);
   } else {
     return_var.type = ERROR;
     return_var.vals =
         "Expected char or string as second argument to string.index_of.";
+
     free(raw_str);
+
     return return_var;
   }
 
   return_var.type = INTEGER;
   return_var.vali = found_idx;
+
   free(raw_str);
+
   return return_var;
 }
 
 struct SL_Variable string_split_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
-  if (func.total_arguments < 1) {
+  if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at string.split! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
   if (first_arg.type != STRING) {
     return_var.type = ERROR;
     return_var.vals = "Expected string as the first argument to string.split.";
     return return_var;
   }
+
   if (second_arg.type != STRING) {
     return_var.type = ERROR;
     return_var.vals = "Expected string as the second argument to string.split.";
     return return_var;
   }
-  char *splt_string = sl_string_getter(first_arg.vals);
 
+  char *splt_string = sl_string_getter(first_arg.vals);
   char *splt_token = sl_string_getter(second_arg.vals);
+
+  if (strlen(splt_token) == 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected non-empty delimiter for string.split.";
+
+    free(splt_string);
+    free(splt_token);
+
+    return return_var;
+  }
 
   int listind = create_new_list(256, 0);
 
-  char *tokenize = strtok(splt_string, splt_token);
-  while (tokenize != NULL) {
+  char *current = splt_string;
+  char *tokenize;
+
+  while ((tokenize = strstr(current, splt_token)) != NULL) {
+    size_t token_len = (size_t)(tokenize - current);
+
+    char *part = malloc(token_len + 1);
+
+    if (part == NULL) {
+      return_var.type = ERROR;
+      return_var.vals = "Memory allocation failed.";
+
+      free(splt_string);
+      free(splt_token);
+
+      return return_var;
+    }
+
+    memcpy(part, current, token_len);
+    part[token_len] = '\0';
+
     struct SL_Variable push_val = {0};
-    push_val.vals = strdup(tokenize);
+    push_val.vals = part;
     push_val.type = STRING;
+
     list_push(&LISTS[listind], push_val);
-    tokenize = strtok(NULL, splt_token);
+
+    current = tokenize + strlen(splt_token);
   }
+
+  struct SL_Variable push_val = {0};
+  push_val.vals = strdup(current);
+  push_val.type = STRING;
+
+  list_push(&LISTS[listind], push_val);
 
   free(splt_string);
   free(splt_token);
+
   return_var.vali = listind;
   return_var.type = INTEGER;
+
   return return_var;
 }
 
 struct SL_Variable string_contains_fn(struct SL_Code *code,
                                       struct SL_L_Function func,
                                       struct SL_Function rfunc) {
-  if (func.total_arguments < 1) {
+  if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at string.contains! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
   if (first_arg.type != STRING) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected string as the first argument to string.contains.";
     return return_var;
   }
+
   if (second_arg.type != STRING) {
     return_var.type = ERROR;
-    return_var.vals = "Expected string as the second argument to string.split.";
+    return_var.vals =
+        "Expected string as the second argument to string.contains.";
     return return_var;
   }
 
   char *raw_string = sl_string_getter(first_arg.vals);
-
   char *searchingstr = sl_string_getter(second_arg.vals);
-  return_var.valb = strstr(raw_string, searchingstr) != NULL;
+
+  return_var.valb = (strstr(raw_string, searchingstr) != NULL);
+
   return_var.type = BOOLEAN;
+
   free(raw_string);
   free(searchingstr);
+
   return return_var;
 }
 
 struct SL_Variable string_slice_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
-  if (func.total_arguments < 1) {
+  if (func.total_arguments < 3) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at string.slice! Not enough arguments.";
     return return_var;
   }
+
   struct SL_Variable return_var = {0};
+
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+
   if (first_arg.type != STRING) {
     return_var.type = ERROR;
     return_var.vals = "Expected string as the first argument to string.slice.";
     return return_var;
   }
+
   if (second_arg.type != INTEGER) {
     return_var.type = ERROR;
     return_var.vals =
@@ -1547,19 +1707,46 @@ struct SL_Variable string_slice_fn(struct SL_Code *code,
     return_var.vals = "Expected integer as the third argument to string.slice.";
     return return_var;
   }
+
   char *raw_str = sl_string_getter(first_arg.vals);
-  int len = strlen(raw_str);
-  if (len >= second_arg.vali || len > third_arg.vali || len < 0) {
+
+  size_t len = strlen(raw_str);
+
+  int start = second_arg.vali;
+  int end = third_arg.vali;
+
+  if (start < 0 || end < 0 || (size_t)start > len || (size_t)end > len ||
+      start > end) {
     return_var.type = ERROR;
     return_var.vals = "Buffer over/underflow!";
-  }
-  char *result = malloc(len + 1);
-  strncpy(result, raw_str + second_arg.vali, third_arg.vali - second_arg.vali);
 
-  free(raw_str);
+    free(raw_str);
+
+    return return_var;
+  }
+
+  size_t slice_len = (size_t)(end - start);
+
+  char *result = malloc(slice_len + 1);
+
+  if (result == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+
+    free(raw_str);
+
+    return return_var;
+  }
+
+  memcpy(result, raw_str + start, slice_len);
+  result[slice_len] = '\0';
+
   return_var.type = STRING;
   return_var.vals = strdup(result);
+
   free(result);
+  free(raw_str);
+
   return return_var;
 }
 
@@ -1584,8 +1771,8 @@ struct SL_Variable string_trim_fn(struct SL_Code *code,
 
   char *raw_str = sl_string_getter(first_arg.vals);
 
-  int start = 0;
-  int end = strlen(raw_str);
+  size_t start = 0;
+  size_t end = strlen(raw_str);
 
   while (start < end && isspace((unsigned char)raw_str[start])) {
     start++;
@@ -1595,9 +1782,19 @@ struct SL_Variable string_trim_fn(struct SL_Code *code,
     end--;
   }
 
-  int len = end - start;
+  size_t len = end - start;
 
   char *result = malloc(len + 1);
+
+  if (result == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+
+    free(raw_str);
+
+    return return_var;
+  }
+
   memcpy(result, raw_str + start, len);
   result[len] = '\0';
 
@@ -4325,8 +4522,8 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
   }
 
   DWORD written;
-  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq),
-                 &written, NULL)) {
+  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq), &written,
+                 NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set console text attribute.";
     return return_var;
@@ -4336,7 +4533,6 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
-
 
 struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
@@ -4418,8 +4614,8 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
   }
 
   DWORD written;
-  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq),
-                 &written, NULL)) {
+  if (!WriteFile(hStdOut, color_seq, (DWORD)strlen(color_seq), &written,
+                 NULL)) {
     return_var.type = ERROR;
     return_var.vals = "Failed to set console text attribute.";
     return return_var;
@@ -4429,7 +4625,6 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
-
 
 struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
@@ -4450,7 +4645,6 @@ struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
-
 
 struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
                                                   struct SL_L_Function func,
@@ -4490,11 +4684,9 @@ struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
   return return_var;
 }
 
-
-struct SL_Variable console_cursor_visibility_win_fn(
-    struct SL_Code *code,
-    struct SL_L_Function func,
-    struct SL_Function rfunc) {
+struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
+                                                    struct SL_L_Function func,
+                                                    struct SL_Function rfunc) {
 
   struct SL_Variable return_var = {0};
 
@@ -4532,7 +4724,6 @@ struct SL_Variable console_cursor_visibility_win_fn(
   return_var.valb = 1;
   return return_var;
 }
-
 
 struct SL_Variable console_raw_mode_win_fn(struct SL_Code *code,
                                            struct SL_L_Function func,
@@ -4910,7 +5101,6 @@ struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
   fflush(stdout);
   return return_var;
 }
-
 
 #else
 struct termios orig_termios;
@@ -5507,6 +5697,14 @@ struct SL_Variable console_mouse_event_get_y_posix_fn(
   return return_var;
 }
 #endif
+struct SL_Variable console_clear_line_fn(struct SL_Code *code,
+                                         struct SL_L_Function func,
+                                         struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  printf("\033[2K");
+  return return_var;
+}
+
 /* CONSOLE */
 
 /* MATH */
@@ -5813,6 +6011,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     if (strcmp(libstr, "io") == 0 && used_io == 0) {
       used_io = 1;
       sl_add_func(code, "io.print", print_fn);
+      sl_add_func(code, "io.print_raw", print_raw_fn);
       sl_add_func(code, "io.input", input_fn);
       sl_add_func(code, "io.getchar", io_getchar_fn);
       sl_add_func(code, "io.fflush", io_fflush_fn);
@@ -5983,8 +6182,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                    TEXT("Cannot get console mode!"), MB_OK);
         exit(-1);
       }
-	  
-	  DWORD dwOutMode = 0;
+
+      DWORD dwOutMode = 0;
       if (GetConsoleMode(hStdOut, &dwOutMode)) {
         dwOutMode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
         SetConsoleMode(hStdOut, dwOutMode);
@@ -6051,6 +6250,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                   console_cursor_visibility_posix_fn);
       sl_add_func(code, "console.reset_color", console_reset_color_posix_fn);
 #endif
+      sl_add_func(code, "console.clear_line", console_clear_line_fn);
     }
 #ifdef ENABLE_NET
     else if (strcmp(libstr, "net") == 0 && used_net == 0) {
