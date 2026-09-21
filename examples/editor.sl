@@ -291,7 +291,7 @@ def page_down then
     var len = List.len($lines)
 
     if $rendering_start_line + $total_renderable < $len then
-        $rendering_start_line = $rendering_start_line + 1
+        $rendering_start_line = $rendering_start_line + 5
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
@@ -300,7 +300,7 @@ end
 
 def page_up then
     if $rendering_start_line > 0 then
-        $rendering_start_line = $rendering_start_line - 1
+        $rendering_start_line = $rendering_start_line - 5
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
@@ -501,6 +501,7 @@ while true then
                         if $rendering_start_line + $screen_height < $len then
                             $rendering_start_line = $rendering_start_line + 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
+                            $smellslikeyouchangedsomethingspirit = true
                         else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
@@ -513,6 +514,7 @@ while true then
                         if $rendering_start_line > 0 then
                             $rendering_start_line = $rendering_start_line - 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
+                            $smellslikeyouchangedsomethingspirit = true
                         else
                             $status_message = "You are already in first line."
                         end

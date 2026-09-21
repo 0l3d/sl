@@ -22,7 +22,12 @@ make
 # ./sl (without arguments reads code.sl automatically.)
 # ./sl <filename>
 ```
-
+  
+You can edit SL files with basic syntax highlighting without using an editor (editor for SL):  
+```
+./sl examples/editor.sl examples/brainfuck.sl # or your path 
+```
+  
 ## Platform compatibility 
   
 `sl.c` and `sl.h` (the main library sources) are written in Standard C.  
@@ -30,6 +35,7 @@ make
   
 However, `stdlib.h` may change in the future, but I aim to implement it for as many operating systems as possible.  
   
+The Console API and Network API are supported on both posix and windows.
 ## API 
 All API functions here:
 ```c
