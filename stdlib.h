@@ -6036,6 +6036,288 @@ struct SL_Variable console_end_update_fn(
   return_var.valb = 1;
   return return_var;
 }
+struct SL_Variable console_auto_wrap_fn(struct SL_Code *code,
+                                           struct SL_L_Function func,
+                                           struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.autowrap! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  if (first_arg.type != BOOLEAN) {
+    return_var.vals = "All items must be typed as bool on console.autowrap";
+  }
+
+
+  if (first_arg.valb == 1) {
+    if (!sl_console_write_cstr("\x1b[?7h")) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to enable autowrap.";
+      return return_var;
+    }
+  } else {
+    if (!sl_console_write_cstr("\x1b[?7l")) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to disable autowrap.";
+      return return_var;
+    }
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+struct SL_Variable console_write_at_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.write_at! Expected x, y, text.";
+    return return_var;
+  }
+
+  struct SL_Variable x_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable y_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable text_arg = sl_get_argument(*code, func, 2);
+
+  if (x_arg.type != INTEGER || y_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at expects integer x and y coordinates.";
+    return return_var;
+  }
+
+  if (text_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at expects a string as the third argument.";
+    return return_var;
+  }
+
+  if (x_arg.vali < 0 || y_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at coordinates cannot be negative.";
+    return return_var;
+  }
+
+  char *text = sl_string_getter(text_arg.vals);
+
+  if (text == NULL) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at failed to decode text.";
+    return return_var;
+  }
+
+  int prefix_len = snprintf(
+      NULL,
+      0,
+      "\033[%d;%dH",
+      y_arg.vali + 1,
+      x_arg.vali + 1
+  );
+
+  if (prefix_len < 0) {
+    free(text);
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at failed to format cursor position.";
+    return return_var;
+  }
+
+  size_t text_len = strlen(text);
+  size_t total_len = (size_t)prefix_len + text_len;
+
+  char *output = malloc(total_len + 1);
+
+  if (output == NULL) {
+    free(text);
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at failed to allocate output buffer.";
+    return return_var;
+  }
+
+  snprintf(
+      output,
+      (size_t)prefix_len + 1,
+      "\033[%d;%dH",
+      y_arg.vali + 1,
+      x_arg.vali + 1
+  );
+
+  memcpy(output + prefix_len, text, text_len);
+  output[total_len] = '\0';
+
+  int success = sl_console_write(output, total_len);
+
+  free(output);
+  free(text);
+
+  if (!success) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.write_at failed to write output.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 5) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.fill_rect! Expected x, y, width, height, char.";
+    return return_var;
+  }
+
+  struct SL_Variable x_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable y_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable width_arg = sl_get_argument(*code, func, 2);
+  struct SL_Variable height_arg = sl_get_argument(*code, func, 3);
+  struct SL_Variable fill_arg = sl_get_argument(*code, func, 4);
+
+  if (x_arg.type != INTEGER ||
+      y_arg.type != INTEGER ||
+      width_arg.type != INTEGER ||
+      height_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.fill_rect expects integer x, y, width and height.";
+    return return_var;
+  }
+
+  if (x_arg.vali < 0 ||
+      y_arg.vali < 0 ||
+      width_arg.vali <= 0 ||
+      height_arg.vali <= 0) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.fill_rect received invalid rectangle dimensions.";
+    return return_var;
+  }
+
+  char fill_char = '\0';
+
+  if (fill_arg.type == CHAR) {
+    fill_char = fill_arg.valc;
+  } else if (fill_arg.type == STRING) {
+    char *decoded = sl_string_getter(fill_arg.vals);
+
+    if (decoded == NULL) {
+      return_var.type = ERROR;
+      return_var.vals =
+          "console.fill_rect failed to decode fill character.";
+      return return_var;
+    }
+
+    size_t decoded_len = strlen(decoded);
+
+    if (decoded_len != 1) {
+      free(decoded);
+      return_var.type = ERROR;
+      return_var.vals =
+          "console.fill_rect expects one character as the fill value.";
+      return return_var;
+    }
+
+    fill_char = decoded[0];
+    free(decoded);
+  } else {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.fill_rect expects a CHAR or one-character STRING.";
+    return return_var;
+  }
+
+  size_t row_size = (size_t)width_arg.vali;
+  size_t total_size = 0;
+
+  for (int row = 0; row < height_arg.vali; row++) {
+    int cursor_len = snprintf(
+        NULL,
+        0,
+        "\033[%d;%dH",
+        y_arg.vali + row + 1,
+        x_arg.vali + 1
+    );
+
+    if (cursor_len < 0) {
+      return_var.type = ERROR;
+      return_var.vals =
+          "console.fill_rect failed to format cursor position.";
+      return return_var;
+    }
+
+    total_size += (size_t)cursor_len + row_size;
+  }
+
+  char *output = malloc(total_size + 1);
+
+  if (output == NULL) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.fill_rect failed to allocate output buffer.";
+    return return_var;
+  }
+
+  size_t offset = 0;
+
+  for (int row = 0; row < height_arg.vali; row++) {
+    int cursor_len = snprintf(
+        output + offset,
+        total_size + 1 - offset,
+        "\033[%d;%dH",
+        y_arg.vali + row + 1,
+        x_arg.vali + 1
+    );
+
+    if (cursor_len < 0) {
+      free(output);
+      return_var.type = ERROR;
+      return_var.vals =
+          "console.fill_rect failed to write cursor position.";
+      return return_var;
+    }
+
+    offset += (size_t)cursor_len;
+
+    memset(output + offset, (unsigned char)fill_char, row_size);
+    offset += row_size;
+  }
+
+  output[offset] = '\0';
+
+  int success = sl_console_write(output, offset);
+
+  free(output);
+
+  if (!success) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "console.fill_rect failed to write output.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
 /* CONSOLE */
 
 /* MATH */
@@ -6583,7 +6865,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.clear_line", console_clear_line_fn);
       sl_add_func(code, "console.begin_update", console_begin_update_fn);
       sl_add_func(code, "console.end_update", console_end_update_fn);
-
+      sl_add_func(code, "console.autowrap", console_auto_wrap_fn);
+      sl_add_func(code, "console.write_at", console_write_at_fn);
+      sl_add_func(code, "console.fill_rect", console_fill_rect_fn);
     }
 #ifdef ENABLE_NET
     else if (strcmp(libstr, "net") == 0 && used_net == 0) {

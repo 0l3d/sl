@@ -1,8 +1,55 @@
 use("console", "io", "types", "sys", "string", "list", "errors", "file")
 
 var file_name = sys.get_arg(2)
-if errors.bool($file_name) then 
+if errors.bool($file_name) then
     $file_name = "test.sl"
+end
+
+var ext = string.split($file_name, ".")
+var sl_highlighting = List.new()
+if not(errors.bool($ext)) then
+    var exts = List.get($ext, List.len($ext) - 1)
+    if $exts equ "sl" then
+        List.push(
+            $sl_highlighting,
+            "var",
+            "if",
+            "elif",
+            "else",
+            "then",
+            "def",
+            "use",
+            "end",
+            "return",
+            "while",
+            "break",
+            "continue")
+    elif $exts equ "c" then
+        List.push(
+            $sl_highlighting,
+            "int",
+            "void",
+            "struct",
+            "enum",
+            "float",
+            "double",
+            "char",
+            "size_t",
+            "if",
+            "else",
+            "return",
+            "while",
+            "break",
+            "for",
+            "unsigned",
+            "switch",
+            "static",
+            "short",
+            "const",
+            "auto",
+            "long",
+            "continue")
+    end
 end
 
 var lines = List.new()
@@ -67,24 +114,6 @@ var smellslikeyouchangedsomethingspirit = true
 def set_cursor_pos then
     console.cursor_position($cursor_x, $cursor_y)
 end
-
-var sl_highlighting = List.new()
-
-List.push(
-    $sl_highlighting,
-    "var",
-    "if",
-    "elif",
-    "else",
-    "then",
-    "def",
-    "use",
-    "end",
-    "return",
-    "while",
-    "break",
-    "continue"
-)
 
 var buffer = ""
 
