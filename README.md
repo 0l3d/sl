@@ -23,9 +23,10 @@ make
 # ./sl <filename>
 ```
   
-You can edit SL files with basic syntax highlighting without using an editor (editor for SL):  
+You can edit SL files with basic syntax highlighting without using an external editor:  
 ```
 ./sl examples/editor.sl examples/brainfuck.sl # or your path 
+# Cross Platform editor for SL.
 ```
   
 ## Platform compatibility 
