@@ -2325,8 +2325,12 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
   while_loop.back_pos = calloc(SL_INIT, sizeof(int));
   while_loop.end = calloc(SL_INIT, sizeof(int));
   if (while_loop.back_pos == NULL || while_loop.end == NULL) {
-    free(while_loop.back_pos);
-    free(while_loop.end);
+    if (while_loop.back_pos != NULL) {
+      free(while_loop.back_pos);
+    }
+    if (while_loop.end != NULL) {
+      free(while_loop.end);
+    }
     fprintf(stderr, "calloc() failed to allocate memory\n");
     exit(-1);
   }

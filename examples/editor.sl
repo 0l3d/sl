@@ -333,6 +333,7 @@ def ascii_entered_middle -> charkey, length then
     if errors.bool(List.set($lines, $actual_y, $buffer)) then
         List.push($lines, $buffer)
     end
+    $cursor_x = $cursor_x + 1
     $smellslikeyouchangedsomethingspirit = true
 end
 
