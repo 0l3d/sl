@@ -573,8 +573,8 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
   return v;
 }
 
-int getvar_index_from_sl(struct SL_Code code, const char *name) {
-  unsigned long hash = sl_hash_string(name);
+int getvar_index_from_sl(struct SL_Code code, const char *name,
+                         unsigned long hash) {
   for (int i = code.total_vars - 1; i >= 0; i--) {
     if (code.vars[i].name == NULL)
       continue;
@@ -713,8 +713,8 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var) {
     if (!code->vars)
       return -1;
   }
-
-  int index = getvar_index_from_sl(*code, var.name);
+  unsigned long hashe = sl_hash_string(var.name);
+  int index = getvar_index_from_sl(*code, var.name, hashe);
   if (index == -1) {
     code->vars[code->total_vars++] = sl_copy_variable(var);
   } else {
@@ -725,7 +725,8 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var) {
 }
 
 struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name) {
-  int index = getvar_index_from_sl(*code, name);
+  unsigned long hashe = sl_hash_string(name);
+  int index = getvar_index_from_sl(*code, name, hashe);
   if (index == -1)
     return NULL;
 
@@ -1794,7 +1795,7 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
 
     if (index == -1 || index >= code_s->total_vars ||
         code_s->vars[index].hash != var.hash) {
-      index = getvar_index_from_sl(*code_s, var.vals + 1);
+      index = getvar_index_from_sl(*code_s, var.vals + 1, var.hash);
 
       if (index != -1) {
         code_s->fixed_values[current_token].cache_index = index;
@@ -2158,7 +2159,8 @@ struct SL_Variable assignment_parser(struct SL_Code *code_s, char *tokens[],
       break;
     }
     int variable_pos = last_pos - 1;
-    int index = getvar_index_from_sl(*code_s, tokens[variable_pos] + 1);
+    unsigned long hashe = sl_hash_string(tokens[variable_pos] + 1);
+    int index = getvar_index_from_sl(*code_s, tokens[variable_pos] + 1, hashe);
     if (index == -1) {
       sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
                         "VARIABLE NOT FOUND ON ASSIGNMENT!",
@@ -2556,7 +2558,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
           code_s, code_s->types, code_s->code, &current_token, end, 0);
 
       for (int i = 0; i < vars.total_variables; i++) {
-        int index = getvar_index_from_sl(*code_s, vars.variable[i].name);
+        int index = getvar_index_from_sl(*code_s, vars.variable[i].name,
+                                         vars.variable[i].hash);
         if (index != -1) {
           free(code_s->vars[index].name);
           if ((code_s->vars[index].type == STRING ||
