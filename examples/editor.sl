@@ -28,7 +28,7 @@ var ext = string.split($file_name, ".")
 var sl_highlighting = List.new()
 if not(errors.bool($ext)) then
     var exts = List.get($ext, List.len($ext) - 1)
-    if $exts equ "sl" then
+    if $exts equ "sl" or $exts equ "SL" then
         List.push(
             $sl_highlighting,
             "var",
@@ -42,8 +42,12 @@ if not(errors.bool($ext)) then
             "return",
             "while",
             "break",
-            "continue")
-    elif $exts equ "c" then
+            "continue",
+            "equ",
+            "eqg",
+            "eql",
+            "neq")
+    elif $exts equ "c" or $exts equ "C" or $exts equ "h" or $exts equ "H" then
         List.push(
             $sl_highlighting,
             "int",
@@ -67,7 +71,17 @@ if not(errors.bool($ext)) then
             "const",
             "auto",
             "long",
-            "continue")
+            "continue",
+            "#define",
+            "#include",
+            "#ifdef",
+            "#ifndef",
+            "#endif",
+            "#else",
+            "#undef",
+            "#pragma",
+            "#error",
+            "#warning")
     end
 end
 

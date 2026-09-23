@@ -2,6 +2,7 @@
 #define SL_H
 
 #include <stdint.h>
+#include <stddef.h>
 
 #define SL_INIT 4096
 #define GENERAL_MALLOC_SIZE 131072
@@ -21,6 +22,7 @@ enum SL_Types
     LONG = 7,
     ERROR = 8,
     POINTER = 9,
+    BYTES = 10,
 };
 
 struct SL_Variable
@@ -30,6 +32,7 @@ struct SL_Variable
     int cache_index;
     enum SL_Types type;
     int scope_lifetime;
+    size_t length;
     union {
         int vali;
         double valf;
@@ -106,6 +109,7 @@ struct SL_Function
 
 char *sl_string_getter(char *word);
 char *sl_get_assignment_var();
+char *sl_bytes_copy(const char *bytes, size_t length);
 void sl_free_variable(struct SL_Variable *var);
 void sl_free_function(struct SL_Function *func);
 char *sl_quote_string(const char *str);

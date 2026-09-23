@@ -615,6 +615,8 @@ struct SL_Variable io_fflush_fn(struct SL_Code *code,
 /* Input/Output for stdout/stdin */
 
 /* Input/Output for file/dir */
+
+/* STRING */
 struct SL_Variable file_read_to_str_fn(struct SL_Code *code,
                                        struct SL_L_Function func,
                                        struct SL_Function rfunc) {
@@ -689,6 +691,43 @@ struct SL_Variable file_read_to_str_fn(struct SL_Code *code,
   free(file_name);
   return return_var;
 }
+
+struct SL_Variable file_remove_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at file.remove! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  char *file_name = sl_string_getter(first_arg.vals);
+
+  if (file_name == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not get file name.";
+    return return_var;
+  }
+
+  if (remove(file_name) != 0) {
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not remove file.";
+    return return_var;
+  }
+
+  free(file_name);
+
+  return_var.type = STRING;
+  return_var.vals = strdup("File removed successfully.");
+
+  return return_var;
+}
+
 
 struct SL_Variable file_write_from_str_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
@@ -789,6 +828,250 @@ struct SL_Variable file_append_from_str_fn(struct SL_Code *code,
   free(file_name);
   return return_var;
 }
+
+/* BINARY */
+struct SL_Variable file_read_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at file.read! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+
+  struct SL_Variable first_arg =
+      sl_get_argument(*code, func, 0);
+
+  char *file_name = sl_string_getter(first_arg.vals);
+
+  if (file_name == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not get file name.";
+    return return_var;
+  }
+
+  FILE *file_open = fopen(file_name, "rb");
+
+  if (file_open == NULL) {
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "File not found.";
+    return return_var;
+  }
+
+  if (fseek(file_open, 0, SEEK_END) != 0) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not seek file.";
+    return return_var;
+  }
+
+  long int file_size = ftell(file_open);
+
+  if (file_size < 0) {
+    fclose(file_open);
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not determine file size.";
+    return return_var;
+  }
+
+  rewind(file_open);
+
+  size_t size = (size_t)file_size;
+
+  char *buffer = NULL;
+
+  if (size != 0) {
+    buffer = malloc(size);
+
+    if (buffer == NULL) {
+      fclose(file_open);
+      free(file_name);
+
+      return_var.type = ERROR;
+      return_var.vals = "Could not allocate file buffer.";
+      return return_var;
+    }
+
+    size_t read_size = fread(buffer, 1, size, file_open);
+
+    if (read_size != size) {
+      free(buffer);
+      fclose(file_open);
+      free(file_name);
+
+      return_var.type = ERROR;
+      return_var.vals = "Could not read file.";
+      return return_var;
+    }
+  }
+
+  fclose(file_open);
+  free(file_name);
+
+  return_var.type = BYTES;
+  return_var.vals = sl_bytes_copy(buffer, size);
+  return_var.length = size;
+
+  if (return_var.vals == NULL && size != 0) {
+    free(buffer);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not copy file buffer.";
+    return_var.length = 0;
+
+    return return_var;
+  }
+
+  free(buffer);
+
+  return return_var;
+}
+
+struct SL_Variable file_write_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at file.write! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+
+  struct SL_Variable first_arg =
+      sl_get_argument(*code, func, 0);
+
+  struct SL_Variable second_arg =
+      sl_get_argument(*code, func, 1);
+
+  if (second_arg.type != BYTES) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected bytes as the second argument to file.write.";
+    return return_var;
+  }
+
+  char *file_name = sl_string_getter(first_arg.vals);
+
+  if (file_name == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not get file name.";
+    return return_var;
+  }
+
+  FILE *file_open = fopen(file_name, "wb");
+
+  if (file_open == NULL) {
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not open file.";
+    return return_var;
+  }
+
+  if (second_arg.length != 0) {
+    size_t written =
+        fwrite(second_arg.vals,
+               1,
+               second_arg.length,
+               file_open);
+
+    if (written != second_arg.length) {
+      fclose(file_open);
+      free(file_name);
+
+      return_var.type = ERROR;
+      return_var.vals = "Could not write to file.";
+      return return_var;
+    }
+  }
+
+  fclose(file_open);
+  free(file_name);
+
+  return return_var;
+}
+
+struct SL_Variable file_append_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at file.append! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+
+  struct SL_Variable first_arg =
+      sl_get_argument(*code, func, 0);
+
+  struct SL_Variable second_arg =
+      sl_get_argument(*code, func, 1);
+
+  if (second_arg.type != BYTES) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected bytes as the second argument to file.append.";
+    return return_var;
+  }
+
+  char *file_name = sl_string_getter(first_arg.vals);
+
+  if (file_name == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not get file name.";
+    return return_var;
+  }
+
+  FILE *file_open = fopen(file_name, "ab");
+
+  if (file_open == NULL) {
+    free(file_name);
+
+    return_var.type = ERROR;
+    return_var.vals = "Could not open file.";
+    return return_var;
+  }
+
+  if (second_arg.length != 0) {
+    size_t written =
+        fwrite(second_arg.vals,
+               1,
+               second_arg.length,
+               file_open);
+
+    if (written != second_arg.length) {
+      fclose(file_open);
+      free(file_name);
+
+      return_var.type = ERROR;
+      return_var.vals = "Could not append to file.";
+      return return_var;
+    }
+  }
+
+  fclose(file_open);
+  free(file_name);
+
+  return return_var;
+}
+
+
 /* Input/Output for file/dir */
 
 /* Extra C Standart Library Functions */
@@ -1313,6 +1596,153 @@ free(str);
 
   return return_var;
 }
+
+struct SL_Variable types_pack_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  size_t total_size = 0;
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable arg = sl_get_argument(*code, func, i);
+
+    switch (arg.type) {
+    case INTEGER:
+      total_size += sizeof(arg.vali);
+      break;
+
+    case DOUBLE:
+      total_size += sizeof(arg.valf);
+      break;
+
+    case LONG:
+      total_size += sizeof(arg.valh);
+      break;
+
+    case BOOLEAN:
+      total_size += sizeof(arg.valb);
+      break;
+
+    case CHAR:
+      total_size += sizeof(arg.valc);
+      break;
+
+    case STRING: {
+      char *string = sl_string_getter(arg.vals);
+
+      if (string == NULL) {
+        return_var.type = ERROR;
+        return_var.vals = "Could not get string argument.";
+        return return_var;
+      }
+
+      total_size += strlen(string);
+
+      free(string);
+      break;
+    }
+
+    default:
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported type in types.pack.";
+      return return_var;
+    }
+  }
+
+  char *buffer = malloc(total_size);
+
+  if (buffer == NULL && total_size != 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+    return return_var;
+  }
+
+  size_t offset = 0;
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable arg = sl_get_argument(*code, func, i);
+
+    switch (arg.type) {
+    case INTEGER:
+      memcpy(buffer + offset,
+             &arg.vali,
+             sizeof(arg.vali));
+
+      offset += sizeof(arg.vali);
+      break;
+    case DOUBLE:
+      memcpy(buffer + offset,
+             &arg.valf,
+             sizeof(arg.valf));
+
+      offset += sizeof(arg.valf);
+      break;
+
+    case LONG:
+      memcpy(buffer + offset,
+             &arg.valh,
+             sizeof(arg.valh));
+
+      offset += sizeof(arg.valh);
+      break;
+
+    case BOOLEAN:
+      memcpy(buffer + offset,
+             &arg.valb,
+             sizeof(arg.valb));
+
+      offset += sizeof(arg.valb);
+      break;
+
+    case CHAR:
+      memcpy(buffer + offset,
+             &arg.valc,
+             sizeof(arg.valc));
+
+      offset += sizeof(arg.valc);
+      break;
+
+    case STRING: {
+      char *string = sl_string_getter(arg.vals);
+
+      if (string == NULL) {
+        free(buffer);
+
+        return_var.type = ERROR;
+        return_var.vals = "Could not get string argument.";
+        return return_var;
+      }
+
+      size_t string_size = strlen(string);
+
+      memcpy(buffer + offset,
+             string,
+             string_size);
+
+      offset += string_size;
+
+      free(string);
+      break;
+    }
+
+    default:
+      free(buffer);
+
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported type in types.pack.";
+      return return_var;
+    }
+  }
+
+  return_var.type = BYTES;
+  return_var.vals = sl_bytes_copy(buffer, total_size);
+  return_var.length = total_size;
+  free(buffer);
+
+  return return_var;
+}
+
 
 struct SL_Variable to_upper_fn(struct SL_Code *code, struct SL_L_Function func,
                                struct SL_Function rfunc) {
@@ -2004,6 +2434,42 @@ struct SL_Variable string_slice_fn(struct SL_Code *code,
   return_var.vals = sl_quote_string(result);
 
   free(result);
+  free(raw_str);
+
+  return return_var;
+}
+
+struct SL_Variable string_reverse_fn(struct SL_Code *code,
+                                     struct SL_L_Function func,
+                                     struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at string.reverse! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string as the first argument to string.reverse.";
+    return return_var;
+  }
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  size_t len = strlen(raw_str);
+
+  for (size_t i = 0; i < len / 2; i++) {
+    char tmp = raw_str[i];
+    raw_str[i] = raw_str[len - 1 - i];
+    raw_str[len - 1 - i] = tmp;
+  }
+
+  return_var.type = STRING;
+  return_var.vals = sl_quote_string(raw_str);
+  
   free(raw_str);
 
   return return_var;
@@ -2738,6 +3204,166 @@ struct SL_Variable List_next_fn(struct SL_Code *code, struct SL_L_Function func,
 
   return sl_copy_variable(
       LISTS[first_arg.vali].vars[LISTS[first_arg.vali].current++]);
+}
+
+struct SL_Variable List_reverse_fn(struct SL_Code *code,
+                                   struct SL_L_Function func,
+                                   struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at List.reverse! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected list_variable as the first argument to List.reverse.";
+    return return_var;
+  }
+
+  if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "List buffer overflow!";
+    return return_var;
+  }
+
+  struct SL_List *list = &LISTS[first_arg.vali];
+
+  for (int i = 0; i < list->size / 2; i++) {
+    struct SL_Variable temp = list->vars[i];
+    list->vars[i] = list->vars[list->size - 1 - i];
+    list->vars[list->size - 1 - i] = temp;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+
+  return return_var;
+}
+
+
+static int sl_compare_vars(const void *a, const void *b) {
+  const struct SL_Variable *va = (const struct SL_Variable *)a;
+  const struct SL_Variable *vb = (const struct SL_Variable *)b;
+
+  if (va->type != vb->type) {
+    return (va->type - vb->type);
+  }
+
+  switch (va->type) {
+    case INTEGER: 
+      return (va->vali - vb->vali);
+    case DOUBLE:  
+      return (va->valf > vb->valf) - (va->valf < vb->valf);
+    case CHAR:    
+      return (va->valc - vb->valc);
+    case LONG:    
+      return (va->valh > vb->valh) - (va->valh < vb->valh);
+    case BOOLEAN: 
+      return (va->valb - vb->valb);
+    case STRING: {
+      if (va->vals != NULL && vb->vals != NULL) {
+        return strcmp(va->vals, vb->vals);
+      }
+      return 0;
+    }
+    default: 
+      return 0;
+  }
+}
+
+struct SL_Variable List_sort_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at List.sort! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected list_variable as the first argument to List.sort.";
+    return return_var;
+  }
+
+  if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "List buffer overflow!";
+    return return_var;
+  }
+
+  struct SL_List *list = &LISTS[first_arg.vali];
+
+  if (list->size > 1) {
+    qsort(list->vars, list->size, sizeof(struct SL_Variable), sl_compare_vars);
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+
+  return return_var;
+}
+
+struct SL_Variable List_copy_fn(struct SL_Code *code,
+                                struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at List.copy! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected list_variable as the first argument to List.copy.";
+    return return_var;
+  }
+
+  if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "List buffer overflow or invalid list index!";
+    return return_var;
+  }
+
+  struct SL_List *src_list = &LISTS[first_arg.vali];
+
+  int new_list_index = LISTS_count++;
+  struct SL_List *dest_list = &LISTS[new_list_index];
+
+  dest_list->size = src_list->size;
+
+  if (src_list->size > 0) {
+    dest_list->vars = (struct SL_Variable *)malloc(src_list->size * sizeof(struct SL_Variable));
+    if (dest_list->vars == NULL) {
+      return_var.type = ERROR;
+      return_var.vals = "Memory allocation failed for List.copy.";
+      return return_var;
+    }
+
+    for (int i = 0; i < src_list->size; i++) {
+      dest_list->vars[i] = sl_copy_variable(src_list->vars[i]);
+    }
+  } else {
+    dest_list->vars = NULL; 
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = new_list_index;
+
+  return return_var;
 }
 
 struct SL_Variable List_relative_fn(struct SL_Code *code,
@@ -6631,8 +7257,12 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     } else if (strcmp(libstr, "file") == 0 && used_file == 0) {
       used_file = 1;
       sl_add_func(code, "file.read_to_str", file_read_to_str_fn);
+      sl_add_func(code, "file.remove", file_remove_fn);
       sl_add_func(code, "file.write_from_str", file_write_from_str_fn);
       sl_add_func(code, "file.append_from_str", file_append_from_str_fn);
+      sl_add_func(code, "file.read", file_read_fn);
+      sl_add_func(code, "file.write", file_write_fn);
+      sl_add_func(code, "file.append", file_append_fn);
     } else if (strcmp(libstr, "math") == 0 && used_math == 0) {
       used_math = 1;
       sl_add_func(code, "math.pow", math_pow_fn);
@@ -6664,6 +7294,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_double", is_double_fn);
       sl_add_func(code, "types.is_not_initialized", is_not_initialized_fn);
       sl_add_func(code, "types.typeof", typeof_fn);
+
+      /* BINARY PACK */ 
+      sl_add_func(code, "types.pack", types_pack_fn);
 
       /* STRING TYPE CHECK */
       sl_add_func(code, "types.is_digit", is_digit_fn);
@@ -7615,6 +8248,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "string.char_at", string_charat_fn);
       sl_add_func(code, "string.split", string_split_fn);
       sl_add_func(code, "string.slice", string_slice_fn);
+      sl_add_func(code, "string.reverse", string_reverse_fn);
       sl_add_func(code, "string.trim", string_trim_fn);
       sl_add_func(code, "string.set_char_at", string_setcharat_fn);
       sl_add_func(code, "string.contains", string_contains_fn);
@@ -7637,6 +8271,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.find", List_find_fn);
       sl_add_func(code, "List.next", List_next_fn);
       sl_add_func(code, "List.iter", List_iter_fn);
+      sl_add_func(code, "List.reverse", List_reverse_fn);
+      sl_add_func(code, "List.sort", List_sort_fn);
+      sl_add_func(code, "List.copy", List_copy_fn);
       sl_add_func(code, "List.relative", List_relative_fn);
       sl_add_func(code, "List.remove", List_remove_fn);
       sl_add_func(code, "List.len", List_len_fn);
