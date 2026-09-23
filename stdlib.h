@@ -1776,6 +1776,109 @@ free(str);
   return return_var;
 }
 
+
+/* BYTES */ 
+
+struct SL_Variable byte_get_fn(struct SL_Code *code,
+                                    struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at byte.get! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  if (first_arg.type != BYTES) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected bytes as the first argument to byte.get.";
+    return return_var;
+  }
+
+  if (second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected integer as the second argument to byte.get.";
+    return return_var;
+  }
+
+
+  if (second_arg.vali >= first_arg.length) {
+    return_var.type = ERROR;
+    return_var.vals = "Buffer overflow!";
+    return return_var;
+  }
+
+  if (second_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Buffer underflow!";
+    return return_var;
+  }
+  return_var.valc = first_arg.vals[second_arg.vali];
+  return_var.type = CHAR;
+  return return_var;
+}
+
+struct SL_Variable byte_set_fn(struct SL_Code *code,
+                                       struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  if (func.total_arguments < 3) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at byte.set! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+  if (first_arg.type != BYTES) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected bytes as the first argument to byte.set.";
+    return return_var;
+  }
+
+  if (second_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected integer as the second argument to byte.set.";
+    return return_var;
+  }
+
+  if (third_arg.type != CHAR) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected char as the second argument to byte.set.";
+    return return_var;
+  }
+
+
+  if (second_arg.vali >= first_arg.length) {
+    return_var.type = ERROR;
+    return_var.vals = "Buffer overflow!";
+    return return_var;
+  }
+
+  if (second_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Buffer underflow!";
+    return return_var;
+  }
+  char *bytes = sl_bytes_copy(first_arg.vals, first_arg.length);
+  bytes[second_arg.vali] = third_arg.valc;
+  return_var.type = BYTES;
+  return_var.vals = sl_bytes_copy(bytes, first_arg.length);
+  return_var.length = first_arg.length;
+  free(bytes);
+  return return_var;
+}
+
+
+
 /* String Helper functions */
 struct SL_Variable string_charat_fn(struct SL_Code *code,
                                     struct SL_L_Function func,
@@ -1826,10 +1929,10 @@ struct SL_Variable string_charat_fn(struct SL_Code *code,
 struct SL_Variable string_setcharat_fn(struct SL_Code *code,
                                        struct SL_L_Function func,
                                        struct SL_Function rfunc) {
-  if (func.total_arguments < 2) {
+  if (func.total_arguments < 3) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at string.char_at! Not enough arguments.";
+    return_var.vals = "Error usage at string.set_char_at! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -1870,13 +1973,10 @@ struct SL_Variable string_setcharat_fn(struct SL_Code *code,
     return_var.vals = "Buffer underflow!";
     return return_var;
   }
-  struct SL_Variable *ref_var = sl_get_var(code, first_arg.name);
-  char *string = sl_string_getter(ref_var->vals);
-  free(ref_var->vals);
+  char *string = sl_string_getter(first_arg.vals);
   string[second_arg.vali] = third_arg.valc;
-  ref_var->vals = strdup(string);
-  return_var.type = BOOLEAN;
-  return_var.valb = 1;
+  return_var.type = STRING;
+  return_var.vals = sl_quote_string(string);
   free(string);
   return return_var;
 }
@@ -7229,6 +7329,7 @@ int used_list = 0;
 int used_extra = 0;
 int used_db = 0;
 int used_math = 0;
+int used_bytes = 0;
 int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
@@ -7278,6 +7379,11 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "math.log10", math_log10_fn);
       sl_add_func(code, "math.min", math_min_fn);
       sl_add_func(code, "math.max", math_max_fn);
+
+    } else if (strcmp(libstr, "bytes") == 0 && used_bytes == 0) {
+      used_bytes = 1;
+      sl_add_func(code, "byte.get", byte_get_fn);
+      sl_add_func(code, "byte.set", byte_set_fn);
     } else if (strcmp(libstr, "types") == 0 && used_types == 0) {
       used_types = 1;
       /* CONVERT */
