@@ -141,7 +141,7 @@ def line_renderer then
     var i = $rendering_start_line
     var screen_y = 0
     if $background_color_enabled then 
-        console.background_color($COLOR_BLACK)
+        console.background_color($background_color)
     end
     while $screen_y < $total_renderable then
         console.cursor_position(0, $screen_y)
@@ -160,7 +160,7 @@ def line_renderer then
                 io.print($item + " ")
                 console.reset_color()
                 if $background_color_enabled then 
-                    console.background_color($COLOR_BLACK)
+                    console.background_color($background_color)
                 end
             end
             List.free($highlighting)
