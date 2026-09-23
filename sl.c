@@ -2556,8 +2556,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
     }
 
     int end = 0;
-
-    if (code_s->types[current_token] == T_VAR) {
+    switch (code_s->types[current_token]) {
+    case T_VAR: {
       for (int i = current_token; i < code_s->token_count; i++) {
         if (code_s->code[i][0] == '=') {
           i++;
@@ -2599,7 +2599,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       }
 
       current_token--;
-    } else if (code_s->types[current_token] == T_IF) {
+    } break;
+    case T_IF: {
       current_token++;
 
       struct SL_Variable out_boolean =
@@ -2642,7 +2643,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
                             "Expected: if <expr> then <code> else <code> end");
         }
       }
-    } else if (code_s->types[current_token] == T_WHILE) {
+    } break;
+    case T_WHILE: {
       int currpos = current_token;
       current_token++;
 
@@ -2719,22 +2721,25 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
         while_sit = 1;
       }
-    } else if (code_s->types[current_token] == T_CONTINUE) {
+    } break;
+    case T_CONTINUE:
       if (while_sit != 1)
         sl_throw_an_error(*code_s, code_s->code, current_token,
                           code_s->token_count, "CONTINUE USAGE WITHOUT LOOP",
                           "Expected: define a loop first.");
       current_token = while_loop.back_pos[--while_loop.depth] - 1;
-    } else if (code_s->types[current_token] == T_BREAK) {
+      break;
+    case T_BREAK:
       if (while_sit != 1)
         sl_throw_an_error(*code_s, code_s->code, current_token,
                           code_s->token_count, "BREAK USAGE WITHOUT LOOP",
                           "Expected: define a loop first.");
       current_token = while_loop.end[--while_loop.depth];
-    } else if (code_s->types[current_token] == T_END) {
-      continue;
-    } else if (code_s->types[current_token] == T_ELSE ||
-               code_s->types[current_token] == T_ELIF) {
+      break;
+    case T_END:
+      break;
+    case T_ELSE:
+    case T_ELIF: {
       int out = sl_find_end(code_s->code, code_s->types, current_token + 1,
                             code_s->token_count, 0);
       if (out == -1)
@@ -2742,8 +2747,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
                           code_s->token_count, "END NOT FOUND END OF THE ELSE",
                           "Expected: if <expr> then <code> else <code> end");
       current_token = out;
-      continue;
-    } else if (code_s->types[current_token] == T_IMPORT) {
+    } break;
+    case T_IMPORT:
       if (!code_s->code[current_token + 1]) {
         sl_throw_an_error(
             *code_s, code_s->code, current_token, code_s->token_count,
@@ -2803,7 +2808,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
       free(module_name);
       current_token++;
-    } else if (code_s->types[current_token] == T_DEF) {
+      break;
+    case T_DEF:
       current_token++;
       struct SL_Function func =
           sl_define_parser(*code_s, code_s->code, code_s->types, &current_token,
@@ -2819,7 +2825,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         code_s->funcs = realloc(code_s->funcs, code_s->total_size_f *
                                                    sizeof(struct SL_Function));
       }
-    } else if (code_s->types[current_token] == T_RETURN) {
+      break;
+    case T_RETURN:
       current_token++;
       end = find_maxt_expr(code_s->code, code_s->types, current_token,
                            code_s->token_count);
@@ -2829,7 +2836,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       free(while_loop.end);
       free(while_loop.then_pos);
       return result;
-    } else {
+    default:
       if (code_s->code[current_token][0] == '$') {
         int old_curr = current_token;
         for (int i = current_token; i < code_s->token_count; i++) {
