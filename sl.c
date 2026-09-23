@@ -652,6 +652,14 @@ void sl_free_function(struct SL_Function *func) {
     func->code_tokens = NULL;
   }
 
+  if (func->fixed_values != NULL) {
+    for (int i = 0; i < func->code_len; i++) {
+      sl_free_variable(&func->fixed_values[i]);
+    }
+    free(func->fixed_values);
+    func->fixed_values = NULL;
+  }
+
   if (func->types != NULL) {
     free(func->types);
     func->types = NULL;
@@ -2357,11 +2365,12 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
     for (int i = 0; i < code_length; i++) {
       int len = strlen(tokens[starting + i]);
       function.code_tokens[i] = malloc(len + 1);
+      function.types[i] = types[starting + i];
+      function.fixed_values[i] =
+          sl_copy_variable(code_s.fixed_values[starting + i]);
       strncpy(function.code_tokens[i], tokens[starting + i], len);
       function.code_tokens[i][len] = '\0';
     }
-    identifier_tokenizer(function.code_tokens, &function.types,
-                         &function.fixed_values, function.code_len);
   }
 
   *current_token = current;
@@ -2998,90 +3007,46 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 }
 
 int sl_close_sl_process(struct SL_Code *code) {
-  if (code->vars != NULL) {
-    for (int i = 0; i < code->total_vars; i++) {
-      if (code->vars[i].name != NULL) {
-        free(code->vars[i].name);
-        code->vars[i].name = NULL;
-      }
-      if ((code->vars[i].type == STRING || code->vars[i].type == RETURN) &&
-          code->vars[i].vals != NULL) {
-        free(code->vars[i].vals);
-        code->vars[i].vals = NULL;
-      }
-    }
-    free(code->vars);
-    code->vars = NULL;
-  }
+  if (code == NULL)
+    return -1;
 
   if (code->funcs != NULL) {
     for (int i = 0; i < code->total_funcs; i++) {
-      if (code->funcs[i].name != NULL) {
-        free(code->funcs[i].name);
-        code->funcs[i].name = NULL;
-      }
-
-      if (code->funcs[i].arguments != NULL) {
-        for (int j = 0; j < code->funcs[i].total_arguments; j++) {
-          if (code->funcs[i].arguments[j].name != NULL) {
-            free(code->funcs[i].arguments[j].name);
-            code->funcs[i].arguments[j].name = NULL;
-          }
-          if ((code->funcs[i].arguments[j].type == STRING ||
-               code->funcs[i].arguments[j].type == RETURN) &&
-              code->funcs[i].arguments[j].vals != NULL) {
-            free(code->funcs[i].arguments[j].vals);
-            code->funcs[i].arguments[j].vals = NULL;
-          }
-        }
-        free(code->funcs[i].arguments);
-        code->funcs[i].arguments = NULL;
-      }
-
-      if (code->funcs[i].code_tokens != NULL) {
-        for (int k = 0; k < code->funcs[i].code_len; k++) {
-          if (code->funcs[i].code_tokens[k] != NULL) {
-            free(code->funcs[i].code_tokens[k]);
-            code->funcs[i].code_tokens[k] = NULL;
-          }
-        }
-        free(code->funcs[i].code_tokens);
-        code->funcs[i].code_tokens = NULL;
-      }
-      if (code->funcs[i].types != NULL) {
-        free(code->funcs[i].types);
-        code->funcs[i].types = NULL;
-      }
+      sl_free_function(&code->funcs[i]);
     }
     free(code->funcs);
     code->funcs = NULL;
+  }
+
+  if (code->vars != NULL) {
+    for (int i = 0; i < code->total_vars; i++) {
+      sl_free_variable(&code->vars[i]);
+    }
+    free(code->vars);
+    code->vars = NULL;
   }
 
   if (code->code != NULL) {
     for (int i = 0; i < code->token_count; i++) {
       if (code->code[i] != NULL) {
         free(code->code[i]);
-        code->code[i] = NULL;
       }
     }
     free(code->code);
     code->code = NULL;
   }
 
+  if (code->types != NULL) {
+    free(code->types);
+    code->types = NULL;
+  }
+
   if (code->fixed_values != NULL) {
     for (int i = 0; i < code->token_count; i++) {
-      struct SL_Variable *var = &code->fixed_values[i];
-      if ((var->type == STRING || var->type == RETURN) && var->vals != NULL) {
-        free(var->vals);
-        var->vals = NULL;
-      }
+      sl_free_variable(&code->fixed_values[i]);
     }
     free(code->fixed_values);
     code->fixed_values = NULL;
-  }
-
-  if (code->types != NULL) {
-    free(code->types);
   }
   return 0;
 }

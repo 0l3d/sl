@@ -19,6 +19,9 @@ errors.string(net.bind($sock, "0.0.0.0", 8080))
 
 errors.string(net.listen($sock, 128))
 
+io.print("HTTP SERVER: localhost:8080")
+io.fflush()
+
 while true then
     var client = net.accept($sock)
     var request = net.recv($client, 1024)
