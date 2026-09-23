@@ -62,6 +62,20 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
     copy.code_tokens = NULL;
   }
 
+  if (function.fixed_values != NULL) {
+    if (function.code_len > 0) {
+      copy.fixed_values =
+          malloc(function.code_len * sizeof(*copy.fixed_values));
+      for (int i = 0; i < function.code_len; i++) {
+        copy.fixed_values[i] = sl_copy_variable(function.fixed_values[i]);
+      }
+    } else {
+      copy.fixed_values = NULL;
+    }
+  } else {
+    copy.fixed_values = NULL;
+  }
+
   if (function.types != NULL) {
     if (function.code_len > 0) {
       copy.types = malloc(function.code_len * sizeof(*copy.types));
