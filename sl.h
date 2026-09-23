@@ -27,6 +27,7 @@ struct SL_Variable
 {
     char *name;
     unsigned long hash;
+    int cache_index;
     enum SL_Types type;
     int scope_lifetime;
     union {
@@ -68,6 +69,7 @@ struct SL_Code
 {
     char **code;
     enum TokenTypes *types;
+    struct SL_Variable *fixed_values;
     int token_count;
     struct SL_Variable *vars;
     int total_size_v;
@@ -76,6 +78,7 @@ struct SL_Code
     int total_size_f;
     int total_funcs;
     int scope_depth;
+    int types_set;
 };
 
 struct SL_L_Function
@@ -93,6 +96,7 @@ struct SL_Function
     int total_arguments;
     char **code_tokens;
     enum TokenTypes *types;
+    struct SL_Variable *fixed_values;
     int code_len;
     int vaargs;
     struct SL_Variable (*funcr)(struct SL_Code *, struct SL_L_Function, struct SL_Function);
