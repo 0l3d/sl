@@ -1,5 +1,24 @@
 use("console", "io", "types", "sys", "string", "list", "errors", "file")
 
+# EDITOR SETTINGS
+
+# Bottom indicator background color
+var indicator_background = $COLOR_WHITE
+
+# Bottom indicator text color
+var indicator_foreground = $COLOR_BLACK
+
+# Keyword color
+var keyword_highlighting = $COLOR_MAGENTA
+
+# Editor background color 
+var background_color = $COLOR_BLACK
+
+# Editor background switch
+var background_color_enabled = false
+
+# EDITOR SETTINGS
+
 var file_name = sys.get_arg(2)
 if errors.bool($file_name) then
     $file_name = "test.sl"
@@ -92,8 +111,8 @@ var actual_y = $rendering_start_line + $cursor_y
 def render_indicator then
     console.cursor_position(0, $screen_height)
     console.clear_line()
-    console.background_color($COLOR_WHITE)
-    console.foreground_color($COLOR_BLACK)
+    console.background_color($indicator_background)
+    console.foreground_color($indicator_foreground)
 
     io.print(
         "CURSOR x:",
@@ -121,6 +140,9 @@ var buffer = ""
 def line_renderer then
     var i = $rendering_start_line
     var screen_y = 0
+    if $background_color_enabled then 
+        console.background_color($COLOR_BLACK)
+    end
     while $screen_y < $total_renderable then
         console.cursor_position(0, $screen_y)
         console.clear_line()
@@ -132,11 +154,14 @@ def line_renderer then
                 var item = List.next($highlighting)
                 while List.iter($sl_highlighting) then
                     if $item equ List.next($sl_highlighting) then
-                        console.foreground_color($COLOR_MAGENTA)
+                        console.foreground_color($keyword_highlighting)
                     end
                 end
                 io.print($item + " ")
                 console.reset_color()
+                if $background_color_enabled then 
+                    console.background_color($COLOR_BLACK)
+                end
             end
             List.free($highlighting)
         end
