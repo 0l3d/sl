@@ -142,7 +142,7 @@ def render_indicator then
         " File Name: ",
         $file_name,
         " TIME: ",
-        time.string("%H:%M:%S")
+        time.string("%H:%M")
     )
 
     console.reset_color()
@@ -167,19 +167,23 @@ def line_renderer then
         console.cursor_position(0, $screen_y)
         console.clear_line()
         var line = List.get($lines, $i)
+        var last_color = 0
         if $enable_highlighting then 
             if not(errors.bool($line)) then
                 var highlighting = string.split($line, " ")
                 errors.panic($highlighting)
                 while List.iter($highlighting) then
                     var item = List.next($highlighting)
-                    while List.iter($sl_highlighting) then
-                        if $item equ List.next($sl_highlighting) then
+                    if types.is_int(List.find($sl_highlighting, $item)) then
+                        if $last_color neq $keyword_highlighting then 
                             console.foreground_color($keyword_highlighting)
+                            $last_color = $keyword_highlighting
                         end
+                    else 
+                        console.reset_color()
+                        $last_color = 0
                     end
                     io.print($item + " ")
-                    console.reset_color()
                     if $background_color_enabled then 
                         console.background_color($background_color)
                     end

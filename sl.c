@@ -1737,10 +1737,8 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
 
           code->vars[code->total_vars] = result;
           code->vars[code->total_vars].name = NULL;
-          if (result.name != NULL) {
+          if (result.name != NULL)
             code->vars[code->total_vars].name = strdup(result.name);
-            free(result.name);
-          }
           code->total_vars++;
           free_tracker++;
           lfunc.total_arguments++;
@@ -1754,8 +1752,6 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
             struct SL_Variable result = expression_parser_solver(
                 code, tokens, types, &current_token, commapos, 0);
             code->vars[code->total_vars] = result;
-            if (result.name != NULL)
-              free(result.name);
             code->vars[code->total_vars].name = strdup(function_name);
             code->vars[code->total_vars++].hash = sl_hash_string(function_name);
 
@@ -1765,8 +1761,6 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
             struct SL_Variable result = expression_parser_solver(
                 code, tokens, types, &current_token, commapos, 0);
             code->vars[code->total_vars] = result;
-            if (result.name != NULL)
-              free(result.name);
             if (function.arguments[how_much_go].name != NULL) {
               code->vars[code->total_vars].name =
                   strdup(function.arguments[how_much_go].name);
@@ -1866,7 +1860,12 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
     }
 
     if (index != -1) {
-      struct SL_Variable resolved = sl_copy_variable(code_s->vars[index]);
+      struct SL_Variable resolved = code_s->vars[index];
+      if ((resolved.type == STRING || resolved.type == RETURN ||
+           resolved.type == BYTES) &&
+          resolved.vals) {
+        resolved.vals = strdup(resolved.vals);
+      }
       return resolved;
     }
     if (index == -1) {
@@ -1874,7 +1873,10 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
                         "VARIABLE NOT FOUND!",
                         "Expected: Define a variable first.");
     }
-    var = sl_copy_variable(code_s->vars[index]);
+    var = code_s->vars[index];
+    if ((var.type == STRING || var.type == RETURN || var.type == BYTES) &&
+        var.vals)
+      var.vals = strdup(var.vals);
     return var;
   }
   if (is_has_func(*code_s, var.vals) != -1) {
@@ -2065,10 +2067,6 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
   result = expression_solver(left, tree.op, right, current_line, tree.op_type,
                              tree.is_op_type);
 
-  if (left.name != NULL)
-    free(left.name);
-  if (right.name != NULL)
-    free(right.name);
   if (result.type == ERROR) {
     sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
                       "Mathematical or logical operation error. (Type mismatch "
@@ -2180,8 +2178,6 @@ struct SL_Variable_Creator variable_parser(struct SL_Code *code_s,
       current_assignment = strdup(tokens[(*current_token) - 1]);
       struct SL_Variable result = expression_parser_solver(
           code_s, tokens, types, &equal_start, value_end, current_line);
-      if (result.name != NULL)
-        free(result.name);
       variables.variable[variables.total_variables] = result;
       variables.variable[variables.total_variables].name =
           strdup(tokens[(*current_token) - 1]);
@@ -2242,10 +2238,6 @@ struct SL_Variable assignment_parser(struct SL_Code *code_s, char *tokens[],
          code_s->vars[index].type == BYTES) &&
         code_s->vars[index].vals != NULL) {
       free(code_s->vars[index].vals);
-    }
-
-    if (eq_value.name != NULL) {
-      free(eq_value.name);
     }
 
     eq_value.name = code_s->vars[index].name;
