@@ -15,17 +15,17 @@ TARGET  = sl
 #					 
 # CFLAGS = -g -O0 # DEBUG 
 #
-#  WITHOUT NETWORK STACK MUSL AND STANDART CFLAGS
+#  WITHOUT NETWORK STACK MUSL AND STANDARD CFLAGS
 # 
 # CFLAGS  := -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden 
 # 
-#  WITH NETWORK STACK MUSL AND STANDART
+#  WITH NETWORK STACK MUSL AND STANDARD
 #
 CFLAGS  := -O3 -DNDEBUG -DENABLE_NET -flto -fno-strict-aliasing -fvisibility=hidden -flto=auto
 # 
 # LDFLAGS
 # 
-LDFLAGS := -O3 -flto -lm # STANDART 
+LDFLAGS := -O3 -flto -lm # STANDARD
 #
 # LDFLAGS := -O3 -flto -lm -static # MUSL
 # 
