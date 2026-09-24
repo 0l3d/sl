@@ -228,6 +228,10 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 
       int stringlen = p - string_start;
       char *in_string_tokens = malloc(stringlen + 1);
+      if (in_string_tokens == NULL) {
+        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
+        return -1;
+      }
       strncpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
       (*bufout)[token_count++] = in_string_tokens;
@@ -251,9 +255,10 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 
       int stringlen = (int)(p - string_start);
       char *in_string_tokens = malloc(stringlen + 1);
-
-      if (in_string_tokens == NULL)
+      if (in_string_tokens == NULL) {
+        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
         return -1;
+      }
 
       memcpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
@@ -263,6 +268,11 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
     } else {
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
         char *pot = malloc(3);
+	if (pot == NULL) {
+          /* the allocation will always be valid since it is a fixed size (3) */
+          fprintf(stderr, "malloc() failed to allocate memory on the heap (high memory usage)\n");
+          return -1;
+	}
         pot[0] = *p;
         pot[1] = *(p + 1);
         pot[2] = '\0';
