@@ -1,4 +1,4 @@
-use("console", "io", "types", "sys", "string", "list", "errors", "file")
+use("console", "io", "types", "sys", "string", "list", "errors", "file", "time")
 
 # EDITOR SETTINGS
 
@@ -10,6 +10,9 @@ var indicator_foreground = $COLOR_BLACK
 
 # Keyword color
 var keyword_highlighting = $COLOR_MAGENTA
+
+# Enable highlighting
+var enable_highlighting = true
 
 # Editor background color 
 var background_color = $COLOR_BLACK
@@ -24,12 +27,13 @@ if errors.bool($file_name) then
     $file_name = "test.sl"
 end
 
-var ext = string.split($file_name, ".")
-var sl_highlighting = List.new()
-if not(errors.bool($ext)) then
-    var exts = List.get($ext, List.len($ext) - 1)
-    if $exts equ "sl" or $exts equ "SL" then
-        List.push(
+if $enable_highlighting then 
+    var ext = string.split($file_name, ".")
+    var sl_highlighting = List.new()
+    if not(errors.bool($ext)) then
+        var exts = List.get($ext, List.len($ext) - 1)
+        if $exts equ "sl" or $exts equ "SL" then
+            List.push(
             $sl_highlighting,
             "var",
             "if",
@@ -47,8 +51,8 @@ if not(errors.bool($ext)) then
             "eqg",
             "eql",
             "neq")
-    elif $exts equ "c" or $exts equ "C" or $exts equ "h" or $exts equ "H" then
-        List.push(
+        elif $exts equ "c" or $exts equ "C" or $exts equ "h" or $exts equ "H" then
+            List.push(
             $sl_highlighting,
             "int",
             "void",
@@ -82,9 +86,9 @@ if not(errors.bool($ext)) then
             "#pragma",
             "#error",
             "#warning")
+        end
     end
 end
-
 var lines = List.new()
 
 var read = file.read_to_str($file_name)
@@ -136,7 +140,9 @@ def render_indicator then
         " msg:",
         $status_message,
         " File Name: ",
-        $file_name
+        $file_name,
+        " TIME: ",
+        time.string("%H:%M:%S")
     )
 
     console.reset_color()
@@ -161,23 +167,27 @@ def line_renderer then
         console.cursor_position(0, $screen_y)
         console.clear_line()
         var line = List.get($lines, $i)
-        if not(errors.bool($line)) then
-            var highlighting = string.split($line, " ")
-            errors.panic($highlighting)
-            while List.iter($highlighting) then
-                var item = List.next($highlighting)
-                while List.iter($sl_highlighting) then
-                    if $item equ List.next($sl_highlighting) then
-                        console.foreground_color($keyword_highlighting)
+        if $enable_highlighting then 
+            if not(errors.bool($line)) then
+                var highlighting = string.split($line, " ")
+                errors.panic($highlighting)
+                while List.iter($highlighting) then
+                    var item = List.next($highlighting)
+                    while List.iter($sl_highlighting) then
+                        if $item equ List.next($sl_highlighting) then
+                            console.foreground_color($keyword_highlighting)
+                        end
+                    end
+                    io.print($item + " ")
+                    console.reset_color()
+                    if $background_color_enabled then 
+                        console.background_color($background_color)
                     end
                 end
-                io.print($item + " ")
-                console.reset_color()
-                if $background_color_enabled then 
-                    console.background_color($background_color)
-                end
+                List.free($highlighting)
             end
-            List.free($highlighting)
+        else 
+            io.print($line, " ")
         end
         $i = $i + 1
         $screen_y = $screen_y + 1

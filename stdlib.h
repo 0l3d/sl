@@ -1092,6 +1092,183 @@ struct SL_Variable random_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
+/* Time */
+
+struct SL_Variable time_now_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = (int)time(NULL);
+  return return_var;
+}
+
+struct SL_Variable time_string_fn(struct SL_Code *code, struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  const char *format = "%Y-%m-%d %H:%M:%S";
+
+  if (func.total_arguments > 0) {
+    struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+    if (first_arg.type != STRING || first_arg.vals == NULL) {
+      return_var.type = ERROR;
+      return_var.vals = "Expected STRING as the first argument to time.string.";
+      return return_var;
+    }
+    format = first_arg.vals;
+  }
+
+  time_t t = time(NULL);
+  struct tm *tm_info = localtime(&t);
+  char buffer[128];
+
+  strftime(buffer, sizeof(buffer), format, tm_info);
+
+  return_var.type = STRING;
+  return_var.vals = strdup(buffer);
+  return return_var;
+}
+
+struct SL_Variable time_clock_fn(struct SL_Code *code, struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = DOUBLE;
+  return_var.valf = (double)clock() / CLOCKS_PER_SEC;
+  return return_var;
+}
+
+struct SL_Variable time_sleep_fn(struct SL_Code *code, struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at time.sleep! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != INTEGER && first_arg.type != DOUBLE) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected INTEGER or DOUBLE as the first argument to time.sleep.";
+    return return_var;
+  }
+
+  int ms = (first_arg.type == DOUBLE) ? (int)first_arg.valf : first_arg.vali;
+
+  #ifdef _WIN32
+  Sleep(ms);
+  #else
+  usleep(ms * 1000);
+  #endif
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable time_hour_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  time_t t = time(NULL);
+  struct tm *tm_info = localtime(&t);
+
+  return_var.type = INTEGER;
+  return_var.vali = tm_info->tm_hour;
+  return return_var;
+}
+
+struct SL_Variable time_minute_fn(struct SL_Code *code, struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  time_t t = time(NULL);
+  struct tm *tm_info = localtime(&t);
+
+  return_var.type = INTEGER;
+  return_var.vali = tm_info->tm_min;
+  return return_var;
+}
+
+struct SL_Variable time_second_fn(struct SL_Code *code, struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  time_t t = time(NULL);
+  struct tm *tm_info = localtime(&t);
+
+  return_var.type = INTEGER;
+  return_var.vali = tm_info->tm_sec;
+  return return_var;
+}
+
+struct SL_Variable time_diff_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at time.diff! Not enough arguments!.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != INTEGER && first_arg.type != DOUBLE) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected INTEGER or DOUBLE as the first argument to time.diff.";
+    return return_var;
+  }
+
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  if (second_arg.type != INTEGER && second_arg.type != DOUBLE) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected INTEGER or DOUBLE as the second argument to time.diff.";
+    return return_var;
+  }
+
+  double val1 = (first_arg.type == DOUBLE) ? first_arg.valf : (double)first_arg.vali;
+  double val2 = (second_arg.type == DOUBLE) ? second_arg.valf : (double)second_arg.vali;
+
+  return_var.type = DOUBLE;
+  return_var.valf = difftime((time_t)val1, (time_t)val2);
+  return return_var;
+}
+
+struct SL_Variable time_parse_fn(struct SL_Code *code, struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at time.parse! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != STRING || first_arg.vals == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected STRING as the first argument to time.parse.";
+    return return_var;
+  }
+
+  struct tm tm_info = {0};
+  if (sscanf(first_arg.vals, "%d-%d-%d %d:%d:%d",
+             &tm_info.tm_year, &tm_info.tm_mon, &tm_info.tm_mday,
+             &tm_info.tm_hour, &tm_info.tm_min, &tm_info.tm_sec) < 6) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid date format! Expected 'YYYY-MM-DD HH:MM:SS'.";
+    return return_var;
+  }
+
+  tm_info.tm_year -= 1900;
+  tm_info.tm_mon -= 1;
+
+  time_t parsed_time = mktime(&tm_info);
+
+  return_var.type = INTEGER;
+  return_var.vali = (int)parsed_time;
+  return return_var;
+}
+
 /* Types for type checking/converting/more */
 struct SL_Variable str_to_int_fn(struct SL_Code *code,
                                  struct SL_L_Function func,
@@ -1596,6 +1773,68 @@ free(str);
 
   return return_var;
 }
+
+struct SL_Variable types_sizeof_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  size_t total_size = 0;
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable arg = sl_get_argument(*code, func, i);
+
+    switch (arg.type) {
+    case INTEGER:
+      total_size += sizeof(arg.vali);
+      break;
+
+    case DOUBLE:
+      total_size += sizeof(arg.valf);
+      break;
+
+    case LONG:
+      total_size += sizeof(arg.valh);
+      break;
+
+    case BOOLEAN:
+      total_size += sizeof(arg.valb);
+      break;
+
+    case CHAR:
+      total_size += sizeof(arg.valc);
+      break;
+
+    case STRING: {
+      char *string = sl_string_getter(arg.vals);
+
+      if (string == NULL) {
+        return_var.type = ERROR;
+        return_var.vals = "Could not get string argument.";
+        return return_var;
+      }
+
+      total_size += strlen(string);
+
+      free(string);
+      break;
+    }
+
+    default:
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported type in types.pack.";
+      return return_var;
+    }
+  }
+
+    
+  return_var.type = INTEGER;
+  return_var.vali = total_size;
+
+  return return_var;
+}
+
+
 
 struct SL_Variable types_pack_fn(struct SL_Code *code,
                                  struct SL_L_Function func,
@@ -7327,6 +7566,7 @@ int used_string = 0;
 int used_errors = 0;
 int used_list = 0;
 int used_extra = 0;
+int used_time = 0;
 int used_db = 0;
 int used_math = 0;
 int used_bytes = 0;
@@ -7400,6 +7640,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_double", is_double_fn);
       sl_add_func(code, "types.is_not_initialized", is_not_initialized_fn);
       sl_add_func(code, "types.typeof", typeof_fn);
+    
+      /* SIZE CALCULATION */ 
+      sl_add_func(code, "types.sizeof", types_sizeof_fn);
 
       /* BINARY PACK */ 
       sl_add_func(code, "types.pack", types_pack_fn);
@@ -8386,6 +8629,17 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     } else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
       used_extra = 1;
       sl_add_func(code, "rand.random", random_fn);
+    } else if (strcmp(libstr, "time") == 0 && used_time == 0) {
+      used_time = 1;
+      sl_add_func(code, "time.now", time_now_fn);
+      sl_add_func(code, "time.string", time_string_fn);
+      sl_add_func(code, "time.clock", time_clock_fn);
+      sl_add_func(code, "time.sleep", time_sleep_fn);
+      sl_add_func(code, "time.hour", time_hour_fn);
+      sl_add_func(code, "time.minute", time_minute_fn);
+      sl_add_func(code, "time.second", time_second_fn);
+      sl_add_func(code, "time.diff", time_diff_fn);
+      sl_add_func(code, "time.parse", time_parse_fn);
     } else if (strcmp(libstr, "db") == 0 && used_db == 0) {
       used_db = 1;
       sl_add_func(code, "db.from_lists", db_from_lists_fn);
