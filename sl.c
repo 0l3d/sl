@@ -1567,8 +1567,8 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
   return tree;
 }
 
-char *get_raw_function_name(char *word) {
-  int len = strlen(word);
+char *get_raw_function_name(const char *word) {
+  size_t len = strlen(word);
   char *returning_name = malloc(len + 1);
   int j = 0;
   for (int i = 0; i < len; i++) {
@@ -1645,7 +1645,7 @@ void sl_clean_local_scope(struct SL_Code *code, int starting_var_index,
   code->total_funcs = new_total_funcs;
 }
 
-struct SL_Variable run_sl_function(struct SL_Code *code, char *name,
+struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
                                    char **tokens, enum TokenTypes *types,
                                    int current_token, int max_tokens) {
   int function_number = -1;
@@ -2352,7 +2352,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
           exit(-1);
         }
       }
-      int len = strlen(tokens[current]);
+      size_t len = strlen(tokens[current]);
       if (function.arguments == NULL) {
         fprintf(stderr, "calloc() failed to allocate memory\n");
         exit(-1);
