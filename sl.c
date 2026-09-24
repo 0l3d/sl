@@ -3091,6 +3091,11 @@ int sl_close_sl_process(struct SL_Code *code) {
 }
 
 void *smalloc(size_t size) {
+  if (size <= 0) {
+    fprintf(stderr, "Invalid allocation size passed to smalloc() function\n");
+    fprintf(stderr, "size is 0\n");
+    exit(EXIT_FAILURE);
+  }
   void *ptr = malloc(size);
   if (ptr == NULL) {
     fprintf(stderr, "smalloc(): The malloc() function failed to allocate memory of size: \"%zu\"\n", size);
