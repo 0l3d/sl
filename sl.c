@@ -3089,3 +3089,12 @@ int sl_close_sl_process(struct SL_Code *code) {
   }
   return 0;
 }
+
+void *smalloc(size_t size) {
+  void *ptr = malloc(size);
+  if (ptr == NULL) {
+    fprintf(stderr, "smalloc(): The malloc() function failed to allocate memory of size: \"%zu\"\n", size);
+    exit(EXIT_FAILURE);
+  }
+  return ptr;
+}
