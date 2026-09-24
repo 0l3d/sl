@@ -228,6 +228,10 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 
       int stringlen = p - string_start;
       char *in_string_tokens = malloc(stringlen + 1);
+      if (in_string_tokens == NULL) {
+        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
+        return -1;
+      }
       strncpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
       (*bufout)[token_count++] = in_string_tokens;
@@ -251,9 +255,10 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
 
       int stringlen = (int)(p - string_start);
       char *in_string_tokens = malloc(stringlen + 1);
-
-      if (in_string_tokens == NULL)
+      if (in_string_tokens == NULL) {
+        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
         return -1;
+      }
 
       memcpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
@@ -263,6 +268,11 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
     } else {
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
         char *pot = malloc(3);
+	if (pot == NULL) {
+          /* the allocation will always be valid since it is a fixed size (3) */
+          fprintf(stderr, "malloc() failed to allocate memory on the heap (high memory usage)\n");
+          return -1;
+	}
         pot[0] = *p;
         pot[1] = *(p + 1);
         pot[2] = '\0';
@@ -317,7 +327,7 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
-    perror("init_sl_lexer failed with error:");
+    fprintf(stderr, "init_sl_lexer failed with error:\n");
     return -1;
   }
 
@@ -414,7 +424,7 @@ int string_checker(char *word) {
   if (word == NULL)
     return 0;
 
-  int size = strlen(word);
+  size_t size = strlen(word);
 
   if (size >= 6 && word[0] == '"' && word[1] == '"' && word[2] == '"' &&
       word[size - 1] == '"' && word[size - 2] == '"' && word[size - 3] == '"') {
@@ -438,15 +448,15 @@ char *sl_string_getter(char *word) {
     return strdup(word);
   }
 
-  int size = strlen(word);
+  size_t size = strlen(word);
   char *our_word = malloc(size);
   if (our_word == NULL)
     return NULL;
 
   int j = 0;
 
-  for (int i = quote_len; i < size - quote_len; i++) {
-    if (word[i] == '\\' && (i + 1) < (size - quote_len)) {
+  for (int i = quote_len; i < size - (unsigned)quote_len; i++) {
+    if (word[i] == '\\' && (i + 1) < (size - (unsigned)quote_len)) {
       i++;
       switch (word[i]) {
       case 'n':
@@ -523,7 +533,14 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
   v.type = type_analyzer(word);
   switch (v.type) {
   case INTEGER:
-    v.vali = atoi(word);
+    char *endptr = NULL;
+    /* convert word to base 10 integer */
+    v.vali = (int)strtol(word, &endptr, 10);
+    if (*endptr != '\0')
+    {
+      fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
+      exit(1);
+    }
     break;
   case DOUBLE:
     v.valf = strtod(word, NULL);
@@ -1567,8 +1584,8 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
   return tree;
 }
 
-char *get_raw_function_name(char *word) {
-  int len = strlen(word);
+char *get_raw_function_name(const char *word) {
+  size_t len = strlen(word);
   char *returning_name = malloc(len + 1);
   int j = 0;
   for (int i = 0; i < len; i++) {
@@ -1645,7 +1662,7 @@ void sl_clean_local_scope(struct SL_Code *code, int starting_var_index,
   code->total_funcs = new_total_funcs;
 }
 
-struct SL_Variable run_sl_function(struct SL_Code *code, char *name,
+struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
                                    char **tokens, enum TokenTypes *types,
                                    int current_token, int max_tokens) {
   int function_number = -1;
@@ -1730,7 +1747,7 @@ struct SL_Variable run_sl_function(struct SL_Code *code, char *name,
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
             char *function_name = malloc(SL_INIT);
-            int func_len = strlen(function.name);
+            /* size_t func_len = strlen(function.name);  never used */ 
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
@@ -2312,7 +2329,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
   int current = *current_token;
 
   char *f_name = tokens[current++];
-  int f_name_len = strlen(f_name);
+  size_t f_name_len = strlen(f_name);
   struct SL_Function function = {0};
   function.name = malloc(f_name_len + 1);
   function.name[f_name_len] = '\0';
@@ -2352,7 +2369,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
           exit(-1);
         }
       }
-      int len = strlen(tokens[current]);
+      size_t len = strlen(tokens[current]);
       if (function.arguments == NULL) {
         fprintf(stderr, "calloc() failed to allocate memory\n");
         exit(-1);
