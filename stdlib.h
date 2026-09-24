@@ -1335,6 +1335,10 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   char* tmp = malloc(2);
+  if (tmp == NULL) {
+      return_var.type = ERROR;
+      return_var.vals = "Memory allocation is failed!";
+  }
   tmp[0] = first_arg.valc;
   tmp[1] = '\0';
   return_var.vals = sl_quote_string(tmp);
@@ -1365,6 +1369,10 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
     }
 
   char* tmp = malloc(digits + 1);
+  if (tmp == NULL) {
+      return_var.type = ERROR;
+      return_var.vals = "Memory allocation is failed!";
+  }
   snprintf(tmp, digits + 1, "%d", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
