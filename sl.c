@@ -268,11 +268,12 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
     } else {
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
         char *pot = malloc(3);
-	if (pot == NULL) {
+        if (pot == NULL) {
           /* the allocation will always be valid since it is a fixed size (3) */
-          fprintf(stderr, "malloc() failed to allocate memory on the heap (high memory usage)\n");
+          fprintf(stderr, "malloc() failed to allocate memory on the heap "
+                          "(high memory usage)\n");
           return -1;
-	}
+        }
         pot[0] = *p;
         pot[1] = *(p + 1);
         pot[2] = '\0';
@@ -532,16 +533,15 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
   struct SL_Variable v = {0};
   v.type = type_analyzer(word);
   switch (v.type) {
-  case INTEGER:
+  case INTEGER: {
     char *endptr = NULL;
     /* convert word to base 10 integer */
     v.vali = (int)strtol(word, &endptr, 10);
-    if (*endptr != '\0')
-    {
+    if (*endptr != '\0') {
       fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
       exit(1);
     }
-    break;
+  } break;
   case DOUBLE:
     v.valf = strtod(word, NULL);
     break;
@@ -1747,7 +1747,7 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
             char *function_name = malloc(SL_INIT);
-            /* size_t func_len = strlen(function.name);  never used */ 
+            /* size_t func_len = strlen(function.name);  never used */
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
