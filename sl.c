@@ -414,7 +414,7 @@ int string_checker(char *word) {
   if (word == NULL)
     return 0;
 
-  int size = strlen(word);
+  size_t size = strlen(word);
 
   if (size >= 6 && word[0] == '"' && word[1] == '"' && word[2] == '"' &&
       word[size - 1] == '"' && word[size - 2] == '"' && word[size - 3] == '"') {
@@ -438,15 +438,15 @@ char *sl_string_getter(char *word) {
     return strdup(word);
   }
 
-  int size = strlen(word);
+  size_t size = strlen(word);
   char *our_word = malloc(size);
   if (our_word == NULL)
     return NULL;
 
   int j = 0;
 
-  for (int i = quote_len; i < size - quote_len; i++) {
-    if (word[i] == '\\' && (i + 1) < (size - quote_len)) {
+  for (int i = quote_len; i < size - (unsigned)quote_len; i++) {
+    if (word[i] == '\\' && (i + 1) < (size - (unsigned)quote_len)) {
       i++;
       switch (word[i]) {
       case 'n':
@@ -1737,7 +1737,7 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
             char *function_name = malloc(SL_INIT);
-            int func_len = strlen(function.name);
+            /* size_t func_len = strlen(function.name);  never used */ 
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
@@ -2319,7 +2319,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
   int current = *current_token;
 
   char *f_name = tokens[current++];
-  int f_name_len = strlen(f_name);
+  size_t f_name_len = strlen(f_name);
   struct SL_Function function = {0};
   function.name = malloc(f_name_len + 1);
   function.name[f_name_len] = '\0';
