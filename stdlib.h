@@ -1282,7 +1282,7 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   return_var.type = INTEGER;
-  return_var.vali = atoi(first_arg.vals);
+  return_var.vali = atoi(sl_string_getter(first_arg.vals));
   return return_var;
 }
 
@@ -1334,9 +1334,11 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  return_var.vals = malloc(2);
-  return_var.vals[0] = first_arg.valc;
-  return_var.vals[1] = '\0';
+  char* tmp = malloc(2);
+  tmp[0] = first_arg.valc;
+  tmp[1] = '\0';
+  return_var.vals = sl_quote_string(tmp);
+  free(tmp);
   return_var.type = STRING;
   return return_var;
 }
@@ -1347,7 +1349,7 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.char_to_str! Not enough arguments.";
+    return_var.vals = "Error usage at types.int_to_str! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1362,8 +1364,10 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
       temp /= 10;
     }
 
-  return_var.vals = malloc(digits + 1);
-  snprintf(return_var.vals, digits + 1, "%d", first_arg.vali);
+  char* tmp = malloc(digits + 1);
+  snprintf(tmp, digits + 1, "%d", first_arg.vali);
+  return_var.vals = sl_quote_string(tmp);
+  free(tmp);
   return_var.type = STRING;
   return return_var;
 }
@@ -1452,7 +1456,7 @@ struct SL_Variable is_double_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.is_string! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_double! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -1469,7 +1473,7 @@ struct SL_Variable is_not_initialized_fn(struct SL_Code *code,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.is_string! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_not_initialized! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -1485,11 +1489,10 @@ struct SL_Variable is_digit_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.str_to_int! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_digit! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-  char *str = sl_string_getter(first_arg.vals);
 
   struct SL_Variable return_var = {0};
   return_var.type = BOOLEAN;
@@ -1508,7 +1511,7 @@ struct SL_Variable is_digit_fn(struct SL_Code *code, struct SL_L_Function func,
   } else if (first_arg.type == CHAR)
     if (!isdigit(first_arg.valc))
       return return_var;
-
+  
   return_var.valb = 1;
   return return_var;
 }
@@ -1518,7 +1521,7 @@ struct SL_Variable is_space_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.str_to_int! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_space! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1549,7 +1552,7 @@ struct SL_Variable is_alpha_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_alpha! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_alpha! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1582,7 +1585,7 @@ struct SL_Variable is_alnum_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_alnum! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_alnum! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1615,7 +1618,7 @@ struct SL_Variable is_upper_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_upper! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_upper! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1648,7 +1651,7 @@ struct SL_Variable is_lower_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_lower! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_lower! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1681,7 +1684,7 @@ struct SL_Variable is_punct_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_punct! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_punct! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1714,7 +1717,7 @@ struct SL_Variable is_xdigit_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at is_xdigit! Not enough arguments.";
+    return_var.vals = "Error usage at types.is_xdigit! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -1747,7 +1750,7 @@ struct SL_Variable to_lower_fn(struct SL_Code *code, struct SL_L_Function func,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at to_lower! Not enough arguments.";
+    return_var.vals = "Error usage at types.to_lower! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -2625,6 +2628,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 
     if (!list_push(&LISTS[listind], push_val)) {
       free(part);
+      free(push_val.vals);
       free(splt_string);
       free(splt_token);
 
@@ -2634,6 +2638,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
     }
 
     free(part);
+    free(push_val.vals);
 
     current = tokenize + delimiter_len;
   }
@@ -2643,6 +2648,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
   push_val.vals = sl_quote_string(current);
 
   if (!list_push(&LISTS[listind], push_val)) {
+    free(push_val.vals);
     free(splt_string);
     free(splt_token);
 
@@ -2653,9 +2659,11 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 
   free(splt_string);
   free(splt_token);
+  free(push_val.vals);
 
   return_var.type = INTEGER;
   return_var.vali = listind;
+
 
   return return_var;
 }
@@ -8678,25 +8686,7 @@ void close_sl_stdlib() {
 
   if (used_list == 1) {
     for (int i = 0; i < LISTS_count; i++) {
-      for (int size = 0; size < LISTS[i].size; size++) {
-
-        if (LISTS[i].vars[size].name != NULL) {
-          free(LISTS[i].vars[size].name);
-          LISTS[i].vars[size].name = NULL;
-        }
-
-        if ((LISTS[i].vars[size].type == STRING ||
-             LISTS[i].vars[size].type == RETURN) &&
-            LISTS[i].vars[size].vals != NULL) {
-          free(LISTS[i].vars[size].vals);
-          LISTS[i].vars[size].vals = NULL;
-        }
-      }
-
-      if (LISTS[i].vars != NULL) {
-        free(LISTS[i].vars);
-        LISTS[i].vars = NULL;
-      }
+      list_free(i);
     }
 
     free(LISTS);

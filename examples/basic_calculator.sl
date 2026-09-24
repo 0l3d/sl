@@ -1,4 +1,4 @@
-use("io", "string", "list", "types")
+use("io", "string", "list", "types", "errors")
 
 io.print("Welcome to Basic Calculator.\n")
 io.print("Expression Syntax: n<space><op><space>n...\n")
