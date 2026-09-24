@@ -303,4 +303,5 @@ jobs:
             --repo "${GITHUB_REPOSITORY}" \
             --title "SL ${GITHUB_REF_NAME}" \
             --notes-file CHANGELOG.md \
+            --generate-notes \
             dist/*
