@@ -21,7 +21,7 @@ TARGET  = sl
 # 
 #  WITH NETWORK STACK MUSL AND STANDART
 #
-CFLAGS  := -O3 -DNDEBUG -DENABLE_NET -flto -fno-strict-aliasing -fvisibility=hidden
+CFLAGS  := -O3 -DNDEBUG -DENABLE_NET -flto -fno-strict-aliasing -fvisibility=hidden -flto=auto
 # 
 # LDFLAGS
 # 

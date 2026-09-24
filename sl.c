@@ -317,7 +317,7 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
-    perror("init_sl_lexer failed with error:");
+    fprintf(stderr, "init_sl_lexer failed with error:\n");
     return -1;
   }
 
