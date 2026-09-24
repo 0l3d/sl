@@ -523,7 +523,14 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
   v.type = type_analyzer(word);
   switch (v.type) {
   case INTEGER:
-    v.vali = atoi(word);
+    char *endptr = NULL;
+    /* convert word to base 10 integer */
+    v.vali = (int)strtol(word, &endptr, 10);
+    if (*endptr != '\0')
+    {
+      fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
+      exit(1);
+    }
     break;
   case DOUBLE:
     v.valf = strtod(word, NULL);
