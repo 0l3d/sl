@@ -194,7 +194,7 @@ char *sl_quote_string(const char *str) {
   return result;
 }
 
-int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
+int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
           int start_size) {
   int size_s = start_size;
   if (bufin == NULL)
@@ -312,7 +312,7 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
              lexer_special_tokens_ex(special_tokens, *p) == 0)
         p++;
       int word_len = p - word_start;
-      char *word = malloc(word_len + 1);
+      char *word = smalloc(word_len + 1);
       strncpy(word, word_start, word_len);
       word[word_len] = '\0';
       (*bufout)[token_count++] = word;
@@ -324,7 +324,7 @@ int LEXER(char *bufin, char ***bufout, int max_count, char *special_tokens,
   return token_count;
 }
 
-int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
+int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
@@ -335,7 +335,7 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
   char buf[4096];
   char *code_string;
 
-  int total_allocations = 0;
+  size_t total_allocations = 0;
 
   total_allocations += malloc_size;
   code_string = malloc(total_allocations);
@@ -370,12 +370,12 @@ int sl_init_sl_lexer(int malloc_size, char *file_name, char ***bufout,
       }
     }
 
-    int index = strlen(buf);
+    size_t index = strlen(buf);
 
     if (character_pos != NULL)
       index = character_pos - buf;
 
-    int len = strlen(code_string);
+    size_t len = strlen(code_string);
     if (len + index + 2 > total_allocations) {
       total_allocations += malloc_size;
       code_string = realloc(code_string, total_allocations);
@@ -537,7 +537,7 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
     char *endptr = NULL;
     /* convert word to base 10 integer */
     v.vali = (int)strtol(word, &endptr, 10);
-    if (*endptr != '\0') {
+    if (*(endptr) != '\0') {
       fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
       exit(1);
     }
@@ -2402,7 +2402,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
     function.fixed_values = calloc(code_length, sizeof(struct SL_Variable));
     function.code_len = code_length;
     for (int i = 0; i < code_length; i++) {
-      int len = strlen(tokens[starting + i]);
+      size_t len = strlen(tokens[starting + i]);
       function.code_tokens[i] = malloc(len + 1);
       function.types[i] = types[starting + i];
       function.fixed_values[i] =
