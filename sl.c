@@ -1,6 +1,7 @@
 #include "sl.h"
 #include <ctype.h>
 #include <errno.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -175,8 +176,6 @@ char *sl_quote_string(const char *str) {
   }
 
   char *result = smalloc(size);
-  if (result == NULL)
-    return NULL;
 
   size_t j = 0;
   result[j++] = '"';
@@ -781,12 +780,24 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
     right_side.type = DOUBLE;
     right_side.valf = right_side.vali;
   }
+
+  if (left_side.type == POINTER && right_side.type == INTEGER) {
+    right_side.type = POINTER;
+    right_side.valp = (void *)(intptr_t)right_side.vali;
+  } else if (left_side.type == INTEGER && right_side.type == POINTER) {
+    left_side.type = POINTER;
+    left_side.valp = (void *)(intptr_t)left_side.vali;
+  }
+
   struct SL_Variable error = {0};
   error.type = ERROR;
 
   if (left_side.type != right_side.type) {
+    error.vals = "Type mismatch: Operations can only be performed between "
+                 "identical types";
     return error;
   }
+
   struct SL_Variable expression_result = {0};
   expression_result.type = left_side.type;
 
@@ -810,12 +821,12 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
           free(left_side.vals);
           free(right_side.vals);
 
-          expression_result.type = ERROR;
-          return expression_result;
+          error.vals = "Memory allocation failed during string operations";
+          return error;
         }
 
         size_t joined_len = strlen(left_string) + strlen(right_string);
-        char *joined_string = smalloc(joined_len + 1);
+        char *joined_string = malloc(joined_len + 1);
 
         if (joined_string == NULL) {
           free(left_string);
@@ -823,8 +834,8 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
           free(left_side.vals);
           free(right_side.vals);
 
-          expression_result.type = ERROR;
-          return expression_result;
+          error.vals = "Memory allocation failed during string concatenation";
+          return error;
         }
 
         memcpy(joined_string, left_string, strlen(left_string));
@@ -839,21 +850,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         free(right_string);
         free(left_side.vals);
         free(right_side.vals);
-
-        if (expression_result.vals == NULL) {
-          expression_result.type = ERROR;
-          return expression_result;
-        }
       } break;
       case BOOLEAN:
         expression_result.valb = left_side.valb + right_side.valb;
         break;
       case CHAR:
-        fprintf(stderr, "Chars cannot add each other.");
+        error.vals = "Characters cannot be added together or by a number";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh + right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valp =
+            (void *)((char *)left_side.valp + (intptr_t)right_side.valp);
+        if (expression_result.valp == NULL) {
+          expression_result.type = BOOLEAN;
+          expression_result.valb = 0;
+        }
       default:
         break;
       }
@@ -867,18 +880,25 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valf = left_side.valf - right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot sub each other.");
+        error.vals = "Strings cannot be subtracted from each other or a number";
         return error;
-        break;
       case BOOLEAN:
         expression_result.valb = left_side.valb - right_side.valb;
         break;
       case CHAR:
-        fprintf(stderr, "Chars cannot sub each other.");
+        error.vals =
+            "Characters cannot be subtracted from each other or a number";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh - right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valp =
+            (void *)((char *)left_side.valp - (intptr_t)right_side.valp);
+        if (expression_result.valp == NULL) {
+          expression_result.type = BOOLEAN;
+          expression_result.valb = 0;
+        }
       default:
         break;
       }
@@ -892,18 +912,21 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valf = left_side.valf * right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot mul each other.");
+        error.vals = "Strings cannot be multiplied by each other or a number";
         return error;
-        break;
       case BOOLEAN:
         expression_result.valb = left_side.valb * right_side.valb;
         break;
       case CHAR:
-        fprintf(stderr, "Chars cannot mul each other.");
+        error.vals =
+            "Characters cannot be multiplied by each other or a number";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh * right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be multiplied by each other or a number";
+        return error;
       default:
         break;
       }
@@ -917,18 +940,20 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valf = left_side.valf / right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot div each other.");
+        error.vals = "Strings cannot be divided by each other or a number";
         return error;
-        break;
       case BOOLEAN:
         expression_result.valb = left_side.valb / right_side.valb;
         break;
       case CHAR:
-        fprintf(stderr, "Chars cannot div each other.");
+        error.vals = "Characters cannot be divided by each other or a number";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh / right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be divided by each other or a number";
+        return error;
       default:
         break;
       }
@@ -939,23 +964,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali & right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot and each other.");
+        error.vals = "Doubles cannot be used with bitwise AND operator";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot and each other.");
+        error.vals = "Strings cannot be used with bitwise AND operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot and each other.");
+        error.vals = "Booleans cannot be used with bitwise AND operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot and each other.");
+        error.vals = "Characters cannot be used with bitwise AND operator";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh & right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be used with bitwise AND operator";
+        return error;
       default:
         break;
       }
@@ -966,23 +991,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali | right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot or each other.");
+        error.vals = "Doubles cannot be used with bitwise OR operator";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot or each other.");
+        error.vals = "Strings cannot be used with bitwise OR operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot or each other.");
+        error.vals = "Booleans cannot be used with bitwise OR operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot or each other.");
+        error.vals = "Characters cannot be used with bitwise OR operator";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh | right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be used with bitwise OR operator";
+        return error;
       default:
         break;
       }
@@ -993,23 +1018,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali ^ right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot xor each other.");
+        error.vals = "Doubles cannot be used with bitwise XOR operator";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot xor each other.");
+        error.vals = "Strings cannot be used with bitwise XOR operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot xor each other.");
+        error.vals = "Booleans cannot be used with bitwise XOR operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot xor each other.");
+        error.vals = "Characters cannot be used with bitwise XOR operator";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh ^ right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be used with bitwise XOR operator";
+        return error;
       default:
         break;
       }
@@ -1020,23 +1045,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali % right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot mod each other.");
+        error.vals = "Doubles cannot be used with modulo operator";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot mod each other.");
+        error.vals = "Strings cannot be used with modulo operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot mod each other.");
+        error.vals = "Booleans cannot be used with modulo operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot mod each other.");
+        error.vals = "Characters cannot be used with modulo operator";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh % right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be used with modulo operator";
+        return error;
       default:
         break;
       }
@@ -1051,19 +1076,20 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf > right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot bigger than each other.");
+        error.vals = "Strings cannot be compared with greater-than operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot bigger than each other.");
+        error.vals = "Booleans cannot be compared with greater-than operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot bigger than each other.");
+        error.vals = "Characters cannot be compared with greater-than operator";
         return error;
-        break;
       case LONG:
         expression_result.valb = left_side.valh > right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be compared with greater-than operator";
+        return error;
       default:
         break;
       }
@@ -1078,19 +1104,19 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf < right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot less than each other.");
+        error.vals = "Strings cannot be compared with less-than operator";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot less than each other.");
+        error.vals = "Booleans cannot be compared with less-than operator";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot less than each other.");
+        error.vals = "Characters cannot be compared with less-than operator";
         return error;
-        break;
       case LONG:
         expression_result.valb = left_side.valh < right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp < right_side.valp;
       default:
         break;
       }
@@ -1104,23 +1130,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali >> right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot shift right each other.");
+        error.vals = "Doubles cannot be bit-shifted";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot shift right each other.");
+        error.vals = "Strings cannot be bit-shifted";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot shift right each other.");
+        error.vals = "Booleans cannot be bit-shifted";
         return error;
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot shift right each other.");
+        error.vals = "Characters cannot be bit-shifted";
         return error;
-        break;
       case LONG:
         expression_result.valh = left_side.valh >> right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be bit-shifted";
+        return error;
       default:
         break;
       }
@@ -1131,25 +1157,23 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.vali = left_side.vali << right_side.vali;
         break;
       case DOUBLE:
-        fprintf(stderr, "Doubles cannot shift left each other.");
+        error.vals = "Doubles cannot be bit-shifted";
         return error;
-        break;
       case STRING:
-        fprintf(stderr, "Strings cannot shift left each other.");
+        error.vals = "Strings cannot be bit-shifted";
         return error;
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot shift left each other.");
+        error.vals = "Booleans cannot be bit-shifted";
         return error;
-
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot shift left each other.");
+        error.vals = "Characters cannot be bit-shifted";
         return error;
-
-        break;
       case LONG:
         expression_result.valh = left_side.valh << right_side.valh;
+        break;
+      case POINTER:
+        error.vals = "Pointers cannot be bit-shifted";
+        return error;
       default:
         break;
       }
@@ -1164,10 +1188,8 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf && right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot conditional and each other.");
+        error.vals = "Strings cannot be used with logical AND operator";
         return error;
-
-        break;
       case BOOLEAN:
         expression_result.valb = left_side.valb && right_side.valb;
         break;
@@ -1176,6 +1198,9 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         break;
       case LONG:
         expression_result.valb = left_side.valh && right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp && right_side.valp;
       default:
         break;
       }
@@ -1190,10 +1215,8 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf || right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot conditional or each other.");
+        error.vals = "Strings cannot be used with logical OR operator";
         return error;
-
-        break;
       case BOOLEAN:
         expression_result.valb = left_side.valb || right_side.valb;
         break;
@@ -1202,6 +1225,9 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         break;
       case LONG:
         expression_result.valb = left_side.valh || right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp || right_side.valp;
       default:
         break;
       }
@@ -1237,6 +1263,9 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         break;
       case LONG:
         expression_result.valb = left_side.valh == right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp == right_side.valp;
       default:
         break;
       }
@@ -1272,6 +1301,9 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         break;
       case LONG:
         expression_result.valb = left_side.valh != right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp != right_side.valp;
       default:
         break;
       }
@@ -1286,23 +1318,22 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf >= right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot bigger than each other.");
-
+        error.vals =
+            "Strings cannot be compared with greater-than-or-equal operator";
         return error;
-
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot bigger than each other.");
+        error.vals =
+            "Booleans cannot be compared with greater-than-or-equal operator";
         return error;
-
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot bigger than each other.");
+        error.vals =
+            "Characters cannot be compared with greater-than-or-equal operator";
         return error;
-
-        break;
       case LONG:
         expression_result.valb = left_side.valh >= right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp >= right_side.valp;
       default:
         break;
       }
@@ -1317,21 +1348,22 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         expression_result.valb = left_side.valf <= right_side.valf;
         break;
       case STRING:
-        fprintf(stderr, "Strings cannot less than each other.");
+        error.vals =
+            "Strings cannot be compared with less-than-or-equal operator";
         return error;
-
-        break;
       case BOOLEAN:
-        fprintf(stderr, "Booleans cannot less than each other.");
+        error.vals =
+            "Booleans cannot be compared with less-than-or-equal operator";
         return error;
-
-        break;
       case CHAR:
-        fprintf(stderr, "Chars cannot less than each other.");
+        error.vals =
+            "Characters cannot be compared with less-than-or-equal operator";
         return error;
-        break;
       case LONG:
         expression_result.valb = left_side.valh <= right_side.valh;
+        break;
+      case POINTER:
+        expression_result.valb = left_side.valp <= right_side.valp;
       default:
         break;
       }
@@ -1971,12 +2003,9 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
           expression_solver(left, op, right, current_line, op_type, is_op_type);
 
       if (result.type == ERROR) {
-        sl_throw_an_error(
-            *code_s, expression, old_curr, max_tokens,
-            "Mathematical or logical operation error. (Type mismatch or "
-            "invalid operation)",
-            "Ensure that the variables you are trying to operate on (String "
-            "and Integer) are compatible with each other.");
+        sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
+                          "Mathematical or logical operation error.",
+                          result.vals);
       }
 
       *current_token = max_tokens;

@@ -7537,6 +7537,7 @@ int used_time = 0;
 int used_db = 0;
 int used_math = 0;
 int used_bytes = 0;
+int used_unsafe = 0;
 int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
