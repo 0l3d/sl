@@ -1,6 +1,7 @@
 # Changelog
 
 ## What's Changed?
-- Little changes.
-- More speed.
-
+- Base language improvements.
+- List support for io.print.
+- Expression solver improvements.
+- Extra little changes.
