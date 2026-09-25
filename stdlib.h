@@ -40,6 +40,10 @@
 #endif
 #endif
 
+/* SL 3RD_PARTY */ 
+#define LIB_ROOT "sl_libraries"
+/* SL 3RD_PARTY */
+
 /* SL INFO TABLE */
 #define SL_LIST -1
 #define SL_COLLECTION -2
@@ -7554,6 +7558,8 @@ struct SL_Variable math_max_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 /* MATH */
 
+
+/* USE FUNCTION */ 
 int used_io = 0;
 int used_file = 0;
 int used_types = 0;
@@ -7571,6 +7577,9 @@ int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
 int used_console = 0;
+
+static void setup_gitignore(void);
+static int use_library(const char *git, struct SL_Code *code);
 
 struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                           struct SL_Function rfunc) {
@@ -8643,9 +8652,16 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "db.to_lists", db_to_lists_fn);
     } else {
       if (strncmp(libstr, "lib:", 4) == 0) {
-
-      } else {
-        fprintf(stderr, "Package undefined! PKG_NAME: %s\n", libstr);
+        setup_gitignore();
+        #ifdef _WIN32
+          system("mkdir sl_libraries 2>nul");
+        #else
+          system("mkdir -p sl_libraries");
+        #endif
+        if (!use_library(libstr + 4, code)) {
+          fprintf(stderr, "Package not found! Terminating...\n");
+          exit(EXIT_FAILURE);
+        }
       }
     }
     free(libstr);
@@ -8653,6 +8669,126 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
 
   return return_var;
 }
+/* USE 3RD_PARTY LIBRARIES API */
+
+const char *repo_name(const char *url)
+{
+    const char *end = url + strlen(url);
+    const char *slash = end;
+
+    while (slash > url && slash[-1] == '/')
+        slash--;
+
+    const char *p = slash;
+    while (p > url && p[-1] != '/')
+        p--;
+
+    size_t len = slash - p;
+
+    if (len > 4 && strncmp(slash - 4, ".git", 4) == 0)
+        len -= 4;
+
+    static char name[256];
+
+    if (len >= sizeof(name))
+        return NULL;
+
+    memcpy(name, p, len);
+    name[len] = '\0';
+
+    return name;
+}
+
+static int use_library(const char *git, struct SL_Code *code) {
+  char *dir;
+  char *file;
+  char *cmd;
+  
+  const char *name = repo_name(git);
+
+  dir = malloc(strlen(LIB_ROOT) + strlen(name) + 2);
+  file = malloc(strlen(LIB_ROOT) + strlen(name) + 9);
+
+  if (!dir || !file)
+    goto fail;
+
+  sprintf(dir, "%s/%s", LIB_ROOT, name);
+  sprintf(file, "%s/%s/lib.sl", LIB_ROOT, name);
+
+  cmd = malloc(strlen(git) + strlen(dir) + 32);
+
+  if (!cmd)
+    goto fail;
+
+  FILE* dirf = fopen(dir, "r");
+  if (dirf == NULL) {
+    sprintf(cmd, "git clone \"%s\" \"%s\"", git, dir);
+    printf("SL_LOG: Library not found, downloading from Git: %s\n", git);
+    if (system(cmd) != 0) {
+      printf("SL_LOG: Failed to clone Git repository. Please check and try again.\n");
+      printf("SL_LOG: Please check the repository URL, your internet connection, Git installation, and shell configuration.\n");
+      free(cmd);
+      goto fail;
+    }
+  }
+  fclose(dirf);
+  
+  free(cmd);
+  
+  int len = strlen(file);
+  char* import_synt = malloc(8 + len); /* "import " = 7 */
+  snprintf(import_synt, 8 + len, "import %s", file); 
+  sl_dostr_sl_process(code, import_synt);
+
+  free(dir);
+  free(file);
+  free(import_synt);
+
+  return 1;
+
+fail:
+  free(dir);
+  free(file);
+
+  return 0;
+}
+
+static void setup_gitignore(void) {
+  FILE *git;
+  FILE *ignore;
+  char line[256];
+
+  git = fopen(".git/HEAD", "r");
+
+  if (!git)
+    return;
+
+  fclose(git);
+
+  ignore = fopen(".gitignore", "a");
+
+  if (!ignore)
+    return;
+
+  rewind(ignore);
+
+  while (fgets(line, sizeof(line), ignore)) {
+    if (strcmp(line, "sl_libraries/\n") == 0 ||
+        strcmp(line, "sl_libraries/\r\n") == 0) {
+      fclose(ignore);
+      return;
+    }
+  }
+
+  fputs("\nsl_libraries/\n", ignore);
+
+  fclose(ignore);
+}
+
+/* USE 3RD_PARTY LIBRARIES API */
+
+/* USE FUNCTION */
+
 void close_sl_stdlib();
 
 void init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv) {

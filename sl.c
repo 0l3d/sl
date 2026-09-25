@@ -2777,7 +2777,27 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         free(while_loop.then_pos);
         exit(-1);
       }
-      char *module_name = sl_string_getter(code_s->code[current_token + 1]);
+
+      char *module_name = strdup(code_s->code[current_token + 1]);
+      int i = 0;
+      for (i = current_token + 2;
+           code_s->code[i] != NULL && code_s->code[i][0] == '/'; i += 2) {
+
+        if (code_s->code[i + 1] == NULL)
+          break;
+
+        size_t old_len = strlen(module_name);
+        size_t part_len = strlen(code_s->code[i + 1]);
+
+        module_name = srealloc(module_name, old_len + part_len + 2);
+
+        module_name[old_len] = '/';
+
+        strncpy(module_name + old_len + 1, code_s->code[i + 1], part_len);
+
+        module_name[old_len + part_len + 1] = '\0';
+      }
+      current_token = i;
 
       char **imported_tokens = NULL;
       int imported_count =
@@ -2799,6 +2819,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         import_code.scope_depth = code_s->scope_depth;
 
         import_code.types = smalloc(imported_count * sizeof(enum TokenTypes));
+        import_code.fixed_values =
+            smalloc(imported_count * sizeof(struct SL_Variable));
         for (int i = 0; i < imported_count; i++) {
           import_code.types[i] = T_UNKNOWN;
         }
@@ -2814,6 +2836,13 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         code_s->total_funcs = import_code.total_funcs;
 
         free(import_code.types);
+        if (import_code.fixed_values != NULL) {
+          for (int i = 0; i < imported_count; i++) {
+            sl_free_variable(&import_code.fixed_values[i]);
+          }
+          free(import_code.fixed_values);
+        }
+
         for (int i = 0; i < imported_count; i++) {
           if (imported_tokens[i])
             free(imported_tokens[i]);
@@ -2823,9 +2852,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         fprintf(stderr, "[ERROR] Import failed or empty module: %s\n",
                 module_name);
       }
-
       free(module_name);
-      current_token++;
       break;
     case T_DEF:
       current_token++;
@@ -2967,6 +2994,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
       sl_raw_lexer(code, &code_p.code, strlen(code), SPECIAL_TOKENS, 1024);
   code_p.token_count = count;
   code_p.types = scalloc(count, sizeof(enum TokenTypes));
+  code_p.fixed_values = scalloc(count, sizeof(struct SL_Variable));
+  code_p.types_set = 0;
 
   struct SL_Variable init = sl_init_sl_parser(&code_p);
   if (init.type == ERROR) {
@@ -3011,6 +3040,14 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
   if (code_p.types != NULL) {
     free(code_p.types);
+  }
+
+  if (code_p.fixed_values != NULL) {
+    for (int i = 0; i < code_p.token_count; i++) {
+      sl_free_variable(&code_p.fixed_values[i]);
+    }
+    free(code_p.fixed_values);
+    code_p.fixed_values = NULL;
   }
 
   return init;
