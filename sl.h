@@ -33,7 +33,7 @@ struct SL_Variable
     enum SL_Types type;
     int scope_lifetime;
     size_t length;
-    size_t info;
+    int info;
     union {
         int vali;
         double valf;

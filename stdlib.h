@@ -40,6 +40,11 @@
 #endif
 #endif
 
+/* SL INFO TABLE */
+#define SL_LIST -1
+#define SL_COLLECTION -2
+/* SL INFO TABLE */
+
 /* CONSOLE API */
 #define SL_UNDEFINED_EVENT -1
 #define SL_KEY_EVENT 0
@@ -129,9 +134,7 @@ static int sl_console_write_cstr(const char *text) {
   return sl_console_write(text, strlen(text));
 }
 
-static int sl_console_flush(void) {
-  return fflush(stdout) == 0;
-}
+static int sl_console_flush(void) { return fflush(stdout) == 0; }
 /* CONSOLE API */
 
 #include <math.h>
@@ -232,7 +235,8 @@ int create_new_list(int capacity, int fixed) {
   if (LISTS_count >= LISTS_capacity) {
     int new_capacity = LISTS_capacity * 2;
 
-    struct SL_List *tmp = srealloc(LISTS, new_capacity * sizeof(struct SL_List));
+    struct SL_List *tmp =
+        srealloc(LISTS, new_capacity * sizeof(struct SL_List));
 
     memset(tmp + LISTS_capacity, 0,
            (new_capacity - LISTS_capacity) * sizeof(struct SL_List));
@@ -276,7 +280,6 @@ int list_push(struct SL_List *list, struct SL_Variable value) {
 
     list->vars =
         srealloc(list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
-
 
     list->capacity = new_capacity;
   }
@@ -382,8 +385,7 @@ int list_remove(struct SL_List *list, int index) {
 /* LIST FUNCTIONS */
 
 /* Input/Output for stdout/stdin*/
-struct SL_Variable print_fn(struct SL_Code *code,
-                            struct SL_L_Function func,
+struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -392,59 +394,116 @@ struct SL_Variable print_fn(struct SL_Code *code,
 
     char buffer[64];
     int length = 0;
+    if (return_var.info != SL_LIST) {
+      switch (return_var.type) {
+      case INTEGER:
+        length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
+        if (length > 0)
+          sl_console_write(buffer, (size_t)length);
+        break;
 
-    switch (return_var.type) {
-    case INTEGER:
-      length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
-      if (length > 0)
-        sl_console_write(buffer, (size_t)length);
-      break;
+      case DOUBLE:
+        length = snprintf(buffer, sizeof(buffer), "%f", return_var.valf);
+        if (length > 0)
+          sl_console_write(buffer, (size_t)length);
+        break;
 
-    case DOUBLE:
-      length = snprintf(buffer, sizeof(buffer), "%f", return_var.valf);
-      if (length > 0)
-        sl_console_write(buffer, (size_t)length);
-      break;
+      case STRING: {
+        char *string = sl_string_getter(return_var.vals);
 
-    case STRING: {
-      char *string = sl_string_getter(return_var.vals);
-
-      if (string != NULL) {
-        sl_console_write_cstr(string);
-        free(string);
+        if (string != NULL) {
+          sl_console_write_cstr(string);
+          free(string);
+        }
+        break;
       }
-      break;
+
+      case BOOLEAN:
+        if (return_var.valb) {
+          sl_console_write_cstr("true");
+        } else {
+          sl_console_write_cstr("false");
+        }
+        break;
+
+      case CHAR:
+        sl_console_write(&return_var.valc, 1);
+        break;
+
+      case LONG:
+        length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, return_var.valh);
+        if (length > 0)
+          sl_console_write(buffer, (size_t)length);
+        break;
+
+      default:
+        break;
+      }
     }
+    if (return_var.info == SL_LIST) {
+      sl_console_write_cstr(return_var.name);
+      sl_console_write_cstr(" (List) [");
+      if (return_var.info == SL_LIST) {
+        struct SL_List list = LISTS[return_var.vali];
+        for (int j = 0; j < list.size; j++) {
+          if (j != 0)
+            sl_console_write_cstr(", ");
+          char buffer[64];
+          int length = 0;
+          switch (list.vars[j].type) {
+          case INTEGER:
+            length = snprintf(buffer, sizeof(buffer), "%d", list.vars[j].vali);
+            if (length > 0)
+              sl_console_write(buffer, (size_t)length);
+            break;
 
-    case BOOLEAN:
-      if (return_var.valb) {
-        sl_console_write_cstr("true");
-      } else {
-        sl_console_write_cstr("false");
+          case DOUBLE:
+            length = snprintf(buffer, sizeof(buffer), "%f", list.vars[j].valf);
+            if (length > 0)
+              sl_console_write(buffer, (size_t)length);
+            break;
+
+          case STRING: {
+            char *string = sl_string_getter(list.vars[j].vals);
+
+            if (string != NULL) {
+              sl_console_write_cstr(string);
+              free(string);
+            }
+            break;
+          }
+
+          case BOOLEAN:
+            if (list.vars[j].valb) {
+              sl_console_write_cstr("true");
+            } else {
+              sl_console_write_cstr("false");
+            }
+            break;
+
+          case CHAR:
+            sl_console_write(&list.vars[j].valc, 1);
+            break;
+          case LONG:
+            length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
+                              list.vars[j].valh);
+            if (length > 0)
+              sl_console_write(buffer, (size_t)length);
+            break;
+
+          default:
+            break;
+          }
+        }
       }
-      break;
-
-    case CHAR:
-      sl_console_write(&return_var.valc, 1);
-      break;
-
-    case LONG:
-      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
-                        return_var.valh);
-      if (length > 0)
-        sl_console_write(buffer, (size_t)length);
-      break;
-
-    default:
-      break;
+      sl_console_write_cstr("]");
     }
   }
 
   return return_var;
 }
 
-struct SL_Variable print_raw_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -481,8 +540,7 @@ struct SL_Variable print_raw_fn(struct SL_Code *code,
       break;
 
     case LONG:
-      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
-                        value.valh);
+      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, value.valh);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -495,8 +553,7 @@ struct SL_Variable print_raw_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable input_fn(struct SL_Code *code,
-                            struct SL_L_Function func,
+struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -538,8 +595,7 @@ struct SL_Variable input_fn(struct SL_Code *code,
       break;
 
     case LONG:
-      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
-                        return_var.valh);
+      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, return_var.valh);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -582,8 +638,7 @@ struct SL_Variable io_getchar_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable io_fflush_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable io_fflush_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -708,9 +763,48 @@ struct SL_Variable file_remove_fn(struct SL_Code *code,
 
   free(file_name);
 
-  return_var.type = STRING;
-  return_var.vals = strdup("File removed successfully.");
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
 
+  return return_var;
+}
+
+struct SL_Variable file_rename_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at file.rename! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  char *old_name = sl_string_getter(first_arg.vals);
+  char *new_name = sl_string_getter(second_arg.vals);
+
+
+  if (old_name == NULL || new_name == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Could not get old/new file name.";
+    return return_var;
+  }
+
+  if (rename(old_name, new_name) != 0) {
+    free(old_name);
+    free(new_name);
+    return_var.type = ERROR;
+    return_var.vals = "Could not rename file.";
+    return return_var;
+  }
+  free(old_name);
+  free(new_name);
+  
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
   return return_var;
 }
 
@@ -816,21 +910,18 @@ struct SL_Variable file_append_from_str_fn(struct SL_Code *code,
 }
 
 /* BINARY */
-struct SL_Variable file_read_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable file_read_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at file.read! Not enough arguments.";
+    return_var.vals = "Error usage at file.read! Not enough arguments.";
     return return_var;
   }
 
   struct SL_Variable return_var = {0};
 
-  struct SL_Variable first_arg =
-      sl_get_argument(*code, func, 0);
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char *file_name = sl_string_getter(first_arg.vals);
 
@@ -929,23 +1020,19 @@ struct SL_Variable file_write_fn(struct SL_Code *code,
   if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at file.write! Not enough arguments.";
+    return_var.vals = "Error usage at file.write! Not enough arguments.";
     return return_var;
   }
 
   struct SL_Variable return_var = {0};
 
-  struct SL_Variable first_arg =
-      sl_get_argument(*code, func, 0);
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-  struct SL_Variable second_arg =
-      sl_get_argument(*code, func, 1);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
   if (second_arg.type != BYTES) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected bytes as the second argument to file.write.";
+    return_var.vals = "Expected bytes as the second argument to file.write.";
     return return_var;
   }
 
@@ -968,11 +1055,7 @@ struct SL_Variable file_write_fn(struct SL_Code *code,
   }
 
   if (second_arg.length != 0) {
-    size_t written =
-        fwrite(second_arg.vals,
-               1,
-               second_arg.length,
-               file_open);
+    size_t written = fwrite(second_arg.vals, 1, second_arg.length, file_open);
 
     if (written != second_arg.length) {
       fclose(file_open);
@@ -996,23 +1079,19 @@ struct SL_Variable file_append_fn(struct SL_Code *code,
   if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at file.append! Not enough arguments.";
+    return_var.vals = "Error usage at file.append! Not enough arguments.";
     return return_var;
   }
 
   struct SL_Variable return_var = {0};
 
-  struct SL_Variable first_arg =
-      sl_get_argument(*code, func, 0);
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-  struct SL_Variable second_arg =
-      sl_get_argument(*code, func, 1);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
   if (second_arg.type != BYTES) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected bytes as the second argument to file.append.";
+    return_var.vals = "Expected bytes as the second argument to file.append.";
     return return_var;
   }
 
@@ -1035,11 +1114,7 @@ struct SL_Variable file_append_fn(struct SL_Code *code,
   }
 
   if (second_arg.length != 0) {
-    size_t written =
-        fwrite(second_arg.vals,
-               1,
-               second_arg.length,
-               file_open);
+    size_t written = fwrite(second_arg.vals, 1, second_arg.length, file_open);
 
     if (written != second_arg.length) {
       fclose(file_open);
@@ -1056,7 +1131,6 @@ struct SL_Variable file_append_fn(struct SL_Code *code,
 
   return return_var;
 }
-
 
 /* Input/Output for file/dir */
 
@@ -1088,7 +1162,8 @@ struct SL_Variable time_now_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
-struct SL_Variable time_string_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_string_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
                                   struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   const char *format = "%Y-%m-%d %H:%M:%S";
@@ -1114,7 +1189,8 @@ struct SL_Variable time_string_fn(struct SL_Code *code, struct SL_L_Function fun
   return return_var;
 }
 
-struct SL_Variable time_clock_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_clock_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
                                  struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   return_var.type = DOUBLE;
@@ -1122,7 +1198,8 @@ struct SL_Variable time_clock_fn(struct SL_Code *code, struct SL_L_Function func
   return return_var;
 }
 
-struct SL_Variable time_sleep_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_sleep_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
                                  struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   if (func.total_arguments < 1) {
@@ -1135,17 +1212,18 @@ struct SL_Variable time_sleep_fn(struct SL_Code *code, struct SL_L_Function func
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   if (first_arg.type != INTEGER && first_arg.type != DOUBLE) {
     return_var.type = ERROR;
-    return_var.vals = "Expected INTEGER or DOUBLE as the first argument to time.sleep.";
+    return_var.vals =
+        "Expected INTEGER or DOUBLE as the first argument to time.sleep.";
     return return_var;
   }
 
   int ms = (first_arg.type == DOUBLE) ? (int)first_arg.valf : first_arg.vali;
 
-  #ifdef _WIN32
+#ifdef _WIN32
   Sleep(ms);
-  #else
+#else
   usleep(ms * 1000);
-  #endif
+#endif
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -1163,7 +1241,8 @@ struct SL_Variable time_hour_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
-struct SL_Variable time_minute_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_minute_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
                                   struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   time_t t = time(NULL);
@@ -1174,7 +1253,8 @@ struct SL_Variable time_minute_fn(struct SL_Code *code, struct SL_L_Function fun
   return return_var;
 }
 
-struct SL_Variable time_second_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_second_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
                                   struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   time_t t = time(NULL);
@@ -1199,26 +1279,31 @@ struct SL_Variable time_diff_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   if (first_arg.type != INTEGER && first_arg.type != DOUBLE) {
     return_var.type = ERROR;
-    return_var.vals = "Expected INTEGER or DOUBLE as the first argument to time.diff.";
+    return_var.vals =
+        "Expected INTEGER or DOUBLE as the first argument to time.diff.";
     return return_var;
   }
 
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   if (second_arg.type != INTEGER && second_arg.type != DOUBLE) {
     return_var.type = ERROR;
-    return_var.vals = "Expected INTEGER or DOUBLE as the second argument to time.diff.";
+    return_var.vals =
+        "Expected INTEGER or DOUBLE as the second argument to time.diff.";
     return return_var;
   }
 
-  double val1 = (first_arg.type == DOUBLE) ? first_arg.valf : (double)first_arg.vali;
-  double val2 = (second_arg.type == DOUBLE) ? second_arg.valf : (double)second_arg.vali;
+  double val1 =
+      (first_arg.type == DOUBLE) ? first_arg.valf : (double)first_arg.vali;
+  double val2 =
+      (second_arg.type == DOUBLE) ? second_arg.valf : (double)second_arg.vali;
 
   return_var.type = DOUBLE;
   return_var.valf = difftime((time_t)val1, (time_t)val2);
   return return_var;
 }
 
-struct SL_Variable time_parse_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable time_parse_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
                                  struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -1237,9 +1322,9 @@ struct SL_Variable time_parse_fn(struct SL_Code *code, struct SL_L_Function func
   }
 
   struct tm tm_info = {0};
-  if (sscanf(first_arg.vals, "%d-%d-%d %d:%d:%d",
-             &tm_info.tm_year, &tm_info.tm_mon, &tm_info.tm_mday,
-             &tm_info.tm_hour, &tm_info.tm_min, &tm_info.tm_sec) < 6) {
+  if (sscanf(first_arg.vals, "%d-%d-%d %d:%d:%d", &tm_info.tm_year,
+             &tm_info.tm_mon, &tm_info.tm_mday, &tm_info.tm_hour,
+             &tm_info.tm_min, &tm_info.tm_sec) < 6) {
     return_var.type = ERROR;
     return_var.vals = "Invalid date format! Expected 'YYYY-MM-DD HH:MM:SS'.";
     return return_var;
@@ -1320,7 +1405,7 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  char* tmp = smalloc(2);
+  char *tmp = smalloc(2);
   tmp[0] = first_arg.valc;
   tmp[1] = '\0';
   return_var.vals = sl_quote_string(tmp);
@@ -1350,7 +1435,7 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
       temp /= 10;
     }
 
-  char* tmp = smalloc(digits + 1);
+  char *tmp = smalloc(digits + 1);
   snprintf(tmp, digits + 1, "%d", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
@@ -1459,7 +1544,8 @@ struct SL_Variable is_not_initialized_fn(struct SL_Code *code,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.is_not_initialized! Not enough arguments.";
+    return_var.vals =
+        "Error usage at types.is_not_initialized! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -1497,7 +1583,7 @@ struct SL_Variable is_digit_fn(struct SL_Code *code, struct SL_L_Function func,
   } else if (first_arg.type == CHAR)
     if (!isdigit(first_arg.valc))
       return return_var;
-  
+
   return_var.valb = 1;
   return return_var;
 }
@@ -1750,7 +1836,7 @@ struct SL_Variable to_lower_fn(struct SL_Code *code, struct SL_L_Function func,
     }
     return_var.type = STRING;
     return_var.vals = sl_quote_string(str);
-free(str);  
+    free(str);
   } else if (first_arg.type == CHAR) {
     return_var.type = CHAR;
     return_var.valc = (char)tolower((unsigned char)first_arg.valc);
@@ -1764,8 +1850,8 @@ free(str);
 }
 
 struct SL_Variable types_sizeof_fn(struct SL_Code *code,
-                                 struct SL_L_Function func,
-                                 struct SL_Function rfunc) {
+                                   struct SL_L_Function func,
+                                   struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   size_t total_size = 0;
@@ -1816,14 +1902,11 @@ struct SL_Variable types_sizeof_fn(struct SL_Code *code,
     }
   }
 
-    
   return_var.type = INTEGER;
   return_var.vali = total_size;
 
   return return_var;
 }
-
-
 
 struct SL_Variable types_pack_fn(struct SL_Code *code,
                                  struct SL_L_Function func,
@@ -1887,40 +1970,30 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
 
     switch (arg.type) {
     case INTEGER:
-      memcpy(buffer + offset,
-             &arg.vali,
-             sizeof(arg.vali));
+      memcpy(buffer + offset, &arg.vali, sizeof(arg.vali));
 
       offset += sizeof(arg.vali);
       break;
     case DOUBLE:
-      memcpy(buffer + offset,
-             &arg.valf,
-             sizeof(arg.valf));
+      memcpy(buffer + offset, &arg.valf, sizeof(arg.valf));
 
       offset += sizeof(arg.valf);
       break;
 
     case LONG:
-      memcpy(buffer + offset,
-             &arg.valh,
-             sizeof(arg.valh));
+      memcpy(buffer + offset, &arg.valh, sizeof(arg.valh));
 
       offset += sizeof(arg.valh);
       break;
 
     case BOOLEAN:
-      memcpy(buffer + offset,
-             &arg.valb,
-             sizeof(arg.valb));
+      memcpy(buffer + offset, &arg.valb, sizeof(arg.valb));
 
       offset += sizeof(arg.valb);
       break;
 
     case CHAR:
-      memcpy(buffer + offset,
-             &arg.valc,
-             sizeof(arg.valc));
+      memcpy(buffer + offset, &arg.valc, sizeof(arg.valc));
 
       offset += sizeof(arg.valc);
       break;
@@ -1938,9 +2011,7 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
 
       size_t string_size = strlen(string);
 
-      memcpy(buffer + offset,
-             string,
-             string_size);
+      memcpy(buffer + offset, string, string_size);
 
       offset += string_size;
 
@@ -1965,7 +2036,6 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
   return return_var;
 }
 
-
 struct SL_Variable to_upper_fn(struct SL_Code *code, struct SL_L_Function func,
                                struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
@@ -1985,7 +2055,7 @@ struct SL_Variable to_upper_fn(struct SL_Code *code, struct SL_L_Function func,
     }
     return_var.type = STRING;
     return_var.vals = sl_quote_string(str);
-free(str);  
+    free(str);
   } else if (first_arg.type == CHAR) {
     return_var.type = CHAR;
     return_var.valc = (char)toupper((unsigned char)first_arg.valc);
@@ -1998,12 +2068,10 @@ free(str);
   return return_var;
 }
 
+/* BYTES */
 
-/* BYTES */ 
-
-struct SL_Variable byte_get_fn(struct SL_Code *code,
-                                    struct SL_L_Function func,
-                                    struct SL_Function rfunc) {
+struct SL_Variable byte_get_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
   if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -2015,18 +2083,15 @@ struct SL_Variable byte_get_fn(struct SL_Code *code,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   if (first_arg.type != BYTES) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected bytes as the first argument to byte.get.";
+    return_var.vals = "Expected bytes as the first argument to byte.get.";
     return return_var;
   }
 
   if (second_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected integer as the second argument to byte.get.";
+    return_var.vals = "Expected integer as the second argument to byte.get.";
     return return_var;
   }
-
 
   if (second_arg.vali >= first_arg.length) {
     return_var.type = ERROR;
@@ -2044,9 +2109,8 @@ struct SL_Variable byte_get_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable byte_set_fn(struct SL_Code *code,
-                                       struct SL_L_Function func,
-                                       struct SL_Function rfunc) {
+struct SL_Variable byte_set_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
   if (func.total_arguments < 3) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -2059,25 +2123,21 @@ struct SL_Variable byte_set_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
   if (first_arg.type != BYTES) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected bytes as the first argument to byte.set.";
+    return_var.vals = "Expected bytes as the first argument to byte.set.";
     return return_var;
   }
 
   if (second_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected integer as the second argument to byte.set.";
+    return_var.vals = "Expected integer as the second argument to byte.set.";
     return return_var;
   }
 
   if (third_arg.type != CHAR) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected char as the second argument to byte.set.";
+    return_var.vals = "Expected char as the second argument to byte.set.";
     return return_var;
   }
-
 
   if (second_arg.vali >= first_arg.length) {
     return_var.type = ERROR;
@@ -2098,8 +2158,6 @@ struct SL_Variable byte_set_fn(struct SL_Code *code,
   free(bytes);
   return return_var;
 }
-
-
 
 /* String Helper functions */
 struct SL_Variable string_charat_fn(struct SL_Code *code,
@@ -2154,7 +2212,8 @@ struct SL_Variable string_setcharat_fn(struct SL_Code *code,
   if (func.total_arguments < 3) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at string.set_char_at! Not enough arguments.";
+    return_var.vals =
+        "Error usage at string.set_char_at! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable return_var = {0};
@@ -2643,7 +2702,7 @@ struct SL_Variable string_split_fn(struct SL_Code *code,
 
   return_var.type = INTEGER;
   return_var.vali = listind;
-
+  return_var.info = SL_LIST;
 
   return return_var;
 }
@@ -2781,7 +2840,8 @@ struct SL_Variable string_reverse_fn(struct SL_Code *code,
 
   if (first_arg.type != STRING) {
     return_var.type = ERROR;
-    return_var.vals = "Expected string as the first argument to string.reverse.";
+    return_var.vals =
+        "Expected string as the first argument to string.reverse.";
     return return_var;
   }
 
@@ -2796,7 +2856,7 @@ struct SL_Variable string_reverse_fn(struct SL_Code *code,
 
   return_var.type = STRING;
   return_var.vals = sl_quote_string(raw_str);
-  
+
   free(raw_str);
 
   return return_var;
@@ -2904,13 +2964,13 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at errors.string! Not enough arguments.";
+    return_var.vals = "Error usage at errors.panic! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR) {
-    printf("Program panicked with error: %s\n", first_arg.vals);
+    printf("Program panicked with error: %s\n", sl_string_getter(first_arg.vals));
     exit(-1);
   }
   return return_var;
@@ -3071,7 +3131,7 @@ struct SL_Variable List_new_fn(struct SL_Code *code, struct SL_L_Function func,
 
   return_var.type = INTEGER;
   return_var.vali = create_new_list(capacity, fixed);
-
+  return_var.info = SL_LIST;
   return return_var;
 }
 
@@ -3087,7 +3147,7 @@ struct SL_Variable List_push_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.push.";
@@ -3129,7 +3189,7 @@ struct SL_Variable List_pop_fn(struct SL_Code *code, struct SL_L_Function func,
 
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.pop.";
@@ -3171,7 +3231,7 @@ struct SL_Variable List_peek_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.peek.";
@@ -3215,7 +3275,7 @@ struct SL_Variable List_set_fn(struct SL_Code *code, struct SL_L_Function func,
 
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.set.";
@@ -3267,7 +3327,7 @@ struct SL_Variable List_get_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.get.";
@@ -3309,7 +3369,7 @@ struct SL_Variable List_remove_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.remove.";
@@ -3360,15 +3420,15 @@ struct SL_Variable List_free_fn(struct SL_Code *code, struct SL_L_Function func,
     return result;
   }
 
-  struct SL_Variable arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-  if (arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     result.type = ERROR;
-    result.vals = "List.free expects a list variable.";
+    result.vals = "Expected list_variable as the first argument to List.free.";
     return result;
   }
 
-  if (!list_free(arg.vali)) {
+  if (!list_free(first_arg.vali)) {
     result.type = ERROR;
     result.vals = "Invalid list variable.";
     return result;
@@ -3392,7 +3452,7 @@ struct SL_Variable List_find_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.remove.";
@@ -3471,7 +3531,7 @@ struct SL_Variable List_iter_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.iter.";
@@ -3508,7 +3568,7 @@ struct SL_Variable List_next_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.next.";
@@ -3546,9 +3606,10 @@ struct SL_Variable List_reverse_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
-    return_var.vals = "Expected list_variable as the first argument to List.reverse.";
+    return_var.vals =
+        "Expected list_variable as the first argument to List.reverse.";
     return return_var;
   }
 
@@ -3572,7 +3633,6 @@ struct SL_Variable List_reverse_fn(struct SL_Code *code,
   return return_var;
 }
 
-
 static int sl_compare_vars(const void *a, const void *b) {
   const struct SL_Variable *va = (const struct SL_Variable *)a;
   const struct SL_Variable *vb = (const struct SL_Variable *)b;
@@ -3582,29 +3642,28 @@ static int sl_compare_vars(const void *a, const void *b) {
   }
 
   switch (va->type) {
-    case INTEGER: 
-      return (va->vali - vb->vali);
-    case DOUBLE:  
-      return (va->valf > vb->valf) - (va->valf < vb->valf);
-    case CHAR:    
-      return (va->valc - vb->valc);
-    case LONG:    
-      return (va->valh > vb->valh) - (va->valh < vb->valh);
-    case BOOLEAN: 
-      return (va->valb - vb->valb);
-    case STRING: {
-      if (va->vals != NULL && vb->vals != NULL) {
-        return strcmp(va->vals, vb->vals);
-      }
-      return 0;
+  case INTEGER:
+    return (va->vali - vb->vali);
+  case DOUBLE:
+    return (va->valf > vb->valf) - (va->valf < vb->valf);
+  case CHAR:
+    return (va->valc - vb->valc);
+  case LONG:
+    return (va->valh > vb->valh) - (va->valh < vb->valh);
+  case BOOLEAN:
+    return (va->valb - vb->valb);
+  case STRING: {
+    if (va->vals != NULL && vb->vals != NULL) {
+      return strcmp(va->vals, vb->vals);
     }
-    default: 
-      return 0;
+    return 0;
+  }
+  default:
+    return 0;
   }
 }
 
-struct SL_Variable List_sort_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable List_sort_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
@@ -3616,9 +3675,10 @@ struct SL_Variable List_sort_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
-    return_var.vals = "Expected list_variable as the first argument to List.sort.";
+    return_var.vals =
+        "Expected list_variable as the first argument to List.sort.";
     return return_var;
   }
 
@@ -3640,8 +3700,7 @@ struct SL_Variable List_sort_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable List_copy_fn(struct SL_Code *code,
-                                struct SL_L_Function func,
+struct SL_Variable List_copy_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
@@ -3653,9 +3712,10 @@ struct SL_Variable List_copy_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
-    return_var.vals = "Expected list_variable as the first argument to List.copy.";
+    return_var.vals =
+        "Expected list_variable as the first argument to List.copy.";
     return return_var;
   }
 
@@ -3673,13 +3733,14 @@ struct SL_Variable List_copy_fn(struct SL_Code *code,
   dest_list->size = src_list->size;
 
   if (src_list->size > 0) {
-    dest_list->vars = (struct SL_Variable *)smalloc(src_list->size * sizeof(struct SL_Variable));
+    dest_list->vars = (struct SL_Variable *)smalloc(src_list->size *
+                                                    sizeof(struct SL_Variable));
 
     for (int i = 0; i < src_list->size; i++) {
       dest_list->vars[i] = sl_copy_variable(src_list->vars[i]);
     }
   } else {
-    dest_list->vars = NULL; 
+    dest_list->vars = NULL;
   }
 
   return_var.type = INTEGER;
@@ -3702,7 +3763,7 @@ struct SL_Variable List_relative_fn(struct SL_Code *code,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.relative.";
@@ -3751,7 +3812,7 @@ struct SL_Variable List_len_fn(struct SL_Code *code, struct SL_L_Function func,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
 
-  if (first_arg.type != INTEGER) {
+  if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
     return_var.vals =
         "Expected list_variable as the first argument to List.len.";
@@ -4021,8 +4082,9 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     sl_add_raw_func(code, &func);
     free(full_func_name);
   }
-  return_var.vals = strdup(collections.collections[collec_index].name);
+  return_var.vals = sl_quote_string(collections.collections[collec_index].name);
   return_var.type = STRING;
+  return_var.info = SL_COLLECTION;
   return return_var;
 }
 
@@ -4106,8 +4168,9 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
 
   if (collections.size >= collections.capacity) {
     collections.capacity *= 2;
-    collections.collections = srealloc(collections.collections,
-                        collections.capacity * sizeof(struct SL_Collection));
+    collections.collections =
+        srealloc(collections.collections,
+                 collections.capacity * sizeof(struct SL_Collection));
   }
 
   int index = collections.size;
@@ -4150,7 +4213,7 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       link_func.code_tokens = srealloc(
           link_func.code_tokens, (link_func.code_len + 4) * sizeof(char *));
       link_func.types = srealloc(link_func.types, (link_func.code_len + 4) *
-                                                     sizeof(enum TokenTypes));
+                                                      sizeof(enum TokenTypes));
       memmove(link_func.code_tokens + 4, link_func.code_tokens,
               link_func.code_len * sizeof(char *));
       link_func.code_tokens[0] = strdup("var");
@@ -5743,12 +5806,12 @@ struct SL_Variable console_fgcolor_win_fn(struct SL_Code *code,
     break;
   }
 
-if (!sl_console_write_cstr(color_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set console text attribute.";
-  return return_var;
-}
-return_var.type = BOOLEAN;
+  if (!sl_console_write_cstr(color_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -5832,12 +5895,12 @@ struct SL_Variable console_bgcolor_win_fn(struct SL_Code *code,
     break;
   }
 
-if (!sl_console_write_cstr(color_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set console text attribute.";
-  return return_var;
-}
-return_var.type = BOOLEAN;
+  if (!sl_console_write_cstr(color_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -5850,11 +5913,11 @@ struct SL_Variable console_reset_color_win_fn(struct SL_Code *code,
 
   const char *reset_seq = "\x1b[0m";
 
-if (!sl_console_write_cstr(reset_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set console text attribute.";
-  return return_var;
-}  
+  if (!sl_console_write_cstr(reset_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console text attribute.";
+    return return_var;
+  }
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -5886,12 +5949,12 @@ struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
            first_arg.vali + 1);
 
-if (!sl_console_write_cstr(buf)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set cursor position.";
-  return return_var;
-}
-return_var.type = BOOLEAN;
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor position.";
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -5924,11 +5987,11 @@ struct SL_Variable console_cursor_visibility_win_fn(struct SL_Code *code,
     visibility_seq = "\x1b[?25l";
   }
 
-if (!sl_console_write_cstr(visibility_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set cursor visibility.";
-  return return_var;
-}
+  if (!sl_console_write_cstr(visibility_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor visibility.";
+    return return_var;
+  }
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -6297,11 +6360,12 @@ struct SL_Variable console_enter_alt_win_fn(struct SL_Code *code,
                                             struct SL_L_Function func,
                                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-if (!sl_console_write_cstr("\x1b[?1049h")) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to enter alternate screen.";
+  if (!sl_console_write_cstr("\x1b[?1049h")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to enter alternate screen.";
+    return return_var;
+  }
   return return_var;
-}  return return_var;
 }
 
 struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
@@ -6312,7 +6376,8 @@ struct SL_Variable console_leave_alt_win_fn(struct SL_Code *code,
     return_var.type = ERROR;
     return_var.vals = "Failed to leave alternate screen.";
     return return_var;
-  }  return return_var;
+  }
+  return return_var;
 }
 
 #else
@@ -6386,11 +6451,12 @@ struct SL_Variable console_clear_posix_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   const char *clear_seq = "\x1b[2J\x1b[3J\x1b[H";
 
-if (!sl_console_write_cstr(clear_seq)) {
-  return_var.vals = "Cannot clear console.";
-  return_var.type = ERROR;
-  return return_var;
-}  return_var.type = BOOLEAN;
+  if (!sl_console_write_cstr(clear_seq)) {
+    return_var.vals = "Cannot clear console.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+  return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
@@ -6462,11 +6528,11 @@ struct SL_Variable console_fgcolor_posix_fn(struct SL_Code *code,
     color_seq = "\x1b[39m";
     break;
   }
-if (!sl_console_write_cstr(color_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set foreground color.";
-  return return_var;
-}
+  if (!sl_console_write_cstr(color_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set foreground color.";
+    return return_var;
+  }
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -6541,11 +6607,11 @@ struct SL_Variable console_bgcolor_posix_fn(struct SL_Code *code,
     break;
   }
 
- if (!sl_console_write_cstr(color_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set background color.";
-  return return_var;
-}
+  if (!sl_console_write_cstr(color_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set background color.";
+    return return_var;
+  }
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -6584,11 +6650,11 @@ struct SL_Variable console_cursor_position_posix_fn(struct SL_Code *code,
   snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
            first_arg.vali + 1);
 
-if (!sl_console_write_cstr(buf)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set cursor position.";
-  return return_var;
-}
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor position.";
+    return return_var;
+  }
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -6607,19 +6673,19 @@ struct SL_Variable console_cursor_visibility_posix_fn(
 
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
-const char *visibility_seq;
+  const char *visibility_seq;
 
-if (first_arg.valb == 1) {
-  visibility_seq = "\x1b[?25h";
-} else {
-  visibility_seq = "\x1b[?25l";
-}
+  if (first_arg.valb == 1) {
+    visibility_seq = "\x1b[?25h";
+  } else {
+    visibility_seq = "\x1b[?25l";
+  }
 
-if (!sl_console_write_cstr(visibility_seq)) {
-  return_var.type = ERROR;
-  return_var.vals = "Failed to set cursor visibility.";
-  return return_var;
-}
+  if (!sl_console_write_cstr(visibility_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set cursor visibility.";
+    return return_var;
+  }
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
@@ -6659,7 +6725,7 @@ struct SL_Variable console_enter_alt_posix_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-    if (!sl_console_write_cstr("\x1b[?1049h")) {
+  if (!sl_console_write_cstr("\x1b[?1049h")) {
     return_var.type = ERROR;
     return_var.vals = "Failed to enter alternate screen.";
     return return_var;
@@ -6671,7 +6737,7 @@ struct SL_Variable console_leave_alt_posix_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  
+
   if (!sl_console_write_cstr("\x1b[?1049l")) {
     return_var.type = ERROR;
     return_var.vals = "Failed to leave alternate screen.";
@@ -6935,17 +7001,16 @@ struct SL_Variable console_clear_line_fn(struct SL_Code *code,
                                          struct SL_L_Function func,
                                          struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-    if (!sl_console_write_cstr("\033[2K")) {
+  if (!sl_console_write_cstr("\033[2K")) {
     return_var.type = ERROR;
     return_var.vals = "Failed to clear console line.";
     return return_var;
   }
   return return_var;
 }
-struct SL_Variable console_begin_update_fn(
-    struct SL_Code *code,
-    struct SL_L_Function func,
-    struct SL_Function rfunc) {
+struct SL_Variable console_begin_update_fn(struct SL_Code *code,
+                                           struct SL_L_Function func,
+                                           struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   if (!sl_console_write_cstr("\x1b[?2026h")) {
@@ -6959,10 +7024,9 @@ struct SL_Variable console_begin_update_fn(
   return return_var;
 }
 
-struct SL_Variable console_end_update_fn(
-    struct SL_Code *code,
-    struct SL_L_Function func,
-    struct SL_Function rfunc) {
+struct SL_Variable console_end_update_fn(struct SL_Code *code,
+                                         struct SL_L_Function func,
+                                         struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   if (!sl_console_write_cstr("\x1b[?2026l")) {
@@ -6976,8 +7040,8 @@ struct SL_Variable console_end_update_fn(
   return return_var;
 }
 struct SL_Variable console_auto_wrap_fn(struct SL_Code *code,
-                                           struct SL_L_Function func,
-                                           struct SL_Function rfunc) {
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
 
   struct SL_Variable return_var = {0};
   if (func.total_arguments < 1) {
@@ -6991,7 +7055,6 @@ struct SL_Variable console_auto_wrap_fn(struct SL_Code *code,
   if (first_arg.type != BOOLEAN) {
     return_var.vals = "All items must be typed as bool on console.autowrap";
   }
-
 
   if (first_arg.valb == 1) {
     if (!sl_console_write_cstr("\x1b[?7h")) {
@@ -7018,8 +7081,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
 
   if (func.total_arguments < 3) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at console.write_at! Expected x, y, text.";
+    return_var.vals = "Error usage at console.write_at! Expected x, y, text.";
     return return_var;
   }
 
@@ -7029,8 +7091,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
 
   if (x_arg.type != INTEGER || y_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at expects integer x and y coordinates.";
+    return_var.vals = "console.write_at expects integer x and y coordinates.";
     return return_var;
   }
 
@@ -7043,8 +7104,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
 
   if (x_arg.vali < 0 || y_arg.vali < 0) {
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at coordinates cannot be negative.";
+    return_var.vals = "console.write_at coordinates cannot be negative.";
     return return_var;
   }
 
@@ -7052,24 +7112,17 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
 
   if (text == NULL) {
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at failed to decode text.";
+    return_var.vals = "console.write_at failed to decode text.";
     return return_var;
   }
 
-  int prefix_len = snprintf(
-      NULL,
-      0,
-      "\033[%d;%dH",
-      y_arg.vali + 1,
-      x_arg.vali + 1
-  );
+  int prefix_len =
+      snprintf(NULL, 0, "\033[%d;%dH", y_arg.vali + 1, x_arg.vali + 1);
 
   if (prefix_len < 0) {
     free(text);
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at failed to format cursor position.";
+    return_var.vals = "console.write_at failed to format cursor position.";
     return return_var;
   }
 
@@ -7081,18 +7134,12 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
   if (output == NULL) {
     free(text);
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at failed to allocate output buffer.";
+    return_var.vals = "console.write_at failed to allocate output buffer.";
     return return_var;
   }
 
-  snprintf(
-      output,
-      (size_t)prefix_len + 1,
-      "\033[%d;%dH",
-      y_arg.vali + 1,
-      x_arg.vali + 1
-  );
+  snprintf(output, (size_t)prefix_len + 1, "\033[%d;%dH", y_arg.vali + 1,
+           x_arg.vali + 1);
 
   memcpy(output + prefix_len, text, text_len);
   output[total_len] = '\0';
@@ -7104,8 +7151,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
 
   if (!success) {
     return_var.type = ERROR;
-    return_var.vals =
-        "console.write_at failed to write output.";
+    return_var.vals = "console.write_at failed to write output.";
     return return_var;
   }
 
@@ -7131,19 +7177,15 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
   struct SL_Variable height_arg = sl_get_argument(*code, func, 3);
   struct SL_Variable fill_arg = sl_get_argument(*code, func, 4);
 
-  if (x_arg.type != INTEGER ||
-      y_arg.type != INTEGER ||
-      width_arg.type != INTEGER ||
-      height_arg.type != INTEGER) {
+  if (x_arg.type != INTEGER || y_arg.type != INTEGER ||
+      width_arg.type != INTEGER || height_arg.type != INTEGER) {
     return_var.type = ERROR;
     return_var.vals =
         "console.fill_rect expects integer x, y, width and height.";
     return return_var;
   }
 
-  if (x_arg.vali < 0 ||
-      y_arg.vali < 0 ||
-      width_arg.vali <= 0 ||
+  if (x_arg.vali < 0 || y_arg.vali < 0 || width_arg.vali <= 0 ||
       height_arg.vali <= 0) {
     return_var.type = ERROR;
     return_var.vals =
@@ -7160,8 +7202,7 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
 
     if (decoded == NULL) {
       return_var.type = ERROR;
-      return_var.vals =
-          "console.fill_rect failed to decode fill character.";
+      return_var.vals = "console.fill_rect failed to decode fill character.";
       return return_var;
     }
 
@@ -7188,18 +7229,12 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
   size_t total_size = 0;
 
   for (int row = 0; row < height_arg.vali; row++) {
-    int cursor_len = snprintf(
-        NULL,
-        0,
-        "\033[%d;%dH",
-        y_arg.vali + row + 1,
-        x_arg.vali + 1
-    );
+    int cursor_len =
+        snprintf(NULL, 0, "\033[%d;%dH", y_arg.vali + row + 1, x_arg.vali + 1);
 
     if (cursor_len < 0) {
       return_var.type = ERROR;
-      return_var.vals =
-          "console.fill_rect failed to format cursor position.";
+      return_var.vals = "console.fill_rect failed to format cursor position.";
       return return_var;
     }
 
@@ -7211,19 +7246,14 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
   size_t offset = 0;
 
   for (int row = 0; row < height_arg.vali; row++) {
-    int cursor_len = snprintf(
-        output + offset,
-        total_size + 1 - offset,
-        "\033[%d;%dH",
-        y_arg.vali + row + 1,
-        x_arg.vali + 1
-    );
+    int cursor_len =
+        snprintf(output + offset, total_size + 1 - offset, "\033[%d;%dH",
+                 y_arg.vali + row + 1, x_arg.vali + 1);
 
     if (cursor_len < 0) {
       free(output);
       return_var.type = ERROR;
-      return_var.vals =
-          "console.fill_rect failed to write cursor position.";
+      return_var.vals = "console.fill_rect failed to write cursor position.";
       return return_var;
     }
 
@@ -7241,8 +7271,7 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
 
   if (!success) {
     return_var.type = ERROR;
-    return_var.vals =
-        "console.fill_rect failed to write output.";
+    return_var.vals = "console.fill_rect failed to write output.";
     return return_var;
   }
 
@@ -7608,11 +7637,11 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_double", is_double_fn);
       sl_add_func(code, "types.is_not_initialized", is_not_initialized_fn);
       sl_add_func(code, "types.typeof", typeof_fn);
-    
-      /* SIZE CALCULATION */ 
+
+      /* SIZE CALCULATION */
       sl_add_func(code, "types.sizeof", types_sizeof_fn);
 
-      /* BINARY PACK */ 
+      /* BINARY PACK */
       sl_add_func(code, "types.pack", types_pack_fn);
 
       /* STRING TYPE CHECK */
