@@ -1,6 +1,6 @@
 #include "sl.h"
-
 #include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,7 +18,7 @@ char *sl_bytes_copy(const char *bytes, size_t length) {
   if (bytes == NULL && length != 0)
     return NULL;
 
-  char *copy = malloc(length);
+  char *copy = smalloc(length);
 
   if (copy == NULL && length != 0)
     return NULL;
@@ -55,7 +55,7 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
   if (function.arguments != NULL) {
     if (function.total_arguments > 0) {
       copy.arguments =
-          malloc(function.total_arguments * sizeof(*copy.arguments));
+          smalloc(function.total_arguments * sizeof(*copy.arguments));
       for (int i = 0; i < function.total_arguments; i++) {
         copy.arguments[i] = sl_copy_variable(function.arguments[i]);
       }
@@ -68,7 +68,7 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
 
   if (function.code_tokens != NULL) {
     if (function.code_len > 0) {
-      copy.code_tokens = malloc(function.code_len * sizeof(*copy.code_tokens));
+      copy.code_tokens = smalloc(function.code_len * sizeof(*copy.code_tokens));
       for (int i = 0; i < function.code_len; i++) {
         copy.code_tokens[i] = strdup(function.code_tokens[i]);
       }
@@ -82,7 +82,7 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
   if (function.fixed_values != NULL) {
     if (function.code_len > 0) {
       copy.fixed_values =
-          malloc(function.code_len * sizeof(*copy.fixed_values));
+          smalloc(function.code_len * sizeof(*copy.fixed_values));
       for (int i = 0; i < function.code_len; i++) {
         copy.fixed_values[i] = sl_copy_variable(function.fixed_values[i]);
       }
@@ -95,7 +95,7 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
 
   if (function.types != NULL) {
     if (function.code_len > 0) {
-      copy.types = malloc(function.code_len * sizeof(*copy.types));
+      copy.types = smalloc(function.code_len * sizeof(*copy.types));
       for (int i = 0; i < function.code_len; i++) {
         copy.types[i] = function.types[i];
       }
@@ -174,7 +174,7 @@ char *sl_quote_string(const char *str) {
     size++;
   }
 
-  char *result = malloc(size);
+  char *result = smalloc(size);
   if (result == NULL)
     return NULL;
 
@@ -194,8 +194,8 @@ char *sl_quote_string(const char *str) {
   return result;
 }
 
-int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
-          int start_size) {
+int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
+                 char *special_tokens, int start_size) {
   int size_s = start_size;
   if (bufin == NULL)
     return 0;
@@ -204,10 +204,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
   while (*p != '\0') {
     if (token_count >= size_s) {
       size_s *= 2;
-      char **tmp = realloc(*bufout, size_s * sizeof(char *));
-      if (tmp == NULL)
-        return -1;
-      (*bufout) = tmp;
+      (*bufout) = srealloc(*bufout, size_s * sizeof(char *));
     }
     if (*p == '#') {
       break;
@@ -227,11 +224,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
       }
 
       int stringlen = p - string_start;
-      char *in_string_tokens = malloc(stringlen + 1);
-      if (in_string_tokens == NULL) {
-        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
-        return -1;
-      }
+      char *in_string_tokens = smalloc(stringlen + 1);
       strncpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
       (*bufout)[token_count++] = in_string_tokens;
@@ -254,12 +247,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
       }
 
       int stringlen = (int)(p - string_start);
-      char *in_string_tokens = malloc(stringlen + 1);
-      if (in_string_tokens == NULL) {
-        fprintf(stderr, "malloc() failed to allocate memory on the heap\n");
-        return -1;
-      }
-
+      char *in_string_tokens = smalloc(stringlen + 1);
       memcpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
 
@@ -267,13 +255,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
 
     } else {
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
-        char *pot = malloc(3);
-        if (pot == NULL) {
-          /* the allocation will always be valid since it is a fixed size (3) */
-          fprintf(stderr, "malloc() failed to allocate memory on the heap "
-                          "(high memory usage)\n");
-          return -1;
-        }
+        char *pot = smalloc(3);
         pot[0] = *p;
         pot[1] = *(p + 1);
         pot[2] = '\0';
@@ -292,7 +274,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
 
         int word_len = p - word_start;
 
-        char *word = malloc(word_len + 1);
+        char *word = smalloc(word_len + 1);
         memcpy(word, word_start, word_len);
         word[word_len] = '\0';
 
@@ -300,7 +282,7 @@ int LEXER(char *bufin, char ***bufout, size_t max_count, char *special_tokens,
         continue;
       }
       if (lexer_special_tokens_ex(special_tokens, *p) > 0) {
-        char *pot = malloc(2);
+        char *pot = smalloc(2);
         pot[0] = *p;
         pot[1] = '\0';
         (*bufout)[token_count++] = pot;
@@ -378,7 +360,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
     size_t len = strlen(code_string);
     if (len + index + 2 > total_allocations) {
       total_allocations += malloc_size;
-      code_string = realloc(code_string, total_allocations);
+      code_string = srealloc(code_string, total_allocations);
     }
 
     memcpy(code_string + len, buf, index);
@@ -386,9 +368,9 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
     code_string[len + index + 1] = '\0';
   }
 
-  char **code_array = malloc(1024 * sizeof(char *));
-  int count = LEXER(code_string, &code_array, strlen(code_string),
-                    special_tokens, 1024);
+  char **code_array = smalloc(1024 * sizeof(char *));
+  int count = sl_raw_lexer(code_string, &code_array, strlen(code_string),
+                           special_tokens, 1024);
 
   free(code_string);
   *bufout = code_array;
@@ -450,7 +432,7 @@ char *sl_string_getter(char *word) {
   }
 
   size_t size = strlen(word);
-  char *our_word = malloc(size);
+  char *our_word = smalloc(size);
   if (our_word == NULL)
     return NULL;
 
@@ -711,13 +693,8 @@ int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function) {
     code->total_size_f =
         code->total_size_f == 0 ? SL_INIT : code->total_size_f * 2;
 
-    struct SL_Function *tmp =
-        realloc(code->funcs, code->total_size_f * sizeof(*code->funcs));
-
-    if (!tmp)
-      return -1;
-
-    code->funcs = tmp;
+    code->funcs =
+        srealloc(code->funcs, code->total_size_f * sizeof(*code->funcs));
   }
 
   int has_func = is_has_func(*code, function->name);
@@ -739,9 +716,7 @@ int sl_add_func(struct SL_Code *code, char *name,
     code->total_size_f =
         (code->total_size_f == 0) ? SL_INIT : code->total_size_f * 2;
     code->funcs =
-        realloc(code->funcs, code->total_size_f * sizeof(struct SL_Function));
-    if (!code->funcs)
-      return -1;
+        srealloc(code->funcs, code->total_size_f * sizeof(struct SL_Function));
   }
 
   code->funcs[code->total_funcs].name = strdup(name);
@@ -766,9 +741,7 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var) {
     code->total_size_v =
         (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
     code->vars =
-        realloc(code->vars, code->total_size_v * sizeof(struct SL_Variable));
-    if (!code->vars)
-      return -1;
+        srealloc(code->vars, code->total_size_v * sizeof(struct SL_Variable));
   }
   unsigned long hashe = sl_hash_string(var.name);
   int index = getvar_index_from_sl(*code, var.name, hashe);
@@ -842,7 +815,7 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         }
 
         size_t joined_len = strlen(left_string) + strlen(right_string);
-        char *joined_string = malloc(joined_len + 1);
+        char *joined_string = smalloc(joined_len + 1);
 
         if (joined_string == NULL) {
           free(left_string);
@@ -1586,7 +1559,7 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
 
 char *get_raw_function_name(const char *word) {
   size_t len = strlen(word);
-  char *returning_name = malloc(len + 1);
+  char *returning_name = smalloc(len + 1);
   int j = 0;
   for (int i = 0; i < len; i++) {
     if (word[i] == '(') {
@@ -1701,7 +1674,7 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
       current_token += 2;
       int how_much_go = 0;
       int vaargs_counter = 0;
-      lfunc.argument_indexes = calloc(SL_INIT, sizeof(int));
+      lfunc.argument_indexes = scalloc(SL_INIT, sizeof(int));
       lfunc.starting_index = code->total_vars;
 
       while (current_token < code->token_count) {
@@ -1726,11 +1699,6 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
         }
 
         if (function.linked_function == 1) {
-          if (lfunc.argument_indexes == NULL) {
-            fprintf(stderr, "calloc() failed to allocate memory\n");
-            exit(-1);
-          }
-
           lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
           struct SL_Variable result = expression_parser_solver(
               code, tokens, types, &current_token, commapos, 0);
@@ -1744,7 +1712,7 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
           lfunc.total_arguments++;
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
-            char *function_name = malloc(SL_INIT);
+            char *function_name = smalloc(SL_INIT);
             /* size_t func_len = strlen(function.name);  never used */
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
@@ -2159,7 +2127,7 @@ struct SL_Variable_Creator variable_parser(struct SL_Code *code_s,
                                            char *tokens[], int *current_token,
                                            int max_tokens, int current_line) {
   struct SL_Variable_Creator variables;
-  variables.variable = calloc(1024, sizeof(struct SL_Variable));
+  variables.variable = scalloc(1024, sizeof(struct SL_Variable));
   variables.total_variables = 0;
   while (current_token != NULL && *current_token < max_tokens) {
     if (tokens[(*current_token) + 1] == NULL && max_tokens < 3) {
@@ -2323,7 +2291,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
   char *f_name = tokens[current++];
   size_t f_name_len = strlen(f_name);
   struct SL_Function function = {0};
-  function.name = malloc(f_name_len + 1);
+  function.name = smalloc(f_name_len + 1);
   function.name[f_name_len] = '\0';
   strncpy(function.name, f_name, f_name_len);
   function.hash = sl_hash_string(function.name);
@@ -2333,7 +2301,7 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
   if (tokens[current][0] == '-' && tokens[++current][0] == '>') {
     current++;
     int arg_capacity = 8;
-    function.arguments = calloc(arg_capacity, sizeof(struct SL_Variable));
+    function.arguments = scalloc(arg_capacity, sizeof(struct SL_Variable));
     if (tokens[current][0] == ',')
       return function;
     while (types[current] != T_THEN) {
@@ -2354,19 +2322,11 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
       int j = function.total_arguments;
       if (j >= arg_capacity) {
         arg_capacity *= 2;
-        function.arguments = realloc(function.arguments,
-                                     arg_capacity * sizeof(struct SL_Variable));
-        if (function.arguments == NULL) {
-          fprintf(stderr, "realloc() failed to allocate memory\n");
-          exit(-1);
-        }
+        function.arguments = srealloc(
+            function.arguments, arg_capacity * sizeof(struct SL_Variable));
       }
       size_t len = strlen(tokens[current]);
-      if (function.arguments == NULL) {
-        fprintf(stderr, "calloc() failed to allocate memory\n");
-        exit(-1);
-      }
-      function.arguments[j].name = malloc(len + 1);
+      function.arguments[j].name = smalloc(len + 1);
       strncpy(function.arguments[j].name, tokens[current], len);
       function.arguments[j].name[len] = '\0';
       function.arguments[j].hash = sl_hash_string(function.arguments[j].name);
@@ -2397,13 +2357,13 @@ struct SL_Function sl_define_parser(struct SL_Code code_s, char *tokens[],
       code_length++;
       current++;
     }
-    function.code_tokens = malloc(code_length * sizeof(char *));
-    function.types = malloc(code_length * sizeof(enum TokenTypes));
-    function.fixed_values = calloc(code_length, sizeof(struct SL_Variable));
+    function.code_tokens = smalloc(code_length * sizeof(char *));
+    function.types = smalloc(code_length * sizeof(enum TokenTypes));
+    function.fixed_values = scalloc(code_length, sizeof(struct SL_Variable));
     function.code_len = code_length;
     for (int i = 0; i < code_length; i++) {
       size_t len = strlen(tokens[starting + i]);
-      function.code_tokens[i] = malloc(len + 1);
+      function.code_tokens[i] = smalloc(len + 1);
       function.types[i] = types[starting + i];
       function.fixed_values[i] =
           sl_copy_variable(code_s.fixed_values[starting + i]);
@@ -2565,23 +2525,9 @@ void identifier_tokenizer(char **code, enum TokenTypes **types,
 struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
   struct Loops while_loop = {0};
   while_loop.depth = 0;
-  while_loop.back_pos = calloc(SL_INIT, sizeof(int));
-  while_loop.end = calloc(SL_INIT, sizeof(int));
-  while_loop.then_pos = calloc(SL_INIT, sizeof(int));
-  if (while_loop.back_pos == NULL || while_loop.end == NULL ||
-      while_loop.then_pos == NULL) {
-    if (while_loop.back_pos != NULL) {
-      free(while_loop.back_pos);
-    }
-    if (while_loop.end != NULL) {
-      free(while_loop.end);
-    }
-    if (while_loop.then_pos != NULL) {
-      free(while_loop.then_pos);
-    }
-    fprintf(stderr, "calloc() failed to allocate memory\n");
-    exit(-1);
-  }
+  while_loop.back_pos = scalloc(SL_INIT, sizeof(int));
+  while_loop.end = scalloc(SL_INIT, sizeof(int));
+  while_loop.then_pos = scalloc(SL_INIT, sizeof(int));
   while_loop.capacity = SL_INIT;
   int while_sit = 0;
   struct SL_Variable return_val = {0};
@@ -2636,8 +2582,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         }
         if (code_s->total_vars == code_s->total_size_v - 1) {
           code_s->total_size_v *= 2;
-          code_s->vars = realloc(code_s->vars, code_s->total_size_v *
-                                                   sizeof(struct SL_Variable));
+          code_s->vars = srealloc(code_s->vars, code_s->total_size_v *
+                                                    sizeof(struct SL_Variable));
         }
       }
       free(vars.variable);
@@ -2699,16 +2645,11 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       if (while_loop.depth >= while_loop.capacity) {
         while_loop.capacity *= 2;
         while_loop.back_pos =
-            realloc(while_loop.back_pos, while_loop.capacity * sizeof(int));
+            srealloc(while_loop.back_pos, while_loop.capacity * sizeof(int));
         while_loop.end =
-            realloc(while_loop.end, while_loop.capacity * sizeof(int));
+            srealloc(while_loop.end, while_loop.capacity * sizeof(int));
         while_loop.then_pos =
-            realloc(while_loop.then_pos, while_loop.capacity * sizeof(int));
-
-        if (while_loop.back_pos == NULL || while_loop.end == NULL) {
-          fprintf(stderr, "realloc() failed to allocate memory\n");
-          exit(-1);
-        }
+            srealloc(while_loop.then_pos, while_loop.capacity * sizeof(int));
       }
 
       int thenp = -1;
@@ -2828,7 +2769,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
         import_code.scope_depth = code_s->scope_depth;
 
-        import_code.types = malloc(imported_count * sizeof(enum TokenTypes));
+        import_code.types = smalloc(imported_count * sizeof(enum TokenTypes));
         for (int i = 0; i < imported_count; i++) {
           import_code.types[i] = T_UNKNOWN;
         }
@@ -2870,8 +2811,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       code_s->funcs[code_s->total_funcs++] = func;
       if (code_s->total_funcs == code_s->total_size_f - 1) {
         code_s->total_size_f *= 2;
-        code_s->funcs = realloc(code_s->funcs, code_s->total_size_f *
-                                                   sizeof(struct SL_Function));
+        code_s->funcs = srealloc(code_s->funcs, code_s->total_size_f *
+                                                    sizeof(struct SL_Function));
       }
       break;
     case T_RETURN:
@@ -2923,9 +2864,9 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
 struct SL_Code sl_init_sl_process() {
   struct SL_Code code;
-  code.funcs = calloc(SL_INIT, sizeof(struct SL_Function));
+  code.funcs = scalloc(SL_INIT, sizeof(struct SL_Function));
   code.total_size_f = SL_INIT;
-  code.vars = calloc(SL_INIT, sizeof(struct SL_Variable));
+  code.vars = scalloc(SL_INIT, sizeof(struct SL_Variable));
   code.total_size_v = SL_INIT;
   code.total_funcs = 0;
   code.total_vars = 0;
@@ -2945,8 +2886,8 @@ int sl_open_sl_process(struct SL_Code *code, char *file_name) {
     return -1;
   }
 
-  code->types = calloc(count, sizeof(enum TokenTypes));
-  code->fixed_values = calloc(count, sizeof(struct SL_Variable));
+  code->types = scalloc(count, sizeof(enum TokenTypes));
+  code->fixed_values = scalloc(count, sizeof(struct SL_Variable));
   code->types_set = 0;
   if (code->types == NULL) {
     fprintf(stderr, "calloc() failed to allocate memory (types)\n");
@@ -2974,8 +2915,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
     for (int i = 0; i < code_s->total_funcs; i++) {
       if (code_p.total_funcs >= code_p.total_size_f) {
         code_p.total_size_f *= 2;
-        code_p.funcs = realloc(code_p.funcs, code_p.total_size_f *
-                                                 sizeof(struct SL_Function));
+        code_p.funcs = srealloc(code_p.funcs, code_p.total_size_f *
+                                                  sizeof(struct SL_Function));
       }
       code_p.funcs[code_p.total_funcs++] = code_s->funcs[i];
     }
@@ -2985,17 +2926,18 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
     for (int i = 0; i < code_s->total_vars; i++) {
       if (code_p.total_vars >= code_p.total_size_v) {
         code_p.total_size_v *= 2;
-        code_p.vars = realloc(code_p.vars,
-                              code_p.total_size_v * sizeof(struct SL_Variable));
+        code_p.vars = srealloc(code_p.vars, code_p.total_size_v *
+                                                sizeof(struct SL_Variable));
       }
       code_p.vars[code_p.total_vars++] = code_s->vars[i];
     }
   }
 
-  code_p.code = malloc(1024 * sizeof(char *));
-  int count = LEXER(code, &code_p.code, strlen(code), SPECIAL_TOKENS, 1024);
+  code_p.code = smalloc(1024 * sizeof(char *));
+  int count =
+      sl_raw_lexer(code, &code_p.code, strlen(code), SPECIAL_TOKENS, 1024);
   code_p.token_count = count;
-  code_p.types = calloc(count, sizeof(enum TokenTypes));
+  code_p.types = scalloc(count, sizeof(enum TokenTypes));
 
   struct SL_Variable init = sl_init_sl_parser(&code_p);
   if (init.type == ERROR) {
@@ -3007,8 +2949,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
     for (int i = 0; i < code_p.total_funcs; i++) {
       if (i >= code_s->total_size_f) {
         code_s->total_size_f *= 2;
-        code_s->funcs = realloc(code_s->funcs, code_s->total_size_f *
-                                                   sizeof(struct SL_Function));
+        code_s->funcs = srealloc(code_s->funcs, code_s->total_size_f *
+                                                    sizeof(struct SL_Function));
       }
       code_s->funcs[i] = code_p.funcs[i];
     }
@@ -3020,8 +2962,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
     for (int i = 0; i < code_p.total_vars; i++) {
       if (i >= code_s->total_size_v) {
         code_s->total_size_v *= 2;
-        code_s->vars = realloc(code_s->vars, code_s->total_size_v *
-                                                 sizeof(struct SL_Variable));
+        code_s->vars = srealloc(code_s->vars, code_s->total_size_v *
+                                                  sizeof(struct SL_Variable));
       }
       code_s->vars[i] = code_p.vars[i];
     }
@@ -3098,7 +3040,38 @@ void *smalloc(size_t size) {
   }
   void *ptr = malloc(size);
   if (ptr == NULL) {
-    fprintf(stderr, "smalloc(): The malloc() function failed to allocate memory of size: \"%zu\"\n", size);
+    fprintf(stderr, "smalloc(): malloc(%zu) failed: %s\n", size,
+            strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  return ptr;
+}
+
+void *scalloc(size_t how_much, size_t size) {
+  if (size <= 0) {
+    fprintf(stderr, "Invalid allocation size passed to scalloc() function\n");
+    fprintf(stderr, "size is 0\n");
+    exit(EXIT_FAILURE);
+  }
+  void *ptr = calloc(how_much, size);
+  if (ptr == NULL) {
+    fprintf(stderr, "scalloc(): calloc(%zu) failed: %s\n", size,
+            strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  return ptr;
+}
+
+void *srealloc(void *pptr, size_t size) {
+  if (size <= 0) {
+    fprintf(stderr, "Invalid allocation size passed to srealloc() function\n");
+    fprintf(stderr, "size is 0\n");
+    exit(EXIT_FAILURE);
+  }
+  void *ptr = realloc(pptr, size);
+  if (ptr == NULL) {
+    fprintf(stderr, "srealloc(): realloc(%zu) failed: %s\n", size,
+            strerror(errno));
     exit(EXIT_FAILURE);
   }
   return ptr;

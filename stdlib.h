@@ -232,11 +232,7 @@ int create_new_list(int capacity, int fixed) {
   if (LISTS_count >= LISTS_capacity) {
     int new_capacity = LISTS_capacity * 2;
 
-    struct SL_List *tmp = realloc(LISTS, new_capacity * sizeof(struct SL_List));
-
-    if (tmp == NULL) {
-      return -1;
-    }
+    struct SL_List *tmp = srealloc(LISTS, new_capacity * sizeof(struct SL_List));
 
     memset(tmp + LISTS_capacity, 0,
            (new_capacity - LISTS_capacity) * sizeof(struct SL_List));
@@ -278,14 +274,10 @@ int list_push(struct SL_List *list, struct SL_Variable value) {
   if (list->size >= list->capacity) {
     int new_capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
 
-    struct SL_Variable *tmp =
-        realloc(list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
+    list->vars =
+        srealloc(list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
 
-    if (tmp == NULL) {
-      return 0;
-    }
 
-    list->vars = tmp;
     list->capacity = new_capacity;
   }
 
@@ -569,13 +561,7 @@ struct SL_Variable input_fn(struct SL_Code *code,
   string[strcspn(string, "\n")] = '\0';
 
   return_var.type = STRING;
-  return_var.vals = malloc(1024);
-
-  if (return_var.vals == NULL) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to allocate input buffer.";
-    return return_var;
-  }
+  return_var.vals = smalloc(1024);
 
   strncpy(return_var.vals, string, 1023);
   return_var.vals[1023] = '\0';
@@ -1334,11 +1320,7 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  char* tmp = malloc(2);
-  if (tmp == NULL) {
-      return_var.type = ERROR;
-      return_var.vals = "Memory allocation is failed!";
-  }
+  char* tmp = smalloc(2);
   tmp[0] = first_arg.valc;
   tmp[1] = '\0';
   return_var.vals = sl_quote_string(tmp);
@@ -1368,11 +1350,7 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
       temp /= 10;
     }
 
-  char* tmp = malloc(digits + 1);
-  if (tmp == NULL) {
-      return_var.type = ERROR;
-      return_var.vals = "Memory allocation is failed!";
-  }
+  char* tmp = smalloc(digits + 1);
   snprintf(tmp, digits + 1, "%d", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
@@ -1900,13 +1878,7 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
     }
   }
 
-  char *buffer = malloc(total_size);
-
-  if (buffer == NULL && total_size != 0) {
-    return_var.type = ERROR;
-    return_var.vals = "Memory allocation failed.";
-    return return_var;
-  }
+  char *buffer = smalloc(total_size);
 
   size_t offset = 0;
 
@@ -3036,7 +3008,7 @@ struct SL_Variable sys_popen_fn(struct SL_Code *code, struct SL_L_Function func,
   size_t length = 0;
   char *buffer = malloc(capacity);
 
-  if (!buffer) {
+  if (buffer == NULL) {
     pclose(cmd_out);
     free(command);
     return_var.vals = "buffer failed to allocate memory";
@@ -3701,12 +3673,7 @@ struct SL_Variable List_copy_fn(struct SL_Code *code,
   dest_list->size = src_list->size;
 
   if (src_list->size > 0) {
-    dest_list->vars = (struct SL_Variable *)malloc(src_list->size * sizeof(struct SL_Variable));
-    if (dest_list->vars == NULL) {
-      return_var.type = ERROR;
-      return_var.vals = "Memory allocation failed for List.copy.";
-      return return_var;
-    }
+    dest_list->vars = (struct SL_Variable *)smalloc(src_list->size * sizeof(struct SL_Variable));
 
     for (int i = 0; i < src_list->size; i++) {
       dest_list->vars[i] = sl_copy_variable(src_list->vars[i]);
@@ -3817,7 +3784,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
 
   size_t body_cap = 1024;
   size_t body_len = 0;
-  char *body = malloc(body_cap);
+  char *body = smalloc(body_cap);
   body[0] = '\0';
 
   for (int i = 0; i < func.total_arguments; i++) {
@@ -3842,7 +3809,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
     size_t n_len = strlen(name);
     if (body_len + n_len + 2 >= body_cap) {
       body_cap = body_cap * 2 + n_len + 2;
-      body = realloc(body, body_cap);
+      body = srealloc(body, body_cap);
     }
     strcpy(body + body_len, name);
     body_len += n_len;
@@ -3879,7 +3846,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
       size_t is_len = strlen(item_str);
       if (body_len + is_len + 2 >= body_cap) {
         body_cap = body_cap * 2 + is_len + 2;
-        body = realloc(body, body_cap);
+        body = srealloc(body, body_cap);
       }
       body[body_len++] = '/';
       strcpy(body + body_len, item_str);
@@ -3889,7 +3856,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
     if (i < func.total_arguments - 1) {
       if (body_len + 2 >= body_cap) {
         body_cap *= 2;
-        body = realloc(body, body_cap);
+        body = srealloc(body, body_cap);
       }
       body[body_len++] = '\\';
       body[body_len] = '\0';
@@ -3936,7 +3903,7 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 
   size_t tok_cap = 256;
   size_t tok_len = 0;
-  char *tok = malloc(tok_cap);
+  char *tok = smalloc(tok_cap);
 
   while (*p != '\0') {
     if (*p == '\\') {
@@ -3973,7 +3940,7 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
     } else {
       if (tok_len + 1 >= tok_cap) {
         tok_cap *= 2;
-        tok = realloc(tok, tok_cap);
+        tok = srealloc(tok, tok_cap);
       }
       tok[tok_len++] = *p;
       p++;
@@ -4025,7 +3992,7 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     int assigned_var_len = strlen(assigned_var);
     int attr_len = strlen(raw_attr);
     int total_len = assigned_var_len + attr_len;
-    char *full_attr_name = malloc(total_len + 2);
+    char *full_attr_name = smalloc(total_len + 2);
     snprintf(full_attr_name, total_len + 2, "%s.%s", assigned_var, raw_attr);
     struct SL_Variable var = {0};
     var.name = full_attr_name;
@@ -4041,12 +4008,12 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     int assigned_var_len = strlen(assigned_var);
     int funcn_len = strlen(raw_func.name);
     int total_len = assigned_var_len + funcn_len;
-    char *full_func_name = malloc(total_len + 2);
+    char *full_func_name = smalloc(total_len + 2);
     snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
              raw_func.name);
     struct SL_Function func = {0};
     func = raw_func;
-    func.code_tokens[3] = malloc(assigned_len + 3);
+    func.code_tokens[3] = smalloc(assigned_len + 3);
     snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);
     func.name = full_func_name;
     func.hash = sl_hash_string(full_func_name);
@@ -4075,7 +4042,7 @@ struct SL_Variable collections_set_attr_fn(struct SL_Code *code,
   char *attr_name_r = sl_string_getter(attr_name.vals);
 
   int total_size = strlen(attr_name_r) + strlen(self_n);
-  char *full_var_name = malloc(total_size + 2);
+  char *full_var_name = smalloc(total_size + 2);
   snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
   struct SL_Variable var = {0};
   var = attr_val;
@@ -4104,7 +4071,7 @@ struct SL_Variable collections_get_attr_fn(struct SL_Code *code,
   char *attr_name_r = sl_string_getter(attr_name.vals);
 
   int total_size = strlen(attr_name_r) + strlen(self_n);
-  char *full_var_name = malloc(total_size + 2);
+  char *full_var_name = smalloc(total_size + 2);
   snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
   struct SL_Variable *ref_var = sl_get_var(code, full_var_name);
   return_var = sl_copy_variable(*ref_var);
@@ -4139,11 +4106,8 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
 
   if (collections.size >= collections.capacity) {
     collections.capacity *= 2;
-    void *tmp = realloc(collections.collections,
+    collections.collections = srealloc(collections.collections,
                         collections.capacity * sizeof(struct SL_Collection));
-    if (!tmp)
-      perror("realloc failed on collections");
-    collections.collections = tmp;
   }
 
   int index = collections.size;
@@ -4183,9 +4147,9 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       struct SL_Function *link_func_p = sl_get_func(code, actual_name);
       struct SL_Function link_func = sl_copy_function(*link_func_p);
       /* [var] [self] [=] ["attr_name"] 4 more tokens */
-      link_func.code_tokens = realloc(
+      link_func.code_tokens = srealloc(
           link_func.code_tokens, (link_func.code_len + 4) * sizeof(char *));
-      link_func.types = realloc(link_func.types, (link_func.code_len + 4) *
+      link_func.types = srealloc(link_func.types, (link_func.code_len + 4) *
                                                      sizeof(enum TokenTypes));
       memmove(link_func.code_tokens + 4, link_func.code_tokens,
               link_func.code_len * sizeof(char *));
@@ -4207,7 +4171,7 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
     free(raw_str - 2);
   }
   int total_len = strlen(raw_name) + strlen(":new");
-  char *collection_new_name = malloc(total_len + 1);
+  char *collection_new_name = smalloc(total_len + 1);
   snprintf(collection_new_name, total_len + 1, "%s:new", raw_name);
   sl_add_func(code, collection_new_name, collections_new_collection_fn);
   free(raw_name);
@@ -4238,7 +4202,7 @@ struct SL_Variable enums_create_enum_fn(struct SL_Code *code,
     char *raw_name = sl_string_getter(item.vals);
     struct SL_Variable var = {0};
     int len = strlen(raw_name) + 2;
-    char *name = malloc(len);
+    char *name = smalloc(len);
     snprintf(name, len, "%s;", raw_name);
     var.name = name;
     var.hash = sl_hash_string(name);
@@ -4471,7 +4435,7 @@ struct SL_Variable net_recv_win_fn(struct SL_Code *code,
     }
   }
 
-  char *buffer = malloc(buffer_size);
+  char *buffer = smalloc(buffer_size);
   int read_size = 0;
 
   if (gotflag == 1)
@@ -4634,13 +4598,10 @@ struct SL_Variable net_new_fd_win_fn(struct SL_Code *code,
 
   if (fd_list_size >= fd_list_capacity) {
     fd_list_capacity = (fd_list_capacity == 0) ? 4 : fd_list_capacity * 2;
-    void *tmp = realloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
-    if (tmp == NULL)
-      perror("Realloc failed.");
-    fd_list = tmp;
+    fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
   }
   int id = fd_list_size++;
-  fd_list[id].fd = malloc(sizeof(fd_set));
+  fd_list[id].fd = smalloc(sizeof(fd_set));
   FD_ZERO((fd_set *)fd_list[id].fd);
   fd_list[id].is_set = 1;
   return_var.type = INTEGER;
@@ -5167,7 +5128,7 @@ struct SL_Variable net_recv_posix_fn(struct SL_Code *code,
       third_arg = sl_get_argument(*code, func, 2);
     }
   }
-  char *buffer = malloc(buffer_size);
+  char *buffer = smalloc(buffer_size);
   int read_size = 0;
   if (gotflag == 1)
     read_size = recv(first_arg.vali, buffer, buffer_size, third_arg.vali);
@@ -5282,13 +5243,10 @@ struct SL_Variable net_new_fd_posix_fn(struct SL_Code *code,
 
   if (fd_list_size >= fd_list_capacity) {
     fd_list_capacity *= 2;
-    void *tmp = realloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
-    if (tmp == NULL)
-      perror("Realloc failed.");
-    fd_list = tmp;
+    fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
   }
   int id = fd_list_size++;
-  fd_list[id].fd = malloc(sizeof(fd_set));
+  fd_list[id].fd = smalloc(sizeof(fd_set));
   FD_ZERO(fd_list[id].fd);
   fd_list[id].is_set = 1;
   return_var.type = INTEGER;
@@ -7248,14 +7206,7 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
     total_size += (size_t)cursor_len + row_size;
   }
 
-  char *output = malloc(total_size + 1);
-
-  if (output == NULL) {
-    return_var.type = ERROR;
-    return_var.vals =
-        "console.fill_rect failed to allocate output buffer.";
-    return return_var;
-  }
+  char *output = smalloc(total_size + 1);
 
   size_t offset = 0;
 
@@ -8676,7 +8627,7 @@ void close_sl_stdlib();
 
 void init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv) {
   srand(time(NULL));
-  arguments = malloc(argc * sizeof(char *));
+  arguments = smalloc(argc * sizeof(char *));
   for (int i = 0; i < argc; i++) {
     arguments[i] = strdup(argv[i]);
   }
