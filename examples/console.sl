@@ -37,7 +37,7 @@ while $counter neq $end_y then
 end
 
 
-io.fflush()
+io.flush()
 
 # WINDOW
 
@@ -51,7 +51,7 @@ console.cursor_position($middle_x, $middle_y)
 io.print("Hello, World!")
 console.cursor_position($middle_x, $middle_y + 1)
 io.print("Type CTRL+Q for Quit.")
-io.fflush()
+io.flush()
 # HELLO WORLD AND QUIT MESSAGE
 
 
@@ -69,6 +69,6 @@ while true then
 		end
 	elif $event equ $MOUSE_EVENT then 
 		io.print("Mouse event catched.")
-		io.fflush()
+		io.flush()
 	end
 end

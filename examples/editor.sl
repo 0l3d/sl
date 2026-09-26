@@ -1,4 +1,3 @@
-#!/usr/bin/env sl
 # For posix based systems.
 use("console", "io", "types", "sys", "string", "list", "errors", "file", "time")
 
@@ -289,7 +288,7 @@ def render_screen then
     end
     
     console.cursor_visibility(true)
-    io.fflush()
+    io.flush()
     console.end_update()
 end
 
@@ -348,7 +347,8 @@ def new_line -> middler, length then
     else
         console.save_cursor()
         console.cursor_position(0, $cursor_y + 1)
-        console.insert_line(1)         console.load_cursor()
+        console.insert_line(1)         
+        console.load_cursor()
         
         $cursor_y = $cursor_y + 1
         

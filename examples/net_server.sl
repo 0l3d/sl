@@ -9,10 +9,10 @@ net.listen($server_sock, 128)
 while true then 
     var client_sock = net.accept($server_sock)
     io.print("Client connected!\n")
-    io.fflush()
+    io.flush()
     var data = net.recv($client_sock, 1024)
     io.print("Client says: ", $data, "\n")
-    io.fflush()
+    io.flush()
     net.close($client_sock)
 end
 

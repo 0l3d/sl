@@ -57,6 +57,22 @@
 #define SL_CLEAR_LINE_AFTER_CURSOR 2
 #define SL_CLEAR_FROM_CURSOR_TO_SCREEN_END 4
 
+
+#define SL_BOLD 0
+#define SL_DIM 1
+#define SL_ITALIC 2
+#define SL_UNDERLINE 3
+#define SL_BLINK 4
+#define SL_RAPID_BLINK 5
+#define SL_REVERSE 6
+#define SL_HIDDEN 7
+#define SL_STRIKETHROUGH 8
+#define SL_DOUBLY_UNDERLINE 9
+#define SL_FRAMED 10
+#define SL_ENCIRCLED 11
+#define SL_OVERLINED 12
+
+
 #define SL_UNDEFINED_EVENT -1
 #define SL_KEY_EVENT 0
 #define SL_MOUSE_EVENT 1
@@ -146,6 +162,38 @@ static int sl_console_write_cstr(const char *text) {
 }
 
 static int sl_console_flush(void) { return fflush(stdout) == 0; }
+
+static char *sl_base64_encode(const unsigned char *data, size_t input_length) {
+  static const char encoding_table[] =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  size_t output_length = 4 * ((input_length + 2) / 3);
+  char *encoded_data = (char *)malloc(output_length + 1);
+  if (!encoded_data) return NULL;
+
+  for (size_t i = 0, j = 0; i < input_length;) {
+    uint32_t octet_a = i < input_length ? data[i++] : 0;
+    uint32_t octet_b = i < input_length ? data[i++] : 0;
+    uint32_t octet_c = i < input_length ? data[i++] : 0;
+
+    uint32_t triple = (octet_a << 0x10) + (octet_b << 0x08) + octet_c;
+
+    encoded_data[j++] = encoding_table[(triple >> 3 * 6) & 0x3F];
+    encoded_data[j++] = encoding_table[(triple >> 2 * 6) & 0x3F];
+    encoded_data[j++] = encoding_table[(triple >> 1 * 6) & 0x3F];
+    encoded_data[j++] = encoding_table[(triple >> 0 * 6) & 0x3F];
+  }
+
+  size_t mod = input_length % 3;
+  if (mod == 1) {
+    encoded_data[output_length - 1] = '=';
+    encoded_data[output_length - 2] = '=';
+  } else if (mod == 2) {
+    encoded_data[output_length - 1] = '=';
+  }
+
+  encoded_data[output_length] = '\0';
+  return encoded_data;
+}
 /* CONSOLE API */
 
 #include <math.h>
@@ -649,7 +697,7 @@ struct SL_Variable io_getchar_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable io_fflush_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable io_flush_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -7513,6 +7561,66 @@ struct SL_Variable console_delete_line_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable console_rgb_foreground_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.rgb_foreground! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+
+  char buf[128];
+  snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm",
+           first_arg.vali, second_arg.vali, third_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console foreground color.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_rgb_background_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.rgb_background! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+
+  char buf[128];
+  snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm",
+           first_arg.vali, second_arg.vali, third_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console background color.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 struct SL_Variable console_insert_char_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
                                           struct SL_Function rfunc) {
@@ -7534,6 +7642,54 @@ struct SL_Variable console_insert_char_fn(struct SL_Code *code,
     return_var.vals = "Failed to insert char.";
     return return_var;
   }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+
+struct SL_Variable console_set_title_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.set_title! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  char *raw_text = sl_string_getter(first_arg.vals);
+
+  if (!raw_text) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid string argument.";
+    return return_var;
+  }
+
+  size_t buf_len = strlen(raw_text) + 16;
+  char *buf = (char *)malloc(buf_len);
+  if (!buf) {
+    free(raw_text);
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+    return return_var;
+  }
+
+  snprintf(buf, buf_len, "\x1b]0;%s\x07", raw_text);
+
+  free(raw_text);
+
+  if (!sl_console_write_cstr(buf)) {
+    free(buf);
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set console title.";
+    return return_var;
+  }
+
+  free(buf);
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -7625,6 +7781,308 @@ struct SL_Variable console_load_cursor_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+
+struct SL_Variable console_set_style_fn(struct SL_Code *code, struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable value = sl_get_argument(*code, func, i);
+
+    if (value.type != INTEGER) {
+      return_var.type = ERROR;
+      return_var.vals = "Expected integer arguments for console.style.";
+      return return_var;
+    }
+
+    const char *sequence = NULL;
+
+    switch (value.vali) {
+    case SL_BOLD:
+      sequence = "\x1b[1m";
+      break;
+    case SL_DIM:
+      sequence = "\x1b[2m";
+      break;
+    case SL_ITALIC:
+      sequence = "\x1b[3m";
+      break;
+    case SL_UNDERLINE:
+      sequence = "\x1b[4m";
+      break;
+    case SL_BLINK:
+      sequence = "\x1b[5m";
+      break;
+    case SL_RAPID_BLINK:
+      sequence = "\x1b[6m";
+      break;
+    case SL_REVERSE:
+      sequence = "\x1b[7m";
+      break;
+    case SL_HIDDEN:
+      sequence = "\x1b[8m";
+      break;
+    case SL_STRIKETHROUGH:
+      sequence = "\x1b[9m";
+      break;
+    case SL_DOUBLY_UNDERLINE:
+      sequence = "\x1b[21m";
+      break;
+    case SL_FRAMED:
+      sequence = "\x1b[51m";
+      break;
+    case SL_ENCIRCLED:
+      sequence = "\x1b[52m";
+      break;
+    case SL_OVERLINED:
+      sequence = "\x1b[53m";
+      break;
+    default:
+      break;
+    }
+
+    if (sequence != NULL)
+      sl_console_write_cstr(sequence);
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_reset_style_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  for (int i = 0; i < func.total_arguments; i++) {
+    struct SL_Variable value = sl_get_argument(*code, func, i);
+
+    if (value.type != INTEGER) {
+      return_var.type = ERROR;
+      return_var.vals = "Expected integer arguments for console.reset_style.";
+      return return_var;
+    }
+
+    const char *sequence = NULL;
+
+    switch (value.vali) {
+    case SL_BOLD:
+      sequence = "\x1b[22m";
+      break;
+    case SL_DIM:
+      sequence = "\x1b[22m";
+      break;
+    case SL_ITALIC:
+      sequence = "\x1b[23m";
+      break;
+    case SL_UNDERLINE:
+      sequence = "\x1b[24m";
+      break;
+    case SL_BLINK:
+      sequence = "\x1b[25m";
+      break;
+    case SL_RAPID_BLINK:
+      sequence = "\x1b[25m";
+      break;
+    case SL_REVERSE:
+      sequence = "\x1b[27m";
+      break;
+    case SL_HIDDEN:
+      sequence = "\x1b[28m";
+      break;
+    case SL_STRIKETHROUGH:
+      sequence = "\x1b[29m";
+      break;
+    case SL_DOUBLY_UNDERLINE:
+      sequence = "\x1b[24m";
+      break;
+    case SL_FRAMED:
+    case SL_ENCIRCLED:
+      sequence = "\x1b[54m";
+      break;
+    case SL_OVERLINED:
+      sequence = "\x1b[55m";
+      break;
+    default:
+      break;
+    }
+
+    if (sequence != NULL)
+      sl_console_write_cstr(sequence);
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+
+struct SL_Variable console_underline_color_fn(struct SL_Code *code,
+                                              struct SL_L_Function func,
+                                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  const char *color_seq = "\x1b[59m";
+
+  if (func.total_arguments >= 1) {
+    struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+    switch (first_arg.vali) {
+    case SL_COLOR_BLACK:
+      color_seq = "\x1b[58;5;0m";
+      break;
+    case SL_COLOR_RED:
+      color_seq = "\x1b[58;5;1m";
+      break;
+    case SL_COLOR_GREEN:
+      color_seq = "\x1b[58;5;2m";
+      break;
+    case SL_COLOR_YELLOW:
+      color_seq = "\x1b[58;5;3m";
+      break;
+    case SL_COLOR_BLUE:
+      color_seq = "\x1b[58;5;4m";
+      break;
+    case SL_COLOR_MAGENTA:
+      color_seq = "\x1b[58;5;5m";
+      break;
+    case SL_COLOR_CYAN:
+      color_seq = "\x1b[58;5;6m";
+      break;
+    case SL_COLOR_WHITE:
+      color_seq = "\x1b[58;5;7m";
+      break;
+    case SL_COLOR_BRIGHT_BLACK:
+      color_seq = "\x1b[58;5;8m";
+      break;
+    case SL_COLOR_BRIGHT_RED:
+      color_seq = "\x1b[58;5;9m";
+      break;
+    case SL_COLOR_BRIGHT_GREEN:
+      color_seq = "\x1b[58;5;10m";
+      break;
+    case SL_COLOR_BRIGHT_YELLOW:
+      color_seq = "\x1b[58;5;11m";
+      break;
+    case SL_COLOR_BRIGHT_BLUE:
+      color_seq = "\x1b[58;5;12m";
+      break;
+    case SL_COLOR_BRIGHT_MAGENTA:
+      color_seq = "\x1b[58;5;13m";
+      break;
+    case SL_COLOR_BRIGHT_CYAN:
+      color_seq = "\x1b[58;5;14m";
+      break;
+    case SL_COLOR_BRIGHT_WHITE:
+      color_seq = "\x1b[58;5;15m";
+      break;
+    case SL_COLOR_DEFAULT:
+    default:
+      color_seq = "\x1b[59m";
+      break;
+    }
+  }
+
+  if (!sl_console_write_cstr(color_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set underline color.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_rgb_underline_color_fn(struct SL_Code *code,
+                                                  struct SL_L_Function func,
+                                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.rgb_underline_color! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
+
+  char buf[128];
+  snprintf(buf, sizeof(buf), "\x1b[58;2;%d;%d;%dm",
+           first_arg.vali, second_arg.vali, third_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set underline color.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_set_clipboard_fn(struct SL_Code *code,
+                                            struct SL_L_Function func,
+                                            struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.set_clipboard! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  char *raw_text = sl_string_getter(first_arg.vals);
+
+  if (!raw_text) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid string argument.";
+    return return_var;
+  }
+
+  char *b64_text = sl_base64_encode((const unsigned char *)raw_text, strlen(raw_text));
+
+  free(raw_text);
+
+  if (!b64_text) {
+    return_var.type = ERROR;
+    return_var.vals = "Base64 encoding failed for clipboard.";
+    return return_var;
+  }
+
+  size_t buf_len = strlen(b64_text) + 16;
+  char *buf = (char *)malloc(buf_len);
+  if (!buf) {
+    free(b64_text);
+    return_var.type = ERROR;
+    return_var.vals = "Memory allocation failed.";
+    return return_var;
+  }
+
+  snprintf(buf, buf_len, "\x1b]52;c;%s\x07", b64_text);
+
+  free(b64_text);
+
+  if (!sl_console_write_cstr(buf)) {
+    free(buf);
+    return_var.type = ERROR;
+    return_var.vals = "Failed to copy to clipboard via OSC 52.";
+    return return_var;
+  }
+
+  free(buf);
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 
 /* CONSOLE */
 
@@ -7944,7 +8402,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "io.print_raw", print_raw_fn);
       sl_add_func(code, "io.input", input_fn);
       sl_add_func(code, "io.getchar", io_getchar_fn);
-      sl_add_func(code, "io.fflush", io_fflush_fn);
+      sl_add_func(code, "io.flush", io_flush_fn);
     } else if (strcmp(libstr, "file") == 0) {
       if (used_file == 1)
         break;
@@ -8065,6 +8523,20 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "WINDOW_RESIZE", SL_WINDOW_RESIZE_EVENT);
       sl_add_fixed_int(code, "KEY_UNKNOWN", SL_KEY_UNKNOWN);
       sl_add_fixed_int(code, "KEY_CHAR", SL_KEY_CHAR);
+
+      sl_add_fixed_int(code, "STYLE_BOLD", SL_BOLD);
+      sl_add_fixed_int(code, "STYLE_DIM", SL_DIM);
+      sl_add_fixed_int(code, "STYLE_ITALIC", SL_ITALIC);
+      sl_add_fixed_int(code, "STYLE_UNDERLINE", SL_UNDERLINE);
+      sl_add_fixed_int(code, "STYLE_BLINK", SL_BLINK);
+      sl_add_fixed_int(code, "STYLE_RAPID_BLINK", SL_RAPID_BLINK);
+      sl_add_fixed_int(code, "STYLE_REVERSE", SL_REVERSE);
+      sl_add_fixed_int(code, "STYLE_HIDDEN", SL_HIDDEN);
+      sl_add_fixed_int(code, "STYLE_STRIKETHROUGH", SL_STRIKETHROUGH);
+      sl_add_fixed_int(code, "STYLE_DOUBLY_UNDERLINE", SL_DOUBLY_UNDERLINE);
+      sl_add_fixed_int(code, "STYLE_FRAMED", SL_FRAMED);
+      sl_add_fixed_int(code, "STYLE_ENCIRCLED", SL_ENCIRCLED);
+      sl_add_fixed_int(code, "STYLE_OVERLINED", SL_OVERLINED);
 
       sl_add_fixed_int(code, "KEY_ENTER", SL_KEY_ENTER);
       sl_add_fixed_int(code, "KEY_ESCAPE", SL_KEY_ESCAPE);
@@ -8237,10 +8709,18 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.erase_char", console_erase_char_fn);
       sl_add_func(code, "console.save_cursor", console_save_cursor_fn);
       sl_add_func(code, "console.load_cursor", console_load_cursor_fn);
+      sl_add_func(code, "console.rgb_background", console_rgb_background_fn);
+      sl_add_func(code, "console.rgb_foreground", console_rgb_foreground_fn);
+      sl_add_func(code, "console.set_style", console_set_style_fn);
+      sl_add_func(code, "console.reset_style", console_reset_style_fn);
+      sl_add_func(code, "console.underline_color", console_underline_color_fn);
+      sl_add_func(code, "console.rgb_underline_color", console_rgb_underline_color_fn);
+      sl_add_func(code, "console.set_title", console_set_title_fn);
+      sl_add_func(code, "console.set_clipboard", console_set_clipboard_fn);
 
     }
 #ifdef ENABLE_NET
-    else if (strcmp(libstr, "net") == 0) {
+    else if (strcmp(libstr, "net") == 0) { /* NET */
       if (used_net == 1)
         break;
       used_net = 1;
