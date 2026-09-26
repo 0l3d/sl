@@ -43,7 +43,7 @@
 #endif
 #endif
 
-/* SL 3RD_PARTY */ 
+/* SL 3RD_PARTY */
 #define LIB_ROOT "sl_libraries"
 /* SL 3RD_PARTY */
 
@@ -53,6 +53,10 @@
 /* SL INFO TABLE */
 
 /* CONSOLE API */
+#define SL_CLEAR_LINE_BEFORE_CURSOR 1
+#define SL_CLEAR_LINE_AFTER_CURSOR 2
+#define SL_CLEAR_FROM_CURSOR_TO_SCREEN_END 4
+
 #define SL_UNDEFINED_EVENT -1
 #define SL_KEY_EVENT 0
 #define SL_MOUSE_EVENT 1
@@ -793,7 +797,6 @@ struct SL_Variable file_rename_fn(struct SL_Code *code,
   char *old_name = sl_string_getter(first_arg.vals);
   char *new_name = sl_string_getter(second_arg.vals);
 
-
   if (old_name == NULL || new_name == NULL) {
     return_var.type = ERROR;
     return_var.vals = "Could not get old/new file name.";
@@ -809,12 +812,11 @@ struct SL_Variable file_rename_fn(struct SL_Code *code,
   }
   free(old_name);
   free(new_name);
-  
+
   return_var.type = BOOLEAN;
   return_var.valb = 1;
   return return_var;
 }
-
 
 struct SL_Variable file_write_from_str_fn(struct SL_Code *code,
                                           struct SL_L_Function func,
@@ -2977,7 +2979,8 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR) {
-    printf("Program panicked with error: %s\n", sl_string_getter(first_arg.vals));
+    printf("Program panicked with error: %s\n",
+           sl_string_getter(first_arg.vals));
     exit(-1);
   }
   return return_var;
@@ -7011,13 +7014,51 @@ struct SL_Variable console_clear_line_fn(struct SL_Code *code,
                                          struct SL_L_Function func,
                                          struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
-  if (!sl_console_write_cstr("\033[2K")) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to clear console line.";
-    return return_var;
+  if (func.total_arguments < 1) {
+    if (!sl_console_write_cstr("\033[2K")) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to clear console line.";
+      return return_var;
+    }
+  } else {
+    struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+    if (first_arg.type != INTEGER) {
+      return_var.vals = "All items must be typed as int on console.clear_line";
+    }
+
+    switch (first_arg.vali) {
+    case SL_CLEAR_LINE_BEFORE_CURSOR:
+      if (!sl_console_write_cstr("\033[0K")) {
+        return_var.type = ERROR;
+        return_var.vals = "Failed to clear console line.";
+        return return_var;
+      }
+      break;
+    case SL_CLEAR_LINE_AFTER_CURSOR:
+      if (!sl_console_write_cstr("\033[1K")) {
+        return_var.type = ERROR;
+        return_var.vals = "Failed to clear console line.";
+        return return_var;
+      }
+      break;
+    case SL_CLEAR_FROM_CURSOR_TO_SCREEN_END:
+      if (!sl_console_write_cstr("\033[0J")) {
+        return_var.type = ERROR;
+        return_var.vals = "Failed to clear console line.";
+        return return_var;
+      }
+      break;
+    default:
+      return_var.type = ERROR;
+      return_var.vals = "Failed to clear console line. Unknown operation.";
+      return return_var;
+    }
   }
+
   return return_var;
 }
+
 struct SL_Variable console_begin_update_fn(struct SL_Code *code,
                                            struct SL_L_Function func,
                                            struct SL_Function rfunc) {
@@ -7289,6 +7330,302 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+struct SL_Variable console_scroll_area_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.scroll_area! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d;%dr", first_arg.vali, second_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set scroll area.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_scroll_area_reset_fn(struct SL_Code *code,
+                                                struct SL_L_Function func,
+                                                struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\x1b[r")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set scroll area.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_scroll_up_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at console.scroll_up! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dS", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to scroll up.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_scroll_down_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.scroll_down! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dT", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to scroll down.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_line_up_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\x1bM")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to line up.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_line_down_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\033D")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to line down.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_insert_line_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.insert_line! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dL", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to insert line.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_delete_line_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.delete_line! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dM", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to delete line.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_insert_char_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.insert_char! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%d@", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to insert char.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_delete_char_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.delete_char! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dP", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to delete char.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_erase_char_fn(struct SL_Code *code,
+                                         struct SL_L_Function func,
+                                         struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at console.erase_char! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char buf[32];
+  snprintf(buf, sizeof(buf), "\x1b[%dX", first_arg.vali);
+
+  if (!sl_console_write_cstr(buf)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to erase char.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_save_cursor_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\0337")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to save cursor.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable console_load_cursor_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (!sl_console_write_cstr("\0338")) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to load cursor.";
+    return return_var;
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 /* CONSOLE */
 
 /* MATH */
@@ -7564,8 +7901,7 @@ struct SL_Variable math_max_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 /* MATH */
 
-
-/* USE FUNCTION */ 
+/* USE FUNCTION */
 int used_io = 0;
 int used_file = 0;
 int used_types = 0;
@@ -7601,7 +7937,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     char *libstr = sl_string_getter(lib.vals);
 
     if (strcmp(libstr, "io") == 0) {
-      if (used_io == 1) break;
+      if (used_io == 1)
+        break;
       used_io = 1;
       sl_add_func(code, "io.print", print_fn);
       sl_add_func(code, "io.print_raw", print_raw_fn);
@@ -7609,7 +7946,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "io.getchar", io_getchar_fn);
       sl_add_func(code, "io.fflush", io_fflush_fn);
     } else if (strcmp(libstr, "file") == 0) {
-      if (used_file == 1) break;
+      if (used_file == 1)
+        break;
       used_file = 1;
       sl_add_func(code, "file.read_to_str", file_read_to_str_fn);
       sl_add_func(code, "file.remove", file_remove_fn);
@@ -7619,7 +7957,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "file.write", file_write_fn);
       sl_add_func(code, "file.append", file_append_fn);
     } else if (strcmp(libstr, "math") == 0) {
-      if (used_math == 1) break;
+      if (used_math == 1)
+        break;
       used_math = 1;
       sl_add_func(code, "math.pow", math_pow_fn);
       sl_add_func(code, "math.sqrt", math_sqrt_fn);
@@ -7636,12 +7975,14 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "math.max", math_max_fn);
 
     } else if (strcmp(libstr, "bytes") == 0) {
-      if (used_bytes == 1) break;
+      if (used_bytes == 1)
+        break;
       used_bytes = 1;
       sl_add_func(code, "byte.get", byte_get_fn);
       sl_add_func(code, "byte.set", byte_set_fn);
     } else if (strcmp(libstr, "types") == 0) {
-      if (used_types == 1) break;
+      if (used_types == 1)
+        break;
       used_types = 1;
       /* CONVERT */
       sl_add_func(code, "types.str_to_int", str_to_int_fn);
@@ -7676,20 +8017,23 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.to_lower", to_lower_fn);
       sl_add_func(code, "types.to_upper", to_upper_fn);
     } else if (strcmp(libstr, "sys") == 0) {
-      if (used_sys == 1) break;
+      if (used_sys == 1)
+        break;
       used_sys = 1;
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
       sl_add_func(code, "sys.get_env", sys_get_env_fn);
       sl_add_func(code, "sys.popen", sys_popen_fn);
     } else if (strcmp(libstr, "errors") == 0) {
-      if (used_errors == 1) break;
+      if (used_errors == 1)
+        break;
       used_errors = 1;
       sl_add_func(code, "errors.string", errors_string_fn);
       sl_add_func(code, "errors.bool", errors_bool_fn);
       sl_add_func(code, "errors.panic", errors_panic_fn);
     } else if (strcmp(libstr, "collections") == 0) {
-      if (used_collections == 1) break;
+      if (used_collections == 1)
+        break;
       used_collections = 1;
       collections.collections = calloc(SL_INIT, sizeof(struct SL_Collection));
       collections.size = 0;
@@ -7700,12 +8044,21 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "Collections.set_attr", collections_set_attr_fn);
       sl_add_func(code, "Collections.get_attr", collections_get_attr_fn);
     } else if (strcmp(libstr, "enums") == 0) {
-      if (used_enums == 1) break;
+      if (used_enums == 1)
+        break;
       used_enums = 1;
       sl_add_func(code, "enums.create_enum", enums_create_enum_fn);
     } else if (strcmp(libstr, "console") == 0) {
-      if (used_console == 1) break;
+      if (used_console == 1)
+        break;
       used_console = 1;
+      sl_add_fixed_int(code, "CLEAR_LINE_BEFORE_CURSOR",
+                       SL_CLEAR_LINE_BEFORE_CURSOR);
+      sl_add_fixed_int(code, "CLEAR_LINE_AFTER_CURSOR",
+                       SL_CLEAR_LINE_AFTER_CURSOR);
+      sl_add_fixed_int(code, "CLEAR_FROM_CURSOR_TO_SCREEN_END",
+                       SL_CLEAR_FROM_CURSOR_TO_SCREEN_END);
+
       sl_add_fixed_int(code, "UNDEFINED_EVENT", SL_UNDEFINED_EVENT);
       sl_add_fixed_int(code, "KEY_EVENT", SL_KEY_EVENT);
       sl_add_fixed_int(code, "MOUSE_EVENT", SL_MOUSE_EVENT);
@@ -7872,10 +8225,24 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.autowrap", console_auto_wrap_fn);
       sl_add_func(code, "console.write_at", console_write_at_fn);
       sl_add_func(code, "console.fill_rect", console_fill_rect_fn);
+      sl_add_func(code, "console.scroll_area", console_scroll_area_fn);
+      sl_add_func(code, "console.scroll_up", console_scroll_up_fn);
+      sl_add_func(code, "console.scroll_down", console_scroll_down_fn);
+      sl_add_func(code, "console.line_up", console_line_up_fn);
+      sl_add_func(code, "console.line_down", console_line_down_fn);
+      sl_add_func(code, "console.insert_line", console_insert_line_fn);
+      sl_add_func(code, "console.delete_line", console_delete_line_fn);
+      sl_add_func(code, "console.insert_char", console_insert_char_fn);
+      sl_add_func(code, "console.delete_char", console_delete_char_fn);
+      sl_add_func(code, "console.erase_char", console_erase_char_fn);
+      sl_add_func(code, "console.save_cursor", console_save_cursor_fn);
+      sl_add_func(code, "console.load_cursor", console_load_cursor_fn);
+
     }
 #ifdef ENABLE_NET
     else if (strcmp(libstr, "net") == 0) {
-      if (used_net == 1) break;
+      if (used_net == 1)
+        break;
       used_net = 1;
       fd_list_capacity = SL_INIT;
       fd_list = calloc(fd_list_capacity, sizeof(struct SL_FD_List));
@@ -8616,7 +8983,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     }
 #endif
     else if (strcmp(libstr, "string") == 0) {
-      if (used_string == 1) break;
+      if (used_string == 1)
+        break;
       used_string = 1;
       sl_add_func(code, "string.char_at", string_charat_fn);
       sl_add_func(code, "string.split", string_split_fn);
@@ -8632,7 +9000,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "string.remove_at", string_remove_at_fn);
       sl_add_func(code, "string.index_of", string_index_of_fn);
     } else if (strcmp(libstr, "list") == 0) {
-      if (used_list == 1) break;
+      if (used_list == 1)
+        break;
       used_list = 1;
       LISTS = calloc(SL_INIT, sizeof(struct SL_List));
       sl_add_func(code, "List.new", List_new_fn);
@@ -8652,11 +9021,13 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.remove", List_remove_fn);
       sl_add_func(code, "List.len", List_len_fn);
     } else if (strcmp(libstr, "extra") == 0) {
-      if (used_extra == 1) break;
+      if (used_extra == 1)
+        break;
       used_extra = 1;
       sl_add_func(code, "rand.random", random_fn);
     } else if (strcmp(libstr, "time") == 0) {
-      if (used_time == 1) break;
+      if (used_time == 1)
+        break;
       used_time = 1;
       sl_add_func(code, "time.now", time_now_fn);
       sl_add_func(code, "time.string", time_string_fn);
@@ -8668,18 +9039,19 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "time.diff", time_diff_fn);
       sl_add_func(code, "time.parse", time_parse_fn);
     } else if (strcmp(libstr, "db") == 0) {
-      if (used_db == 1) break;
+      if (used_db == 1)
+        break;
       used_db = 1;
       sl_add_func(code, "db.from_lists", db_from_lists_fn);
       sl_add_func(code, "db.to_lists", db_to_lists_fn);
     } else {
       if (strncmp(libstr, "lib:", 4) == 0) {
         setup_gitignore();
-        #ifdef _WIN32
-          system("mkdir sl_libraries 2>nul");
-        #else
-          system("mkdir -p sl_libraries");
-        #endif
+#ifdef _WIN32
+        system("mkdir sl_libraries 2>nul");
+#else
+        system("mkdir -p sl_libraries");
+#endif
         if (!use_library(libstr + 4, code)) {
           fprintf(stderr, "Package %s not found! Terminating...\n", libstr);
           exit(EXIT_FAILURE);
@@ -8696,39 +9068,38 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 /* USE 3RD_PARTY LIBRARIES API */
 
-const char *repo_name(const char *url)
-{
-    const char *end = url + strlen(url);
-    const char *slash = end;
+const char *repo_name(const char *url) {
+  const char *end = url + strlen(url);
+  const char *slash = end;
 
-    while (slash > url && slash[-1] == '/')
-        slash--;
+  while (slash > url && slash[-1] == '/')
+    slash--;
 
-    const char *p = slash;
-    while (p > url && p[-1] != '/')
-        p--;
+  const char *p = slash;
+  while (p > url && p[-1] != '/')
+    p--;
 
-    size_t len = slash - p;
+  size_t len = slash - p;
 
-    if (len > 4 && strncmp(slash - 4, ".git", 4) == 0)
-        len -= 4;
+  if (len > 4 && strncmp(slash - 4, ".git", 4) == 0)
+    len -= 4;
 
-    static char name[256];
+  static char name[256];
 
-    if (len >= sizeof(name))
-        return NULL;
+  if (len >= sizeof(name))
+    return NULL;
 
-    memcpy(name, p, len);
-    name[len] = '\0';
+  memcpy(name, p, len);
+  name[len] = '\0';
 
-    return name;
+  return name;
 }
 
 static int use_library(const char *git, struct SL_Code *code) {
   char *dir;
   char *file;
   char *cmd;
-  
+
   const char *name = repo_name(git);
 
   dir = malloc(strlen(LIB_ROOT) + strlen(name) + 2);
@@ -8745,24 +9116,26 @@ static int use_library(const char *git, struct SL_Code *code) {
   if (!cmd)
     goto fail;
 
-  FILE* dirf = fopen(dir, "r");
+  FILE *dirf = fopen(dir, "r");
   if (dirf == NULL) {
     sprintf(cmd, "git clone \"%s\" \"%s\"", git, dir);
     printf("SL_LOG: Library not found, downloading from Git: %s\n", git);
     if (system(cmd) != 0) {
-      printf("SL_LOG: Failed to clone Git repository. Please check and try again.\n");
-      printf("SL_LOG: Please check the repository URL, your internet connection, Git installation, and shell configuration.\n");
+      printf("SL_LOG: Failed to clone Git repository. Please check and try "
+             "again.\n");
+      printf("SL_LOG: Please check the repository URL, your internet "
+             "connection, Git installation, and shell configuration.\n");
       free(cmd);
       goto fail;
     }
   }
   fclose(dirf);
-  
+
   free(cmd);
-  
+
   int len = strlen(file);
-  char* import_synt = malloc(8 + len); /* "import " = 7 */
-  snprintf(import_synt, 8 + len, "import %s", file); 
+  char *import_synt = malloc(8 + len); /* "import " = 7 */
+  snprintf(import_synt, 8 + len, "import %s", file);
   sl_dostr_sl_process(code, import_synt);
 
   free(dir);

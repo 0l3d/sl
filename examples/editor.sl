@@ -120,6 +120,8 @@ console.clear()
 var screen_width = console.get_width() - 1
 var screen_height = console.get_height() - 1
 
+console.scroll_area(0, $screen_height - 1)
+
 var status_message = "nomsg"
 
 var cursor_x = 0
@@ -235,32 +237,21 @@ def line_renderer -> all then
     if $background_color_enabled then 
         console.background_color($background_color)
     end
+    
     if $all equ 2 then 
         while $screen_y < $total_renderable then
             console.cursor_position(0, $screen_y)
-            
+            console.clear_line()             
             var line = List.get($lines, $i)
-            var line_len = 0
-            
             if not(errors.bool($line)) then
-                $line_len = string.len($line)
-                if errors.bool($line_len) then
-                    $line_len = 0
-                end
-                
                 if $enable_highlighting then 
                     render_highlighted($line) 
                 else 
                     io.print($line)
                 end
             end
-
-            var pad = $screen_width - $line_len
-            while $pad > 0 then
-                io.print(" ")
-                $pad = $pad - 1
-            end
-
+            
+            
             $i = $i + 1
             $screen_y = $screen_y + 1
         end
@@ -268,33 +259,17 @@ def line_renderer -> all then
         var actual_y = $rendering_start_line + $cursor_y
         $screen_y = $cursor_y
         console.cursor_position(0, $screen_y)
-        
+        console.clear_line()         
         var line = List.get($lines, $actual_y)
-        var line_len = 0
-        
         if not(errors.bool($line)) then
-            $line_len = string.len($line)
-            if errors.bool($line_len) then
-                $line_len = 0
-            end
-            
             if $enable_highlighting then 
                 render_highlighted($line) 
             else 
                 io.print($line)
             end
         end
-
-        var pad = $screen_width - $line_len
-        while $pad > 0 then
-            io.print(" ")
-            $pad = $pad - 1
-        end
-        
-        $i = $i + 1
     end
 end
-
 def render_screen then
     console.begin_update()
     
@@ -368,14 +343,26 @@ def new_line -> middler, length then
 
     if $cursor_y eqg $total_renderable then
         $rendering_start_line = $rendering_start_line + 1
+        console.scroll_up(1)        
+        $smellslikeyouchangedsomethingspirit = 2 
     else
+        console.save_cursor()
+        console.cursor_position(0, $cursor_y + 1)
+        console.insert_line(1)         console.load_cursor()
+        
         $cursor_y = $cursor_y + 1
-    end
-
+        
+        var current_y = $cursor_y
+        $cursor_y = $current_y - 1
+        line_renderer(1)
+        $cursor_y = $current_y
+        line_renderer(1)
+        
+        $smellslikeyouchangedsomethingspirit = 0
+    end    
     $cursor_x = 0
     $buffer = ""
     $rendering_end_line = $rendering_start_line + $total_renderable
-    $smellslikeyouchangedsomethingspirit = 2
 end
 
 def update_screen_size then
@@ -438,6 +425,10 @@ def backspace_b then
                 List.remove($lines, $actual_y)
             end
 
+            console.save_cursor()
+            console.cursor_position(0, $cursor_y)
+            console.delete_line(1)
+            console.load_cursor()
             $cursor_x = $prev_len
 
             if $cursor_y > 0 then
@@ -704,11 +695,19 @@ while true then
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
                     else
-                        if $rendering_start_line + $screen_height < $len then
+                     if $rendering_start_line + $screen_height < $len then
                             $rendering_start_line = $rendering_start_line + 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
-                            $smellslikeyouchangedsomethingspirit = 2
-                        else
+                            
+                            console.cursor_position(0, $total_renderable - 1)
+                            console.line_down()
+                            
+                            var temp_y = $cursor_y
+                            $cursor_y = $total_renderable - 1
+                            line_renderer(1) 
+                            $cursor_y = $temp_y
+                            
+                            $smellslikeyouchangedsomethingspirit = 0                        else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
                     end
@@ -720,7 +719,14 @@ while true then
                         if $rendering_start_line > 0 then
                             $rendering_start_line = $rendering_start_line - 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
-                            $smellslikeyouchangedsomethingspirit = 2
+                            console.cursor_position(0, 0)
+                            console.line_up()                            
+                            var temp_y = $cursor_y
+                            $cursor_y = 0
+                            line_renderer(1)
+                            $cursor_y = $temp_y
+                            
+                            $smellslikeyouchangedsomethingspirit = 0                       
                         else
                             $status_message = "You are already in first line."
                         end
