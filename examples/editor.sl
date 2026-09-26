@@ -1,3 +1,5 @@
+#!/usr/bin/env sl
+# For posix based systems.
 use("console", "io", "types", "sys", "string", "list", "errors", "file", "time")
 
 # EDITOR SETTINGS
@@ -10,6 +12,9 @@ var indicator_foreground = $COLOR_BLACK
 
 # Keyword color
 var keyword_highlighting = $COLOR_MAGENTA
+
+# Page DOWN/UP Size 
+var scroll = 20
 
 # Enable highlighting
 var enable_highlighting = true
@@ -148,7 +153,7 @@ def render_indicator then
     console.reset_color()
 end
 
-var smellslikeyouchangedsomethingspirit = true
+var smellslikeyouchangedsomethingspirit = 2
 
 def set_cursor_pos then
     console.cursor_position($cursor_x, $cursor_y)
@@ -157,63 +162,157 @@ end
 var buffer = ""
 
 
-def line_renderer then
+def render_highlighted -> str then 
+    var string_indexer = 0 
+    var string_len = string.len($str)
+    var temp_buffer = ""
+    var print_buffer = ""    
+    while $string_indexer < $string_len then
+        var charc = string.char_at($str, $string_indexer)
+        var char_str = types.char_to_str($charc)
+
+        var is_delimiter = false
+        if types.is_space($charc) then
+            $is_delimiter = true
+        elif $char_str equ "(" or $char_str equ ")" or $char_str equ "{" or $char_str equ "}" or $char_str equ "[" or $char_str equ "]" or $char_str equ ";" or $char_str equ "," or $char_str equ ":" then
+            $is_delimiter = true
+        end
+
+        if $is_delimiter then
+            if string.len($temp_buffer) > 0 then
+                if types.is_int(List.find($sl_highlighting, $temp_buffer)) then
+                    if string.len($print_buffer) > 0 then
+                        io.print($print_buffer)
+                        $print_buffer = ""
+                    end
+                    
+                    console.foreground_color($keyword_highlighting)
+                    io.print($temp_buffer)
+                    
+                    console.reset_color()
+                    if $background_color_enabled then
+                        console.background_color($background_color)
+                    end
+                else
+                    $print_buffer = $print_buffer + $temp_buffer
+                end
+                $temp_buffer = ""
+            end
+
+            $print_buffer = $print_buffer + $char_str
+        else
+            $temp_buffer = $temp_buffer + $char_str
+        end 
+
+        $string_indexer = $string_indexer + 1
+    end
+    
+    if string.len($temp_buffer) > 0 then
+        if types.is_int(List.find($sl_highlighting, $temp_buffer)) then
+            if string.len($print_buffer) > 0 then
+                io.print($print_buffer)
+                $print_buffer = ""
+            end
+            console.foreground_color($keyword_highlighting)
+            io.print($temp_buffer)
+            console.reset_color()
+            if $background_color_enabled then
+                console.background_color($background_color)
+            end
+        else
+            $print_buffer = $print_buffer + $temp_buffer
+        end
+    end
+    
+    if string.len($print_buffer) > 0 then
+        io.print($print_buffer)
+    end
+end
+
+def line_renderer -> all then
     var i = $rendering_start_line
     var screen_y = 0
     if $background_color_enabled then 
         console.background_color($background_color)
     end
-    while $screen_y < $total_renderable then
-        console.cursor_position(0, $screen_y)
-        console.clear_line()
-        var line = List.get($lines, $i)
-        var last_color = 0
-        if $enable_highlighting then 
+    if $all equ 2 then 
+        while $screen_y < $total_renderable then
+            console.cursor_position(0, $screen_y)
+            
+            var line = List.get($lines, $i)
+            var line_len = 0
+            
             if not(errors.bool($line)) then
-                var highlighting = string.split($line, " ")
-                errors.panic($highlighting)
-                while List.iter($highlighting) then
-                    var item = List.next($highlighting)
-                    if types.is_int(List.find($sl_highlighting, $item)) then
-                        if $last_color neq $keyword_highlighting then 
-                            console.foreground_color($keyword_highlighting)
-                            $last_color = $keyword_highlighting
-                        end
-                    else 
-                        console.reset_color()
-                        $last_color = 0
-                    end
-                    io.print($item + " ")
-                    if $background_color_enabled then 
-                        console.background_color($background_color)
-                    end
+                $line_len = string.len($line)
+                if errors.bool($line_len) then
+                    $line_len = 0
                 end
-                List.free($highlighting)
+                
+                if $enable_highlighting then 
+                    render_highlighted($line) 
+                else 
+                    io.print($line)
+                end
             end
-        else 
-            io.print($line, " ")
+
+            var pad = $screen_width - $line_len
+            while $pad > 0 then
+                io.print(" ")
+                $pad = $pad - 1
+            end
+
+            $i = $i + 1
+            $screen_y = $screen_y + 1
         end
+    elif $all equ 1 then 
+        var actual_y = $rendering_start_line + $cursor_y
+        $screen_y = $cursor_y
+        console.cursor_position(0, $screen_y)
+        
+        var line = List.get($lines, $actual_y)
+        var line_len = 0
+        
+        if not(errors.bool($line)) then
+            $line_len = string.len($line)
+            if errors.bool($line_len) then
+                $line_len = 0
+            end
+            
+            if $enable_highlighting then 
+                render_highlighted($line) 
+            else 
+                io.print($line)
+            end
+        end
+
+        var pad = $screen_width - $line_len
+        while $pad > 0 then
+            io.print(" ")
+            $pad = $pad - 1
+        end
+        
         $i = $i + 1
-        $screen_y = $screen_y + 1
     end
 end
 
-
 def render_screen then
     console.begin_update()
+    
     console.cursor_visibility(false)
-    if $smellslikeyouchangedsomethingspirit then
-        line_renderer()
-        $smellslikeyouchangedsomethingspirit = false
+    
+    if $smellslikeyouchangedsomethingspirit > 0 then
+        line_renderer($smellslikeyouchangedsomethingspirit)
+        $smellslikeyouchangedsomethingspirit = 0
     end
-    render_indicator()
 
+    render_indicator()
+    
     if $cursor_x < $screen_width and $cursor_y < $screen_height then
         console.cursor_position($cursor_x, $cursor_y)
     else
         console.cursor_position(0, $screen_height - 1)
     end
-
+    
     console.cursor_visibility(true)
     io.fflush()
     console.end_update()
@@ -275,8 +374,8 @@ def new_line -> middler, length then
 
     $cursor_x = 0
     $buffer = ""
-
     $rendering_end_line = $rendering_start_line + $total_renderable
+    $smellslikeyouchangedsomethingspirit = 2
 end
 
 def update_screen_size then
@@ -292,8 +391,7 @@ def update_screen_size then
     if $cursor_y < 0 then
         $cursor_y = 0
     end
-
-    $smellslikeyouchangedsomethingspirit = true
+    $smellslikeyouchangedsomethingspirit = 2
 end
 
 def backspace_b then
@@ -313,7 +411,7 @@ def backspace_b then
                 List.push($lines, $buffer)
             end
         end
-        $smellslikeyouchangedsomethingspirit = true
+        $smellslikeyouchangedsomethingspirit = 1
     else
         if $actual_y > 0 then
             var prev_y = $actual_y - 1
@@ -351,7 +449,7 @@ def backspace_b then
                 end
             end
 
-            $smellslikeyouchangedsomethingspirit = true
+            $smellslikeyouchangedsomethingspirit = 2
         else
             $status_message = "Theres no text to delete."
         end
@@ -366,29 +464,47 @@ def ascii_entered then
     if errors.bool(List.set($lines, $actual_y, $buffer)) then
         List.push($lines, $buffer)
     end
-    $smellslikeyouchangedsomethingspirit = true
+    $smellslikeyouchangedsomethingspirit = 1
 end
 
 def page_down then
     var len = List.len($lines)
+    var old_start = $rendering_start_line
 
     if $rendering_start_line + $total_renderable < $len then
-        $rendering_start_line = $rendering_start_line + 5
+        $rendering_start_line = $rendering_start_line + $scroll
+        
+        if $rendering_start_line + $total_renderable > $len then
+            $rendering_start_line = $len - $total_renderable
+            if $rendering_start_line < 0 then
+                $rendering_start_line = 0
+            end
+        end
+    end
+
+    if $old_start neq $rendering_start_line then
+        $smellslikeyouchangedsomethingspirit = 2
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
-    $smellslikeyouchangedsomethingspirit = true
 end
 
 def page_up then
+    var old_start = $rendering_start_line
+
     if $rendering_start_line > 0 then
-        $rendering_start_line = $rendering_start_line - 5
+        $rendering_start_line = $rendering_start_line - $scroll
+        if $rendering_start_line < 0 then
+            $rendering_start_line = 0
+        end
+    end
+
+    if $old_start neq $rendering_start_line then
+        $smellslikeyouchangedsomethingspirit = 2
     end
 
     $rendering_end_line = $rendering_start_line + $total_renderable
-    $smellslikeyouchangedsomethingspirit = true
 end
-
 def ascii_entered_middle -> charkey, length then
     var left = ""
     var right = ""
@@ -416,7 +532,7 @@ def ascii_entered_middle -> charkey, length then
         List.push($lines, $buffer)
     end
     $cursor_x = $cursor_x + 1
-    $smellslikeyouchangedsomethingspirit = true
+    $smellslikeyouchangedsomethingspirit = 1
 end
 
 render_screen()
@@ -498,7 +614,7 @@ while true then
                     if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
                         List.push($lines, $buffer)
                     end
-                    $smellslikeyouchangedsomethingspirit = true
+                    $smellslikeyouchangedsomethingspirit = 1
 
                 elif $ckey equ $KEY_ENTER then
                     var middle = false
@@ -508,7 +624,7 @@ while true then
                     end
 
                     new_line($middle, $len)
-                    $smellslikeyouchangedsomethingspirit = true
+                    $smellslikeyouchangedsomethingspirit = 2
                 elif $ckey equ $KEY_HOME then
                     $cursor_x = 0
 
@@ -533,8 +649,16 @@ while true then
                 elif $ckey equ $KEY_PAGE_DOWN then
                     page_down()
 
-                    if $cursor_y < $screen_height then
+                    var len = List.len($lines)
+                    if $cursor_y < $total_renderable then
                         $cursor_y = $total_renderable
+                    end
+
+                    if $rendering_start_line + $cursor_y eqg $len then
+                        $cursor_y = $len - $rendering_start_line - 1
+                        if $cursor_y < 0 then
+                            $cursor_y = 0
+                        end
                     end
 
                 elif $ckey equ $KEY_PAGE_UP then
@@ -542,8 +666,7 @@ while true then
 
                     if $cursor_y > 0 then
                         $cursor_y = 0
-                    end
-
+                    end                
                 elif $ckey equ $KEY_RIGHT then
                     var current_line = List.get($lines, $actual_y)
 
@@ -584,7 +707,7 @@ while true then
                         if $rendering_start_line + $screen_height < $len then
                             $rendering_start_line = $rendering_start_line + 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
-                            $smellslikeyouchangedsomethingspirit = true
+                            $smellslikeyouchangedsomethingspirit = 2
                         else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
@@ -597,7 +720,7 @@ while true then
                         if $rendering_start_line > 0 then
                             $rendering_start_line = $rendering_start_line - 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
-                            $smellslikeyouchangedsomethingspirit = true
+                            $smellslikeyouchangedsomethingspirit = 2
                         else
                             $status_message = "You are already in first line."
                         end
@@ -619,10 +742,11 @@ while true then
             end
         end
 
-        set_cursor_pos()
         render_screen()
     elif $event equ $WINDOW_RESIZE then
         update_screen_size()
         render_screen()
     end
 end
+
+

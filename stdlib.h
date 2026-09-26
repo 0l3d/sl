@@ -1,3 +1,6 @@
+#ifndef SL_STDLIB_H
+#define SL_STDLIB_H
+
 /*
  * SL Standart Library
  */
@@ -6628,8 +6631,11 @@ struct SL_Variable console_reset_color_posix_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   const char *reset_seq = "\x1b[0m";
 
-  fflush(stdout);
-  write(STDOUT_FILENO, reset_seq, strlen(reset_seq));
+  if (!sl_console_write_cstr(reset_seq)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to reset color.";
+    return return_var;
+  }
 
   return_var.type = BOOLEAN;
   return_var.valb = 1;
@@ -7594,14 +7600,16 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
     struct SL_Variable lib = sl_get_argument(*code, func, i);
     char *libstr = sl_string_getter(lib.vals);
 
-    if (strcmp(libstr, "io") == 0 && used_io == 0) {
+    if (strcmp(libstr, "io") == 0) {
+      if (used_io == 1) break;
       used_io = 1;
       sl_add_func(code, "io.print", print_fn);
       sl_add_func(code, "io.print_raw", print_raw_fn);
       sl_add_func(code, "io.input", input_fn);
       sl_add_func(code, "io.getchar", io_getchar_fn);
       sl_add_func(code, "io.fflush", io_fflush_fn);
-    } else if (strcmp(libstr, "file") == 0 && used_file == 0) {
+    } else if (strcmp(libstr, "file") == 0) {
+      if (used_file == 1) break;
       used_file = 1;
       sl_add_func(code, "file.read_to_str", file_read_to_str_fn);
       sl_add_func(code, "file.remove", file_remove_fn);
@@ -7610,7 +7618,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "file.read", file_read_fn);
       sl_add_func(code, "file.write", file_write_fn);
       sl_add_func(code, "file.append", file_append_fn);
-    } else if (strcmp(libstr, "math") == 0 && used_math == 0) {
+    } else if (strcmp(libstr, "math") == 0) {
+      if (used_math == 1) break;
       used_math = 1;
       sl_add_func(code, "math.pow", math_pow_fn);
       sl_add_func(code, "math.sqrt", math_sqrt_fn);
@@ -7626,11 +7635,13 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "math.min", math_min_fn);
       sl_add_func(code, "math.max", math_max_fn);
 
-    } else if (strcmp(libstr, "bytes") == 0 && used_bytes == 0) {
+    } else if (strcmp(libstr, "bytes") == 0) {
+      if (used_bytes == 1) break;
       used_bytes = 1;
       sl_add_func(code, "byte.get", byte_get_fn);
       sl_add_func(code, "byte.set", byte_set_fn);
-    } else if (strcmp(libstr, "types") == 0 && used_types == 0) {
+    } else if (strcmp(libstr, "types") == 0) {
+      if (used_types == 1) break;
       used_types = 1;
       /* CONVERT */
       sl_add_func(code, "types.str_to_int", str_to_int_fn);
@@ -7664,18 +7675,21 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_xdigit", is_xdigit_fn);
       sl_add_func(code, "types.to_lower", to_lower_fn);
       sl_add_func(code, "types.to_upper", to_upper_fn);
-    } else if (strcmp(libstr, "sys") == 0 && used_sys == 0) {
+    } else if (strcmp(libstr, "sys") == 0) {
+      if (used_sys == 1) break;
       used_sys = 1;
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
       sl_add_func(code, "sys.get_env", sys_get_env_fn);
       sl_add_func(code, "sys.popen", sys_popen_fn);
-    } else if (strcmp(libstr, "errors") == 0 && used_errors == 0) {
+    } else if (strcmp(libstr, "errors") == 0) {
+      if (used_errors == 1) break;
       used_errors = 1;
       sl_add_func(code, "errors.string", errors_string_fn);
       sl_add_func(code, "errors.bool", errors_bool_fn);
       sl_add_func(code, "errors.panic", errors_panic_fn);
-    } else if (strcmp(libstr, "collections") == 0 && used_collections == 0) {
+    } else if (strcmp(libstr, "collections") == 0) {
+      if (used_collections == 1) break;
       used_collections = 1;
       collections.collections = calloc(SL_INIT, sizeof(struct SL_Collection));
       collections.size = 0;
@@ -7685,10 +7699,12 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
                   collections_create_collection_fn);
       sl_add_func(code, "Collections.set_attr", collections_set_attr_fn);
       sl_add_func(code, "Collections.get_attr", collections_get_attr_fn);
-    } else if (strcmp(libstr, "enums") == 0 && used_enums == 0) {
+    } else if (strcmp(libstr, "enums") == 0) {
+      if (used_enums == 1) break;
       used_enums = 1;
       sl_add_func(code, "enums.create_enum", enums_create_enum_fn);
-    } else if (strcmp(libstr, "console") == 0 && used_console == 0) {
+    } else if (strcmp(libstr, "console") == 0) {
+      if (used_console == 1) break;
       used_console = 1;
       sl_add_fixed_int(code, "UNDEFINED_EVENT", SL_UNDEFINED_EVENT);
       sl_add_fixed_int(code, "KEY_EVENT", SL_KEY_EVENT);
@@ -7858,7 +7874,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.fill_rect", console_fill_rect_fn);
     }
 #ifdef ENABLE_NET
-    else if (strcmp(libstr, "net") == 0 && used_net == 0) {
+    else if (strcmp(libstr, "net") == 0) {
+      if (used_net == 1) break;
       used_net = 1;
       fd_list_capacity = SL_INIT;
       fd_list = calloc(fd_list_capacity, sizeof(struct SL_FD_List));
@@ -8598,7 +8615,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
 #endif
     }
 #endif
-    else if (strcmp(libstr, "string") == 0 && used_string == 0) {
+    else if (strcmp(libstr, "string") == 0) {
+      if (used_string == 1) break;
       used_string = 1;
       sl_add_func(code, "string.char_at", string_charat_fn);
       sl_add_func(code, "string.split", string_split_fn);
@@ -8613,7 +8631,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "string.ends_with", string_endswith_fn);
       sl_add_func(code, "string.remove_at", string_remove_at_fn);
       sl_add_func(code, "string.index_of", string_index_of_fn);
-    } else if (strcmp(libstr, "list") == 0 && used_list == 0) {
+    } else if (strcmp(libstr, "list") == 0) {
+      if (used_list == 1) break;
       used_list = 1;
       LISTS = calloc(SL_INIT, sizeof(struct SL_List));
       sl_add_func(code, "List.new", List_new_fn);
@@ -8632,10 +8651,12 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.relative", List_relative_fn);
       sl_add_func(code, "List.remove", List_remove_fn);
       sl_add_func(code, "List.len", List_len_fn);
-    } else if (strcmp(libstr, "extra") == 0 && used_extra == 0) {
+    } else if (strcmp(libstr, "extra") == 0) {
+      if (used_extra == 1) break;
       used_extra = 1;
       sl_add_func(code, "rand.random", random_fn);
-    } else if (strcmp(libstr, "time") == 0 && used_time == 0) {
+    } else if (strcmp(libstr, "time") == 0) {
+      if (used_time == 1) break;
       used_time = 1;
       sl_add_func(code, "time.now", time_now_fn);
       sl_add_func(code, "time.string", time_string_fn);
@@ -8646,7 +8667,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "time.second", time_second_fn);
       sl_add_func(code, "time.diff", time_diff_fn);
       sl_add_func(code, "time.parse", time_parse_fn);
-    } else if (strcmp(libstr, "db") == 0 && used_db == 0) {
+    } else if (strcmp(libstr, "db") == 0) {
+      if (used_db == 1) break;
       used_db = 1;
       sl_add_func(code, "db.from_lists", db_from_lists_fn);
       sl_add_func(code, "db.to_lists", db_to_lists_fn);
@@ -8659,9 +8681,12 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
           system("mkdir -p sl_libraries");
         #endif
         if (!use_library(libstr + 4, code)) {
-          fprintf(stderr, "Package not found! Terminating...\n");
+          fprintf(stderr, "Package %s not found! Terminating...\n", libstr);
           exit(EXIT_FAILURE);
         }
+      } else {
+        fprintf(stderr, "Library %s not found! Terminating...\n", libstr);
+        exit(EXIT_FAILURE);
       }
     }
     free(libstr);
@@ -8916,3 +8941,4 @@ void close_sl_stdlib() {
   }
 #endif
 }
+#endif
