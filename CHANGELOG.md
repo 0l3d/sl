@@ -5,3 +5,4 @@
 - List support for io.print.
 - Expression solver improvements.
 - Extra little changes.
+- Editor optimization.
