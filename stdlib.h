@@ -1412,8 +1412,9 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   char *endptr = NULL;
   long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
   if (temp > INT32MAX || temp < INT32MIN) {
-    fprintf(stderr, "Integer is too large for int type\n");
-    exit(1);
+    fprintf(stderr, "ext variable is out of bounds\n");
+    fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
+    exit(EXIT_FAILURE);
   }
   return_var.vali = (int)temp;
   return return_var;
@@ -6890,7 +6891,14 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
           posix_last_event_type = SL_KEY_EVENT;
           posix_last_key_pressed = 1;
           posix_last_key_mod = SL_MOD_NONE;
-          int code = atoi(ext);
+	  char *endptr = NULL;
+          long temp = strtol(ext, &endptr, 10);
+          if (temp > INT32MAX || temp < INT32MIN) {
+            fprintf(stderr, "ext variable is out of bounds\n");
+            fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
+            exit(EXIT_FAILURE);
+          }
+          int code = (int)temp;
           switch (code) {
           case 1:
           case 7:
