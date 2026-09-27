@@ -1409,7 +1409,13 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   return_var.type = INTEGER;
-  return_var.vali = atoi(sl_string_getter(first_arg.vals));
+  char *endptr = NULL;
+  long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
+  if (temp > INT32MAX || temp < INT32MIN) {
+    fprintf(stderr, "Integer is too large for int type\n");
+    exit(1);
+  }
+  return_var.vali = (int)temp;
   return return_var;
 }
 
