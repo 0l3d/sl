@@ -57,7 +57,6 @@
 #define SL_CLEAR_LINE_AFTER_CURSOR 2
 #define SL_CLEAR_FROM_CURSOR_TO_SCREEN_END 4
 
-
 #define SL_BOLD 0
 #define SL_DIM 1
 #define SL_ITALIC 2
@@ -71,7 +70,6 @@
 #define SL_FRAMED 10
 #define SL_ENCIRCLED 11
 #define SL_OVERLINED 12
-
 
 #define SL_UNDEFINED_EVENT -1
 #define SL_KEY_EVENT 0
@@ -168,7 +166,8 @@ static char *sl_base64_encode(const unsigned char *data, size_t input_length) {
       "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
   size_t output_length = 4 * ((input_length + 2) / 3);
   char *encoded_data = (char *)malloc(output_length + 1);
-  if (!encoded_data) return NULL;
+  if (!encoded_data)
+    return NULL;
 
   for (size_t i = 0, j = 0; i < input_length;) {
     uint32_t octet_a = i < input_length ? data[i++] : 0;
@@ -698,7 +697,7 @@ struct SL_Variable io_getchar_fn(struct SL_Code *code,
 }
 
 struct SL_Variable io_flush_fn(struct SL_Code *code, struct SL_L_Function func,
-                                struct SL_Function rfunc) {
+                               struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   if (sl_console_flush() != 0) {
@@ -6449,13 +6448,11 @@ int posix_last_mouse_x = 0;
 int posix_last_mouse_y = 0;
 
 void disableRawMode() {
-  sl_console_flush();
-  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
-  fflush(stdout);
-  const char *disable_mouse = "\x1b[?1003l\x1b[?1006l\x1b[?7h";
-  write(STDOUT_FILENO, disable_mouse, strlen(disable_mouse));
-  printf("\x1b[?25h");
-  sl_console_flush();
+    const char *restore = "\x1b[?1003l\x1b[?1006l\x1b[?25h"; 
+    write(STDOUT_FILENO, restore, strlen(restore));
+    sl_console_flush(); 
+    fflush(stdout);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
 struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
@@ -6476,7 +6473,6 @@ struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
 
   if (first_arg.valb == 1) {
     sl_console_flush();
-    tcgetattr(STDIN_FILENO, &orig_termios);
     struct termios raw = orig_termios;
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
@@ -6491,9 +6487,13 @@ struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
       return return_var;
     }
 
+    const char *enable_mouse = "\x1b[?1003h\x1b[?1006h";
+    if (!sl_console_write_cstr(enable_mouse)) {
+      return_var.vals = "Cannot enable mouse.";
+      return_var.type = ERROR;
+      return return_var;
+    }
     fflush(stdout);
-    const char *enable_mouse = "\x1b[?1003h\x1b[?1006h\x1b[?7l";
-    write(STDOUT_FILENO, enable_mouse, strlen(enable_mouse));
   } else {
     disableRawMode();
   }
@@ -7173,6 +7173,7 @@ struct SL_Variable console_auto_wrap_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
+
 struct SL_Variable console_write_at_fn(struct SL_Code *code,
                                        struct SL_L_Function func,
                                        struct SL_Function rfunc) {
@@ -7562,8 +7563,8 @@ struct SL_Variable console_delete_line_fn(struct SL_Code *code,
 }
 
 struct SL_Variable console_rgb_foreground_fn(struct SL_Code *code,
-                                          struct SL_L_Function func,
-                                          struct SL_Function rfunc) {
+                                             struct SL_L_Function func,
+                                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   if (func.total_arguments < 3) {
     return_var.type = ERROR;
@@ -7577,8 +7578,8 @@ struct SL_Variable console_rgb_foreground_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm",
-           first_arg.vali, second_arg.vali, third_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm", first_arg.vali,
+           second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -7592,8 +7593,8 @@ struct SL_Variable console_rgb_foreground_fn(struct SL_Code *code,
 }
 
 struct SL_Variable console_rgb_background_fn(struct SL_Code *code,
-                                          struct SL_L_Function func,
-                                          struct SL_Function rfunc) {
+                                             struct SL_L_Function func,
+                                             struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   if (func.total_arguments < 3) {
     return_var.type = ERROR;
@@ -7607,8 +7608,8 @@ struct SL_Variable console_rgb_background_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm",
-           first_arg.vali, second_arg.vali, third_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm", first_arg.vali,
+           second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -7648,15 +7649,13 @@ struct SL_Variable console_insert_char_fn(struct SL_Code *code,
   return return_var;
 }
 
-
 struct SL_Variable console_set_title_fn(struct SL_Code *code,
                                         struct SL_L_Function func,
                                         struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
   if (func.total_arguments < 1) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at console.set_title! Not enough arguments.";
+    return_var.vals = "Error usage at console.set_title! Not enough arguments.";
     return return_var;
   }
 
@@ -7782,8 +7781,9 @@ struct SL_Variable console_load_cursor_fn(struct SL_Code *code,
   return return_var;
 }
 
-struct SL_Variable console_set_style_fn(struct SL_Code *code, struct SL_L_Function func,
-                                  struct SL_Function rfunc) {
+struct SL_Variable console_set_style_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   for (int i = 0; i < func.total_arguments; i++) {
@@ -7917,7 +7917,6 @@ struct SL_Variable console_reset_style_fn(struct SL_Code *code,
   return return_var;
 }
 
-
 struct SL_Variable console_underline_color_fn(struct SL_Code *code,
                                               struct SL_L_Function func,
                                               struct SL_Function rfunc) {
@@ -8012,8 +8011,8 @@ struct SL_Variable console_rgb_underline_color_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[58;2;%d;%d;%dm",
-           first_arg.vali, second_arg.vali, third_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[58;2;%d;%d;%dm", first_arg.vali,
+           second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -8046,7 +8045,8 @@ struct SL_Variable console_set_clipboard_fn(struct SL_Code *code,
     return return_var;
   }
 
-  char *b64_text = sl_base64_encode((const unsigned char *)raw_text, strlen(raw_text));
+  char *b64_text =
+      sl_base64_encode((const unsigned char *)raw_text, strlen(raw_text));
 
   free(raw_text);
 
@@ -8082,7 +8082,6 @@ struct SL_Variable console_set_clipboard_fn(struct SL_Code *code,
   return_var.valb = 1;
   return return_var;
 }
-
 
 /* CONSOLE */
 
@@ -8662,7 +8661,10 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.reset_color", console_reset_color_win_fn);
 #else
       /* FOR TERMIOS: https://viewsourcecode.org/snaptoken/kilo/ */
-      tcgetattr(STDIN_FILENO, &orig_termios);
+      if (tcgetattr(STDIN_FILENO, &orig_termios) == -1) {
+        perror("tcgetattr");
+        exit(1);
+      }
       atexit(disableRawMode);
       sl_add_func(code, "console.clear", console_clear_posix_fn);
       sl_add_func(code, "console.foreground_color", console_fgcolor_posix_fn);
@@ -8698,6 +8700,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.write_at", console_write_at_fn);
       sl_add_func(code, "console.fill_rect", console_fill_rect_fn);
       sl_add_func(code, "console.scroll_area", console_scroll_area_fn);
+      sl_add_func(code, "console.reset_scroll_area", console_scroll_area_reset_fn);
       sl_add_func(code, "console.scroll_up", console_scroll_up_fn);
       sl_add_func(code, "console.scroll_down", console_scroll_down_fn);
       sl_add_func(code, "console.line_up", console_line_up_fn);
@@ -8714,7 +8717,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.set_style", console_set_style_fn);
       sl_add_func(code, "console.reset_style", console_reset_style_fn);
       sl_add_func(code, "console.underline_color", console_underline_color_fn);
-      sl_add_func(code, "console.rgb_underline_color", console_rgb_underline_color_fn);
+      sl_add_func(code, "console.rgb_underline_color",
+                  console_rgb_underline_color_fn);
       sl_add_func(code, "console.set_title", console_set_title_fn);
       sl_add_func(code, "console.set_clipboard", console_set_clipboard_fn);
 

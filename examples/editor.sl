@@ -114,6 +114,7 @@ if not(errors.bool($read)) then
 end
 
 console.enter_alt_screen()
+console.autowrap(false)
 console.clear()
 
 var screen_width = console.get_width() - 1
@@ -549,7 +550,10 @@ while true then
 
             if types.is_char($ckey) then
                 if $ckey equ 'q' and $mod equ $MOD_CTRL then
+                    console.reset_scroll_area()
+                    console.autowrap(true)
                     console.leave_alt_screen()
+                    console.raw_mode(false)
                     break
                 elif $ckey equ 's' and $mod equ $MOD_CTRL then
                     var all_buf = ""
