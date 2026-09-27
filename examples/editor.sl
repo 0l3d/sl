@@ -699,7 +699,7 @@ while true then
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
                     else
-                     if $rendering_start_line + $screen_height < $len then
+                        if $rendering_start_line + $screen_height < $len then
                             $rendering_start_line = $rendering_start_line + 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
                             
@@ -711,11 +711,11 @@ while true then
                             line_renderer(1) 
                             $cursor_y = $temp_y
                             
-                            $smellslikeyouchangedsomethingspirit = 0                        else
+                            $smellslikeyouchangedsomethingspirit = 0                        
+                        else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
                     end
-
                 elif $ckey equ $KEY_UP then
                     if $cursor_y > 0 then
                         $cursor_y = $cursor_y - 1
