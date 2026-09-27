@@ -166,7 +166,7 @@ jobs:
         uses: vmactions/netbsd-vm@v1
         with:
           usesh: true
-          prepare: pkgin -y install gmake
+          prepare: pkg_add gmake
           run: |
             gmake all nonetwork
             gmake test
