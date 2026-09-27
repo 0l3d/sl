@@ -1411,6 +1411,10 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   return_var.type = INTEGER;
   char *endptr = NULL;
   long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
+  if (*(endptr) != '\0') {
+    fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
+    exit(1);
+  }
   if (temp > INT32MAX || temp < INT32MIN) {
     fprintf(stderr, "ext variable is out of bounds\n");
     fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
@@ -6893,6 +6897,10 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
           posix_last_key_mod = SL_MOD_NONE;
 	  char *endptr = NULL;
           long temp = strtol(ext, &endptr, 10);
+          if (*(endptr) != '\0') {
+            fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
+            exit(1);
+          }
           if (temp > INT32MAX || temp < INT32MIN) {
             fprintf(stderr, "ext variable is out of bounds\n");
             fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
