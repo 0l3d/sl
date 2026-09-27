@@ -15,10 +15,10 @@ ifeq ($(OS),Windows_NT)
 	LDFLAGS += -lws2_32
 	EXT = .exe
 	STRIP_CMD = strip --strip-all
-	ARCHIVE_CMD = cd $(DIST_DIR) && zip -r $(DIST_NAME).zip $(DIST_NAME)
+	ARCHIVE_CMD = cd $(DIST_DIR) && zip -r $(DIST_NAME).zip $(DIST_NAME) && rm -rf $(DIST_NAME)
 else
 	EXT =
-	ARCHIVE_CMD = cd $(DIST_DIR) && tar -czf $(DIST_NAME).tar.gz $(DIST_NAME)
+	ARCHIVE_CMD = cd $(DIST_DIR) && tar -czf $(DIST_NAME).tar.gz $(DIST_NAME) && rm -rf $(DIST_NAME)
 	UNAME_S := $(shell uname -s)
 	ifeq ($(UNAME_S),Darwin)
 		STRIP_CMD = strip -x
@@ -65,7 +65,6 @@ distribute:
 
 clean:
 	rm -f *.o sl$(EXT) sl-nonetwork$(EXT)
-	rm -rf $(DIST_DIR)
 
 valgrind:
 	valgrind --leak-check=full --show-leak-kinds=all --track-origins=yes ./sl$(EXT) $(filter-out $@,$(MAKECMDGOALS))
