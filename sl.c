@@ -432,8 +432,6 @@ char *sl_string_getter(char *word) {
 
   size_t size = strlen(word);
   char *our_word = smalloc(size);
-  if (our_word == NULL)
-    return NULL;
 
   int j = 0;
 
