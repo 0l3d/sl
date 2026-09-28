@@ -1412,12 +1412,13 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   char *endptr = NULL;
   char *raw_str = sl_string_getter(first_arg.vals);
   long temp = strtol(raw_str, &endptr, 10);
-  free(raw_str);
   if (*(endptr) != '\0') {
+    free(raw_str);
     return_var.type = ERROR;
     return_var.vals = "Invalid characters in integer value";
     return return_var;
   }
+  free(raw_str);
   if (temp > INT32MAX || temp < INT32MIN) {
     return_var.type = ERROR;
     return_var.vals = "ext variable is out of bounds\n";
