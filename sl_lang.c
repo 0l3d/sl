@@ -44,9 +44,17 @@ int main(int argc, char **argv) {
       code = strdup("./code.sl");
     } else {
       code = strdup(argv[1]);
+      if (code == NULL) {
+        fprintf(stderr, "main(): strdup() failed to allocate memory and returned NULL\n");
+        return -1;
+      }
     }
   } else {
     code = strdup("./code.sl");
+    if (code == NULL) {
+      fprintf(stderr, "main(): strdup() failed to allocate memory and returned NULL\n"); 
+      return -1;
+    }
   }
   char buff[1024];
   char **code_array;
