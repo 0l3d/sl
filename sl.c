@@ -309,7 +309,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
-    fprintf(stderr, "init_sl_lexer failed with error:\n");
+    fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
     return -1;
   }
 
@@ -319,7 +319,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
   size_t total_allocations = 0;
 
   total_allocations += malloc_size;
-  code_string = malloc(total_allocations);
+  code_string = smalloc(total_allocations);
   code_string[0] = '\0';
 
   int enable_endlinemodifier = 0;
@@ -2936,11 +2936,6 @@ int sl_open_sl_process(struct SL_Code *code, char *file_name) {
   code->types = scalloc(count, sizeof(enum TokenTypes));
   code->fixed_values = scalloc(count, sizeof(struct SL_Variable));
   code->types_set = 0;
-  if (code->types == NULL) {
-    fprintf(stderr, "calloc() failed to allocate memory (types)\n");
-    return -1;
-  }
-
   if (count <= 0) {
     fprintf(stderr, "sl_lexer failed\n");
     return -1;
