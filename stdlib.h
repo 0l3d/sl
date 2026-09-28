@@ -1418,8 +1418,7 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   }
   if (temp > INT32MAX || temp < INT32MIN) {
     return_var.type = ERROR;
-    return_var.vals = "ext variable is out of bounds\n"
-        "Min: "INT32MIN", Max: "INT32MAX"\n";
+    return_var.vals = "ext variable is out of bounds\n";
     return return_var;
   }
   return_var.vali = (int)temp;
@@ -6905,8 +6904,7 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
             return return_var;
           }
           if (temp > INT32MAX || temp < INT32MIN) {
-            return_var.vals = "variable is out of bounds\n"
-                "Min: "INT32MIN", Max: "INT32MAX"\n";
+            return_var.vals = "variable is out of bounds\n";
             return return_var;
           }
           int code = (int)temp;
