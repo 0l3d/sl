@@ -1410,7 +1410,8 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   return_var.type = INTEGER;
   char *endptr = NULL;
-  long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
+  char *raw_str = sl_string_getter(first_arg.vals);
+  long temp = strtol(raw_str, &endptr, 10);
   if (*(endptr) != '\0') {
     return_var.type = ERROR;
     return_var.vals = "Invalid characters in integer value";
@@ -1422,6 +1423,7 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
     return return_var;
   }
   return_var.vali = (int)temp;
+  free(raw_str);
   return return_var;
 }
 
