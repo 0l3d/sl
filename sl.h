@@ -4,6 +4,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#define INT32MAX 2147483647
+#define INT32MIN (-2147483647)
+
 #define SL_INIT 4096
 #define GENERAL_MALLOC_SIZE 131072
 #define MAX_CODE_SIZE 1048576

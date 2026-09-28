@@ -432,8 +432,6 @@ char *sl_string_getter(char *word) {
 
   size_t size = strlen(word);
   char *our_word = smalloc(size);
-  if (our_word == NULL)
-    return NULL;
 
   int j = 0;
 
@@ -815,26 +813,15 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         char *left_string = sl_string_getter(left_side.vals);
         char *right_string = sl_string_getter(right_side.vals);
 
-        if (left_string == NULL || right_string == NULL) {
-          free(left_string);
-          free(right_string);
-          free(left_side.vals);
-          free(right_side.vals);
-
-          error.vals = "Memory allocation failed during string operations";
-          return error;
-        }
-
         size_t joined_len = strlen(left_string) + strlen(right_string);
-        char *joined_string = malloc(joined_len + 1);
-
+        char *joined_string = malloc(joined_len + 1);  
+        /* still use malloc() in order to free other buffers in case of failure to allocate */
         if (joined_string == NULL) {
           free(left_string);
           free(right_string);
-          free(left_side.vals);
           free(right_side.vals);
-
-          error.vals = "Memory allocation failed during string concatenation";
+          free(left_side.vals);
+          error.vals = "malloc() failed during string concatenation";
           return error;
         }
 

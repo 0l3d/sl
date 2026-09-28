@@ -2,7 +2,7 @@
 #define SL_STDLIB_H
 
 /*
- * SL Standart Library
+ * SL Standard Library
  */
 #include "sl.h"
 #include <ctype.h>
@@ -1409,7 +1409,19 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   return_var.type = INTEGER;
-  return_var.vali = atoi(sl_string_getter(first_arg.vals));
+  char *endptr = NULL;
+  long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
+  if (*(endptr) != '\0') {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid characters in integer value";
+    return return_var;
+  }
+  if (temp > INT32MAX || temp < INT32MIN) {
+    return_var.type = ERROR;
+    return_var.vals = "ext variable is out of bounds\n";
+    return return_var;
+  }
+  return_var.vali = (int)temp;
   return return_var;
 }
 
@@ -6884,7 +6896,18 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
           posix_last_event_type = SL_KEY_EVENT;
           posix_last_key_pressed = 1;
           posix_last_key_mod = SL_MOD_NONE;
-          int code = atoi(ext);
+	  char *endptr = NULL;
+          long temp = strtol(ext, &endptr, 10);
+          if (*(endptr) != '\0') {
+            return_var.type = ERROR;
+            return_var.vals = "Invalid characters in integer value";
+            return return_var;
+          }
+          if (temp > INT32MAX || temp < INT32MIN) {
+            return_var.vals = "variable is out of bounds\n";
+            return return_var;
+          }
+          int code = (int)temp;
           switch (code) {
           case 1:
           case 7:
