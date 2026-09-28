@@ -1412,13 +1412,15 @@ struct SL_Variable str_to_int_fn(struct SL_Code *code,
   char *endptr = NULL;
   long temp = strtol(sl_string_getter(first_arg.vals), &endptr, 10);
   if (*(endptr) != '\0') {
-    fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
-    exit(1);
+    return_var.type = ERROR;
+    return_var.vals = "Invalid characters in integer value";
+    return return_var;
   }
   if (temp > INT32MAX || temp < INT32MIN) {
-    fprintf(stderr, "ext variable is out of bounds\n");
-    fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
-    exit(EXIT_FAILURE);
+    return_var.type = ERROR;
+    return_var.vals = "ext variable is out of bounds\n"
+        "Min: "INT32MIN", Max: "INT32MAX"\n";
+    return return_var;
   }
   return_var.vali = (int)temp;
   return return_var;
@@ -6898,13 +6900,14 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
 	  char *endptr = NULL;
           long temp = strtol(ext, &endptr, 10);
           if (*(endptr) != '\0') {
-            fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
-            exit(1);
+            return_var.type = ERROR;
+            return_var.vals = "Invalid characters in integer value";
+            return return_var;
           }
           if (temp > INT32MAX || temp < INT32MIN) {
             fprintf(stderr, "ext variable is out of bounds\n");
             fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
-            exit(EXIT_FAILURE);
+            return return_var;
           }
           int code = (int)temp;
           switch (code) {
