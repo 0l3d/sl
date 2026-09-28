@@ -919,6 +919,10 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
       }
       break;
     case '/':
+      if (right_side.vali == 0) {
+        error.vals = "Division by zero detected, aborting.";
+        return error;
+      }
       switch (left_side.type) {
       case INTEGER:
         expression_result.vali = left_side.vali / right_side.vali;
