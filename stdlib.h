@@ -6460,11 +6460,11 @@ int posix_last_mouse_x = 0;
 int posix_last_mouse_y = 0;
 
 void disableRawMode() {
-    const char *restore = "\x1b[?1003l\x1b[?1006l\x1b[?25h"; 
-    write(STDOUT_FILENO, restore, strlen(restore));
-    sl_console_flush(); 
-    fflush(stdout);
-    tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+  const char *restore = "\x1b[?1003l\x1b[?1006l\x1b[?25h";
+  write(STDOUT_FILENO, restore, strlen(restore));
+  sl_console_flush();
+  fflush(stdout);
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
 }
 
 struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
@@ -6896,15 +6896,23 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
           posix_last_event_type = SL_KEY_EVENT;
           posix_last_key_pressed = 1;
           posix_last_key_mod = SL_MOD_NONE;
-	  char *endptr = NULL;
+          char *endptr = NULL;
           long temp = strtol(ext, &endptr, 10);
-          if (*(endptr) != '\0') {
-            return_var.type = ERROR;
-            return_var.vals = "Invalid characters in integer value";
+          if (endptr == ext) {
+            return_var.type = INTEGER;
+            return_var.vali = SL_UNDEFINED_EVENT;
             return return_var;
           }
+
+          if (*endptr != '\0' && *endptr != '~') {
+            return_var.type = INTEGER;
+            return_var.vali = SL_UNDEFINED_EVENT;
+            return return_var;
+          }
+
           if (temp > INT32MAX || temp < INT32MIN) {
-            return_var.vals = "variable is out of bounds\n";
+            return_var.type = INTEGER;
+            return_var.vali = SL_UNDEFINED_EVENT;
             return return_var;
           }
           int code = (int)temp;
@@ -8723,7 +8731,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "console.write_at", console_write_at_fn);
       sl_add_func(code, "console.fill_rect", console_fill_rect_fn);
       sl_add_func(code, "console.scroll_area", console_scroll_area_fn);
-      sl_add_func(code, "console.reset_scroll_area", console_scroll_area_reset_fn);
+      sl_add_func(code, "console.reset_scroll_area",
+                  console_scroll_area_reset_fn);
       sl_add_func(code, "console.scroll_up", console_scroll_up_fn);
       sl_add_func(code, "console.scroll_down", console_scroll_down_fn);
       sl_add_func(code, "console.line_up", console_line_up_fn);
