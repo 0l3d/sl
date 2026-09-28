@@ -305,12 +305,12 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   return token_count;
 }
 
-int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
+int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
-    fprintf(stderr, "init_sl_lexer failed with error:\n");
-    return -1;
+    fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
+    exit(1);
   }
 
   char buf[4096];
@@ -319,7 +319,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
   size_t total_allocations = 0;
 
   total_allocations += malloc_size;
-  code_string = malloc(total_allocations);
+  code_string = smalloc(total_allocations);
   code_string[0] = '\0';
 
   int enable_endlinemodifier = 0;
@@ -366,6 +366,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
     code_string[len + index] = ' ';
     code_string[len + index + 1] = '\0';
   }
+  fclose(code_file);
 
   char **code_array = smalloc(1024 * sizeof(char *));
   int count = sl_raw_lexer(code_string, &code_array, strlen(code_string),
@@ -374,7 +375,6 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
   free(code_string);
   *bufout = code_array;
 
-  fclose(code_file);
   return count;
 }
 
@@ -919,6 +919,10 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
       }
       break;
     case '/':
+      if (right_side.vali == 0) {
+        error.vals = "Division by zero detected, aborting.";
+        return error;
+      }
       switch (left_side.type) {
       case INTEGER:
         expression_result.vali = left_side.vali / right_side.vali;
@@ -2921,7 +2925,7 @@ struct SL_Code sl_init_sl_process() {
   return code;
 }
 
-int sl_open_sl_process(struct SL_Code *code, char *file_name) {
+int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
   int count = sl_init_sl_lexer(SL_INIT, file_name, &code->code, SPECIAL_TOKENS);
   if (count < 0) {
     fprintf(stderr,
@@ -2932,11 +2936,6 @@ int sl_open_sl_process(struct SL_Code *code, char *file_name) {
   code->types = scalloc(count, sizeof(enum TokenTypes));
   code->fixed_values = scalloc(count, sizeof(struct SL_Variable));
   code->types_set = 0;
-  if (code->types == NULL) {
-    fprintf(stderr, "calloc() failed to allocate memory (types)\n");
-    return -1;
-  }
-
   if (count <= 0) {
     fprintf(stderr, "sl_lexer failed\n");
     return -1;
