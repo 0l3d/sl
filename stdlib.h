@@ -2,7 +2,7 @@
 #define SL_STDLIB_H
 
 /*
- * SL Standart Library
+ * SL Standard Library
  */
 #include "sl.h"
 #include <ctype.h>
@@ -6905,8 +6905,8 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
             return return_var;
           }
           if (temp > INT32MAX || temp < INT32MIN) {
-            fprintf(stderr, "ext variable is out of bounds\n");
-            fprintf(stderr, "Min: %ld, Max: %ld\nValue: %ld\n", INT32MIN, INT32MAX, temp);
+            return_var.vals = "variable is out of bounds\n"
+                "Min: "INT32MIN", Max: "INT32MAX"\n";
             return return_var;
           }
           int code = (int)temp;
