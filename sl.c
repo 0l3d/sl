@@ -305,12 +305,12 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   return token_count;
 }
 
-int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
+int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name, char ***bufout,
                      char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
     fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
-    return -1;
+    exit(1);
   }
 
   char buf[4096];
@@ -366,6 +366,7 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
     code_string[len + index] = ' ';
     code_string[len + index + 1] = '\0';
   }
+  fclose(code_file);
 
   char **code_array = smalloc(1024 * sizeof(char *));
   int count = sl_raw_lexer(code_string, &code_array, strlen(code_string),
@@ -374,7 +375,6 @@ int sl_init_sl_lexer(size_t malloc_size, char *file_name, char ***bufout,
   free(code_string);
   *bufout = code_array;
 
-  fclose(code_file);
   return count;
 }
 
@@ -2925,7 +2925,7 @@ struct SL_Code sl_init_sl_process() {
   return code;
 }
 
-int sl_open_sl_process(struct SL_Code *code, char *file_name) {
+int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
   int count = sl_init_sl_lexer(SL_INIT, file_name, &code->code, SPECIAL_TOKENS);
   if (count < 0) {
     fprintf(stderr,

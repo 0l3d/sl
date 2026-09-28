@@ -51,19 +51,11 @@ int main(int argc, char **argv) {
     }
   } else {
     /* falls back to this file if no file is specified in the command */
-    const char *default_fp = "./code.sl";
-    code = strdup(default_fp);
+    code = strdup("code.sl");
     if (code == NULL) {
       fprintf(stderr, "main(): strdup() failed to allocate memory and returned NULL\n"); 
       return -1;
     }
-    FILE *fp = fopen(default_fp, "r");
-    if (fp == NULL) {
-      fprintf(stderr, "No file specified, defaulted to \"%s\"\nNo such file or directory\n", default_fp);
-      free(code);
-      return -2;
-    }
-    fclose(fp);
   }
   char buff[1024];
   char **code_array;
@@ -73,6 +65,7 @@ int main(int argc, char **argv) {
   init_sl_stdlib(&sl_code, argc, argv);
 
   if (sl_open_sl_process(&sl_code, code) != 0) {
+    free(code);
     free(sl_code.types);
     free(sl_code.funcs);
     free(sl_code.vars);
