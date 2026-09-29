@@ -1,19 +1,15 @@
 use("io", "types")
 
-io.print(
+io.print("$first_number + 10 + $second_number = ",
 then 
-    return 10
+    var out = types.str_to_int(io.input("Enter first number: "))
+    return $out 
 end 
 + 
 10 
 + 
 then 
-    return 10 
-end 
-+ 
-then 
-    return 10 + 10 
-end 
-)
-
-# result is: 50
+    var out = types.str_to_int(io.input("Enter second number: "))
+    return $out 
+end, 
+"\n")
