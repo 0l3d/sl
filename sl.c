@@ -6,12 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
-                                            char *expression[],
-                                            enum TokenTypes *types,
-                                            int *current_token, int max_tokens,
-                                            int current_line);
-
 void identifier_tokenizer(char **code, enum TokenTypes **types,
                           struct SL_Variable **fixed_values, int token_count);
 
@@ -305,8 +299,8 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   return token_count;
 }
 
-int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name, char ***bufout,
-                     char *special_tokens) {
+int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name,
+                     char ***bufout, char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
     fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
@@ -814,8 +808,9 @@ struct SL_Variable expression_solver(struct SL_Variable left_side, char op,
         char *right_string = sl_string_getter(right_side.vals);
 
         size_t joined_len = strlen(left_string) + strlen(right_string);
-        char *joined_string = malloc(joined_len + 1);  
-        /* still use malloc() in order to free other buffers in case of failure to allocate */
+        char *joined_string = malloc(joined_len + 1);
+        /* still use malloc() in order to free other buffers in case of failure
+         * to allocate */
         if (joined_string == NULL) {
           free(left_string);
           free(right_string);
@@ -1373,8 +1368,8 @@ struct SL_Math_Splitter {
   enum TokenTypes op_type;
 };
 
-int operator_checker(char *expressions[], enum TokenTypes *types, int start,
-                     int end);
+int operator_checker(struct SL_Code *code, char *expressions[],
+                     enum TokenTypes *types, int start, int end);
 
 int is_it_function_or_not(char **tokens, enum TokenTypes *types,
                           int current_token, int max_tokens) {
@@ -1397,8 +1392,8 @@ int is_it_function_or_not(char **tokens, enum TokenTypes *types,
   return -1;
 }
 
-int operator_checker(char *expressions[], enum TokenTypes *types, int start,
-                     int end) {
+int operator_checker(struct SL_Code *code, char *expressions[],
+                     enum TokenTypes *types, int start, int end) {
   if (end - start > 1) {
     return 1;
   }
@@ -1406,6 +1401,18 @@ int operator_checker(char *expressions[], enum TokenTypes *types, int start,
   int isitfunc = is_it_function_or_not(expressions, types, start, end);
   if (isitfunc != -1) {
     start = isitfunc;
+  }
+
+  if (code->custom_splitter_count > 0) {
+    int old_curr = start;
+    for (int i = 0; i < code->custom_splitter_count; i++) {
+      if (strcmp(code->custom_splitter[i], code->code[start]) == 0) {
+        old_curr = code->custom_splitterr[i](code, &start);
+      }
+    }
+    if (start != old_curr) {
+      start = old_curr;
+    }
   }
 
   for (int i = start; i < end; i++) {
@@ -1488,6 +1495,19 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
   tree.op = 0;
 
   while (current_token < max_tokens) {
+    if (code.custom_splitter_count > 0) {
+      int old_curr = current_token;
+      for (int i = 0; i < code.custom_splitter_count; i++) {
+        if (strcmp(code.custom_splitter[i], code.code[current_token]) == 0) {
+          old_curr = code.custom_splitterr[i](&code, &current_token);
+        }
+      }
+      if (current_token != old_curr) {
+        current_token = old_curr;
+        continue;
+      }
+    }
+
     if (is_has_func(code, expression[current_token]) != -1) {
       int is_it_func =
           is_it_function_or_not(expression, types, current_token, max_tokens);
@@ -1723,8 +1743,8 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
 
         if (function.linked_function == 1) {
           lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
-          struct SL_Variable result = expression_parser_solver(
-              code, tokens, types, &current_token, commapos, 0);
+          struct SL_Variable result = sl_expression_solver(
+              code, tokens, types, &current_token, commapos);
 
           code->vars[code->total_vars] = result;
           code->vars[code->total_vars].name = NULL;
@@ -1740,8 +1760,8 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
-            struct SL_Variable result = expression_parser_solver(
-                code, tokens, types, &current_token, commapos, 0);
+            struct SL_Variable result = sl_expression_solver(
+                code, tokens, types, &current_token, commapos);
             code->vars[code->total_vars] = result;
             code->vars[code->total_vars].name = strdup(function_name);
             code->vars[code->total_vars++].hash = sl_hash_string(function_name);
@@ -1749,8 +1769,8 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
             free_tracker++;
             free(function_name);
           } else {
-            struct SL_Variable result = expression_parser_solver(
-                code, tokens, types, &current_token, commapos, 0);
+            struct SL_Variable result = sl_expression_solver(
+                code, tokens, types, &current_token, commapos);
             code->vars[code->total_vars] = result;
             if (function.arguments[how_much_go].name != NULL) {
               code->vars[code->total_vars].name =
@@ -1812,7 +1832,21 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
                                code->total_size_f,
                                code->total_funcs,
                                code->scope_depth + 1,
-                               1};
+                               1,
+                               code->special_tokens,
+                               code->custom_keyword,
+                               code->custom_expr,
+                               code->custom_splitter,
+                               code->custom_keyword_count,
+                               code->custom_expr_count,
+                               code->custom_expr_capacity,
+                               code->custom_splitter_count,
+                               code->custom_splitter_capacity,
+                               code->custom_keyword_capacity,
+                               code->custom_keywordr,
+                               code->custom_splitterr,
+                               code->custom_exprr,
+                               0};
     return_val = sl_init_sl_parser(&code_def);
     code->vars = code_def.vars;
     code->total_size_v = code_def.total_size_v;
@@ -1833,9 +1867,18 @@ struct SL_Variable run_sl_function(struct SL_Code *code, const char *name,
 static struct SL_Variable resolve_variable(struct SL_Code *code_s,
                                            char *expression[],
                                            enum TokenTypes *types,
-                                           int current_token, int max_tokens,
+                                           int *current_token, int max_tokens,
                                            int old_curr) {
-  struct SL_Variable var = code_s->fixed_values[current_token];
+  if (code_s->custom_expr_count > 0)
+    for (int i = 0; i < code_s->custom_expr_count; i++) {
+      if (strcmp(code_s->custom_expr[i], code_s->code[*current_token]) == 0) {
+        struct SL_Variable result =
+            code_s->custom_exprr[i](code_s, current_token);
+        return result;
+      }
+    }
+
+  struct SL_Variable var = code_s->fixed_values[*current_token];
   if (var.type != RETURN)
     return sl_copy_variable(var);
   if (var.vals[0] == '$') {
@@ -1846,7 +1889,7 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
       index = getvar_index_from_sl(*code_s, var.vals + 1, var.hash);
 
       if (index != -1) {
-        code_s->fixed_values[current_token].cache_index = index;
+        code_s->fixed_values[*current_token].cache_index = index;
       }
     }
 
@@ -1872,7 +1915,7 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
   }
   if (is_has_func(*code_s, var.vals) != -1) {
     struct SL_Variable fn = run_sl_function(code_s, var.vals, expression, types,
-                                            current_token, max_tokens);
+                                            *current_token, max_tokens);
     if (fn.type == ERROR) {
       if (fn.vali == 0)
         sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
@@ -1915,11 +1958,10 @@ static struct SL_Variable resolve_variable(struct SL_Code *code_s,
   return var;
 }
 
-struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
-                                            char *expression[],
-                                            enum TokenTypes *types,
-                                            int *current_token, int max_tokens,
-                                            int current_line) {
+struct SL_Variable sl_expression_solver(struct SL_Code *code_s,
+                                        char *expression[],
+                                        enum TokenTypes *types,
+                                        int *current_token, int max_tokens) {
   struct SL_Variable empty = {0};
   if (!expression[*current_token])
     return empty;
@@ -1953,7 +1995,7 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
 
   if (max_tokens - *current_token == 1) {
     struct SL_Variable result = resolve_variable(
-        code_s, expression, types, *current_token, max_tokens, old_curr);
+        code_s, expression, types, current_token, max_tokens, old_curr);
     *current_token = max_tokens;
     return result;
   }
@@ -1963,12 +2005,12 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
     int op_pos = *current_token + 1;
     int right_pos = *current_token + 2;
 
-    if (operator_checker(expression, types, op_pos, right_pos) != 0) {
+    if (operator_checker(code_s, expression, types, op_pos, right_pos) != 0) {
 
       struct SL_Variable left = resolve_variable(
-          code_s, expression, types, left_pos, max_tokens, old_curr);
+          code_s, expression, types, &left_pos, max_tokens, old_curr);
       struct SL_Variable right = resolve_variable(
-          code_s, expression, types, right_pos, max_tokens, old_curr);
+          code_s, expression, types, &right_pos, max_tokens, old_curr);
 
       char op = expression[op_pos][0];
       enum TokenTypes op_type = types[op_pos];
@@ -1991,7 +2033,7 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
       }
 
       struct SL_Variable result =
-          expression_solver(left, op, right, current_line, op_type, is_op_type);
+          expression_solver(left, op, right, 0, op_type, is_op_type);
 
       if (result.type == ERROR) {
         sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
@@ -2011,7 +2053,7 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
       *code_s, expression, types, *current_token, max_tokens, old_curr);
 
   if (tree.op == 0) {
-    result = resolve_variable(code_s, expression, types, *current_token,
+    result = resolve_variable(code_s, expression, types, current_token,
                               max_tokens, old_curr);
     *current_token = max_tokens;
     return result;
@@ -2020,11 +2062,12 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
   int left_pos_start = *current_token;
   int left_pos_end = tree.op_pos;
 
-  if (operator_checker(expression, types, left_pos_start, left_pos_end) != 0) {
-    left = expression_parser_solver(code_s, expression, types, &left_pos_start,
-                                    left_pos_end, current_line);
+  if (operator_checker(code_s, expression, types, left_pos_start,
+                       left_pos_end) != 0) {
+    left = sl_expression_solver(code_s, expression, types, &left_pos_start,
+                                left_pos_end);
   } else {
-    left = resolve_variable(code_s, expression, types, left_pos_start,
+    left = resolve_variable(code_s, expression, types, &left_pos_start,
                             left_pos_end, old_curr);
   }
 
@@ -2042,18 +2085,18 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
 
   int right_pos_start = tree.op_pos + 1;
   int right_pos_end = max_tokens;
-  if (operator_checker(expression, types, right_pos_start, right_pos_end) !=
-      0) {
-    right =
-        expression_parser_solver(code_s, expression, types, &right_pos_start,
-                                 right_pos_end, current_line);
+
+  if (operator_checker(code_s, expression, types, right_pos_start,
+                       right_pos_end) != 0) {
+    right = sl_expression_solver(code_s, expression, types, &right_pos_start,
+                                 right_pos_end);
   } else {
-    right = resolve_variable(code_s, expression, types, right_pos_start,
+    right = resolve_variable(code_s, expression, types, &right_pos_start,
                              right_pos_end, old_curr);
   }
 
-  result = expression_solver(left, tree.op, right, current_line, tree.op_type,
-                             tree.is_op_type);
+  result =
+      expression_solver(left, tree.op, right, 0, tree.op_type, tree.is_op_type);
 
   if (result.type == ERROR) {
     sl_throw_an_error(*code_s, expression, old_curr, max_tokens,
@@ -2066,7 +2109,8 @@ struct SL_Variable expression_parser_solver(struct SL_Code *code_s,
   return result;
 }
 
-int find_maxt_expr(char **code, enum TokenTypes *types, int starting, int max) {
+int sl_find_end_of_expr(struct SL_Code *code_s, char **code,
+                        enum TokenTypes *types, int starting, int max) {
   for (int i = starting; i < max; i++) {
     int isitfunc = is_it_function_or_not(code, types, i, max);
     if (isitfunc != -1) {
@@ -2076,7 +2120,7 @@ int find_maxt_expr(char **code, enum TokenTypes *types, int starting, int max) {
     if (i + 1 >= max)
       return max;
 
-    if (operator_checker(code, types, i + 1, i + 2) == 1) {
+    if (operator_checker(code_s, code, types, i + 1, i + 2) == 1) {
       i++;
       continue;
     } else {
@@ -2099,14 +2143,14 @@ int find_maxt_expr(char **code, enum TokenTypes *types, int starting, int max) {
         if (i + 1 >= max)
           return max;
 
-        if (operator_checker(code, types, i + 1, i + 2) != 1)
+        if (operator_checker(code_s, code, types, i + 1, i + 2) != 1)
           return i;
 
         i++;
         continue;
       }
 
-      if (operator_checker(code, types, i, i + 1) == 1) {
+      if (operator_checker(code_s, code, types, i, i + 1) == 1) {
         isitfunc = is_it_function_or_not(code, types, i + 1, max);
         if (isitfunc != -1) {
           i = isitfunc - 1;
@@ -2114,7 +2158,7 @@ int find_maxt_expr(char **code, enum TokenTypes *types, int starting, int max) {
           if (i + 1 >= max)
             return max;
 
-          if (operator_checker(code, types, i + 1, i + 2) != 1)
+          if (operator_checker(code_s, code, types, i + 1, i + 2) != 1)
             return i;
 
           continue;
@@ -2164,8 +2208,8 @@ struct SL_Variable_Creator variable_parser(struct SL_Code *code_s,
         free(current_assignment);
       }
       current_assignment = strdup(tokens[(*current_token) - 1]);
-      struct SL_Variable result = expression_parser_solver(
-          code_s, tokens, types, &equal_start, value_end, current_line);
+      struct SL_Variable result =
+          sl_expression_solver(code_s, tokens, types, &equal_start, value_end);
       variables.variable[variables.total_variables] = result;
       variables.variable[variables.total_variables].name =
           strdup(tokens[(*current_token) - 1]);
@@ -2217,9 +2261,8 @@ struct SL_Variable assignment_parser(struct SL_Code *code_s, char *tokens[],
     struct SL_Variable eq_value = {0};
     int last_pos_ptr_expr_start = last_pos + 1;
     current_assignment = strdup(code_s->vars[index].name);
-    eq_value = expression_parser_solver(code_s, tokens, types,
-                                        &last_pos_ptr_expr_start, max_tokens,
-                                        current_line);
+    eq_value = sl_expression_solver(code_s, tokens, types,
+                                    &last_pos_ptr_expr_start, max_tokens);
 
     if ((code_s->vars[index].type == STRING ||
          code_s->vars[index].type == RETURN ||
@@ -2292,8 +2335,8 @@ struct SL_Variable sl_if_parser(struct SL_Code code_s, enum TokenTypes *types,
                       "if <expression> then <code> end");
   }
 
-  expr = expression_parser_solver(&code_s, tokens, types, current_token,
-                                  if_start_pos, 0);
+  expr =
+      sl_expression_solver(&code_s, tokens, types, current_token, if_start_pos);
   (*current_token) = if_start_pos;
   return expr;
 }
@@ -2533,11 +2576,12 @@ void identifier_tokenizer(char **code, enum TokenTypes **types,
   struct SL_Variable *fixed = *fixed_values;
 
   for (int i = 0; i < token_count; ++i) {
+    sl_free_variable(&fixed[i]);
+
     out[i] = identifier_tokenizer_converter(code[i]);
+
     if (out[i] == T_UNKNOWN) {
       fixed[i] = sl_word_to_var_converter(code[i]);
-    } else {
-      memset(&fixed[i], 0, sizeof(struct SL_Variable));
     }
   }
 }
@@ -2557,8 +2601,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
     identifier_tokenizer(code_s->code, &code_s->types, &code_s->fixed_values,
                          code_s->token_count);
   int max_tokens = code_s->token_count;
-  for (int current_token = 0; current_token < code_s->token_count;
-       current_token++) {
+  for (int current_token = code_s->starting_token;
+       current_token < code_s->token_count; current_token++) {
     if (while_sit == 1) {
       if (code_s->types[current_token] == T_END) {
         if (while_loop.end[while_loop.depth - 1] == current_token)
@@ -2568,6 +2612,18 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         while_sit = 0;
       }
     }
+    if (code_s->custom_keyword_count > 0) {
+      int found = 0;
+      for (int i = 0; i < code_s->custom_keyword_count; i++) {
+        if (strcmp(code_s->custom_keyword[i], code_s->code[current_token]) ==
+            0) {
+          code_s->custom_keywordr[i](code_s, &current_token);
+          found = 1;
+        }
+      }
+      if (found == 1)
+        continue;
+    }
 
     int end = 0;
     switch (code_s->types[current_token]) {
@@ -2575,8 +2631,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       for (int i = current_token; i < code_s->token_count; i++) {
         if (code_s->code[i][0] == '=') {
           i++;
-          end = find_maxt_expr(code_s->code, code_s->types, i,
-                               code_s->token_count);
+          end = sl_find_end_of_expr(code_s, code_s->code, code_s->types, i,
+                                    code_s->token_count);
           break;
         }
       }
@@ -2791,8 +2847,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       current_token = i;
 
       char **imported_tokens = NULL;
-      int imported_count =
-          sl_init_sl_lexer(1024, module_name, &imported_tokens, SPECIAL_TOKENS);
+      int imported_count = sl_init_sl_lexer(1024, module_name, &imported_tokens,
+                                            code_s->special_tokens);
 
       if (imported_count > 0) {
         struct SL_Code import_code = {0};
@@ -2864,10 +2920,10 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       break;
     case T_RETURN:
       current_token++;
-      end = find_maxt_expr(code_s->code, code_s->types, current_token,
-                           code_s->token_count);
-      struct SL_Variable result = expression_parser_solver(
-          code_s, code_s->code, code_s->types, &current_token, end, 0);
+      end = sl_find_end_of_expr(code_s, code_s->code, code_s->types,
+                                current_token, code_s->token_count);
+      struct SL_Variable result = sl_expression_solver(
+          code_s, code_s->code, code_s->types, &current_token, end);
       free(while_loop.back_pos);
       free(while_loop.end);
       free(while_loop.then_pos);
@@ -2878,8 +2934,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         for (int i = current_token; i < code_s->token_count; i++) {
           if (code_s->code[i][0] == '=') {
             i++;
-            end = find_maxt_expr(code_s->code, code_s->types, i,
-                                 code_s->token_count);
+            end = sl_find_end_of_expr(code_s, code_s->code, code_s->types, i,
+                                      code_s->token_count);
             break;
           }
         }
@@ -2895,11 +2951,11 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
           return return_val;
         }
       } else {
-        end = find_maxt_expr(code_s->code, code_s->types, current_token,
-                             code_s->token_count);
+        end = sl_find_end_of_expr(code_s, code_s->code, code_s->types,
+                                  current_token, code_s->token_count);
 
-        struct SL_Variable result = expression_parser_solver(
-            code_s, code_s->code, code_s->types, &current_token, end, 0);
+        struct SL_Variable result = sl_expression_solver(
+            code_s, code_s->code, code_s->types, &current_token, end);
       }
     }
   }
@@ -2921,12 +2977,27 @@ struct SL_Code sl_init_sl_process() {
   code.types = NULL;
   code.fixed_values = NULL;
   code.types_set = 0;
+  code.custom_keyword = NULL;
+  code.custom_keyword_count = 0;
+  code.custom_expr = NULL;
+  code.custom_expr_count = 0;
+  code.custom_splitter = NULL;
+  code.custom_splitter_count = 0;
+  code.custom_splitter_capacity = 0;
+  code.custom_expr_capacity = 0;
+  code.custom_keyword_capacity = 0;
   code.scope_depth = 1;
+  code.special_tokens = NULL;
+  code.starting_token = 0;
   return code;
 }
 
 int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
-  int count = sl_init_sl_lexer(SL_INIT, file_name, &code->code, SPECIAL_TOKENS);
+  if (code->special_tokens == NULL)
+    code->special_tokens = DEFAULT_SPECIAL_TOKENS;
+
+  int count =
+      sl_init_sl_lexer(SL_INIT, file_name, &code->code, code->special_tokens);
   if (count < 0) {
     fprintf(stderr,
             "Invalid count\nsl_init_sl_lexer() returned a negative value\n");
@@ -2948,6 +3019,175 @@ int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
     return -1;
   };
   return 0;
+}
+
+int sl_add_custom_expr(struct SL_Code *code, char *expr_start,
+                       struct SL_Variable (*custom_exprr)(struct SL_Code *,
+                                                          int *current_token)) {
+  int count = code->custom_expr_count;
+
+  if (count == 0) {
+    code->custom_expr_capacity += 128;
+    code->custom_exprr =
+        smalloc(code->custom_expr_capacity * sizeof(custom_exprr));
+    code->custom_expr = smalloc(code->custom_expr_capacity * sizeof(char *));
+  }
+
+  if (count >= code->custom_expr_capacity) {
+    code->custom_expr_capacity += 128;
+    code->custom_exprr = srealloc(
+        code->custom_exprr, code->custom_expr_capacity * sizeof(custom_exprr));
+    code->custom_expr = srealloc(code->custom_expr,
+                                 code->custom_expr_capacity * sizeof(char *));
+  }
+  code->custom_expr[count] = strdup(expr_start);
+  code->custom_exprr[count] = custom_exprr;
+  code->custom_expr_count++;
+  return 1;
+}
+
+int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
+                          void (*custom_keywordr)(struct SL_Code *,
+                                                  int *current_token)) {
+  int count = code->custom_keyword_count;
+
+  if (count == 0) {
+    code->custom_keyword_capacity += 128;
+    code->custom_keywordr =
+        smalloc(code->custom_keyword_capacity * sizeof(custom_keywordr));
+    code->custom_keyword =
+        smalloc(code->custom_keyword_capacity * sizeof(char *));
+  }
+
+  if (count >= code->custom_keyword_capacity) {
+    code->custom_keyword_capacity += 128;
+    code->custom_keywordr =
+        srealloc(code->custom_keywordr,
+                 code->custom_keyword_capacity * sizeof(custom_keywordr));
+    code->custom_keyword = srealloc(
+        code->custom_keyword, code->custom_keyword_capacity * sizeof(char *));
+  }
+  code->custom_keyword[count] = strdup(keyword_name);
+  code->custom_keywordr[count] = custom_keywordr;
+  code->custom_keyword_count++;
+  return 1;
+}
+
+int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
+                           int (*custom_splitterr)(struct SL_Code *,
+                                                   int *current_token)) {
+  int count = code->custom_splitter_count;
+
+  if (count == 0) {
+    code->custom_splitter_capacity += 128;
+    code->custom_splitterr =
+        smalloc(code->custom_splitter_capacity * sizeof(custom_splitterr));
+    code->custom_splitter =
+        smalloc(code->custom_splitter_capacity * sizeof(char *));
+  }
+
+  if (count >= code->custom_splitter_capacity) {
+    code->custom_splitter_capacity += 128;
+    code->custom_splitterr =
+        srealloc(code->custom_splitterr,
+                 code->custom_splitter_capacity * sizeof(custom_splitterr));
+    code->custom_splitter = srealloc(
+        code->custom_splitter, code->custom_splitter_capacity * sizeof(char *));
+  }
+  code->custom_splitter[count] = strdup(splitter_name);
+  code->custom_splitterr[count] = custom_splitterr;
+  code->custom_splitter_count++;
+  return 1;
+}
+
+int sl_remove_custom_expr(struct SL_Code *code, int index) {
+  if (code == NULL || code->custom_expr_count <= 0)
+    return 0;
+
+  if (index < 0 || index >= code->custom_expr_count)
+    return 0;
+
+  free(code->custom_expr[index]);
+  code->custom_expr[index] = NULL;
+
+  for (int i = index; i < code->custom_expr_count - 1; i++) {
+    code->custom_expr[i] = code->custom_expr[i + 1];
+    code->custom_exprr[i] = code->custom_exprr[i + 1];
+  }
+
+  code->custom_expr_count--;
+
+  if (code->custom_expr_count == 0) {
+    free(code->custom_expr);
+    code->custom_expr = NULL;
+
+    free(code->custom_exprr);
+    code->custom_exprr = NULL;
+
+    code->custom_expr_capacity = 0;
+  }
+
+  return 1;
+}
+
+int sl_remove_custom_keyword(struct SL_Code *code, int index) {
+  if (code == NULL || code->custom_keyword_count <= 0)
+    return 0;
+
+  if (index < 0 || index >= code->custom_keyword_count)
+    return 0;
+
+  free(code->custom_keyword[index]);
+  code->custom_keyword[index] = NULL;
+
+  for (int i = index; i < code->custom_keyword_count - 1; i++) {
+    code->custom_keyword[i] = code->custom_keyword[i + 1];
+    code->custom_keywordr[i] = code->custom_keywordr[i + 1];
+  }
+
+  code->custom_keyword_count--;
+
+  if (code->custom_keyword_count == 0) {
+    free(code->custom_keyword);
+    code->custom_keyword = NULL;
+
+    free(code->custom_keywordr);
+    code->custom_keywordr = NULL;
+
+    code->custom_keyword_capacity = 0;
+  }
+
+  return 1;
+}
+
+int sl_remove_custom_splitter(struct SL_Code *code, int index) {
+  if (code == NULL || code->custom_splitter_count <= 0)
+    return 0;
+
+  if (index < 0 || index >= code->custom_splitter_count)
+    return 0;
+
+  free(code->custom_splitter[index]);
+  code->custom_splitter[index] = NULL;
+
+  for (int i = index; i < code->custom_splitter_count - 1; i++) {
+    code->custom_splitter[i] = code->custom_splitter[i + 1];
+    code->custom_splitterr[i] = code->custom_splitterr[i + 1];
+  }
+
+  code->custom_splitter_count--;
+
+  if (code->custom_splitter_count == 0) {
+    free(code->custom_splitter);
+    code->custom_splitter = NULL;
+
+    free(code->custom_splitterr);
+    code->custom_splitterr = NULL;
+
+    code->custom_splitter_capacity = 0;
+  }
+
+  return 1;
 }
 
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
@@ -2976,8 +3216,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   }
 
   code_p.code = smalloc(1024 * sizeof(char *));
-  int count =
-      sl_raw_lexer(code, &code_p.code, strlen(code), SPECIAL_TOKENS, 1024);
+  int count = sl_raw_lexer(code, &code_p.code, strlen(code),
+                           code_s->special_tokens, 1024);
   code_p.token_count = count;
   code_p.types = scalloc(count, sizeof(enum TokenTypes));
   code_p.fixed_values = scalloc(count, sizeof(struct SL_Variable));
@@ -3081,6 +3321,47 @@ int sl_close_sl_process(struct SL_Code *code) {
     free(code->fixed_values);
     code->fixed_values = NULL;
   }
+
+  if (code->custom_keyword_count > 0) {
+    for (int i = 0; i < code->custom_keyword_count; i++) {
+      if (code->custom_keyword[i] != NULL) {
+        free(code->custom_keyword[i]);
+        code->custom_keyword[i] = NULL;
+      }
+    }
+    free(code->custom_keyword);
+    code->custom_keyword = NULL;
+
+    free(code->custom_keywordr);
+    code->custom_keywordr = NULL;
+  }
+  if (code->custom_expr_count > 0) {
+    for (int i = 0; i < code->custom_expr_count; i++) {
+      if (code->custom_expr[i] != NULL) {
+        free(code->custom_expr[i]);
+        code->custom_expr[i] = NULL;
+      }
+    }
+    free(code->custom_expr);
+    code->custom_expr = NULL;
+
+    free(code->custom_exprr);
+    code->custom_exprr = NULL;
+  }
+
+  if (code->custom_splitter_count > 0) {
+    for (int i = 0; i < code->custom_splitter_count; i++) {
+      free(code->custom_splitter[i]);
+      code->custom_splitter[i] = NULL;
+    }
+
+    free(code->custom_splitter);
+    code->custom_splitter = NULL;
+
+    free(code->custom_splitterr);
+    code->custom_splitterr = NULL;
+  }
+
   return 0;
 }
 

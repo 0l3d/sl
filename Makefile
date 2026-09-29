@@ -1,6 +1,8 @@
 CC ?= cc
 CFLAGS ?= -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden -flto=auto
+# CFLAGS ?= -g
 LDFLAGS ?= -O3 -flto -lm
+# LDFLAGS ?= -lm
 NET_CFLAGS = -DENABLE_NET
 
 SOURCES = sl.c sl_lang.c

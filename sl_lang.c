@@ -34,6 +34,40 @@ struct SL_Variable builtin_not_fn(struct SL_Code *code,
   return return_var;
 }
 
+int then_end_splitter(struct SL_Code *code, int *current_token) {
+
+  int tokens = sl_find_end(code->code, code->types, *current_token,
+                           code->token_count, 0) +
+               1;
+  return tokens;
+}
+
+struct SL_Variable then_end_expression(struct SL_Code *code,
+                                       int *current_token) {
+
+  struct SL_Variable return_val = {0};
+  int old_tokens = code->token_count;
+  int tokens = sl_find_end(code->code, code->types, *current_token,
+                           code->token_count, 0);
+  (*current_token)++;
+  struct SL_Code code_def = *code;
+  code_def.starting_token = *current_token;
+  code_def.token_count = tokens;
+  int start_var_index = code->total_vars;
+  int start_func_index = code->total_funcs;
+  return_val = sl_init_sl_parser(&code_def);
+  code->vars = code_def.vars;
+  code->total_size_v = code_def.total_size_v;
+  code->total_vars = code_def.total_vars;
+  code->funcs = code_def.funcs;
+  code->total_size_f = code_def.total_size_f;
+  code->total_funcs = code_def.total_funcs;
+  code_def.fixed_values = code->fixed_values;
+  code->token_count = old_tokens;
+  sl_clean_local_scope(code, start_var_index, start_func_index);
+  return return_val;
+}
+
 int main(int argc, char **argv) {
   char *code = NULL;
   int console = 0;
@@ -45,7 +79,9 @@ int main(int argc, char **argv) {
     } else {
       code = strdup(argv[1]);
       if (code == NULL) {
-        fprintf(stderr, "main(): strdup() failed to allocate memory and returned NULL\n");
+        fprintf(
+            stderr,
+            "main(): strdup() failed to allocate memory and returned NULL\n");
         return -1;
       }
     }
@@ -53,7 +89,8 @@ int main(int argc, char **argv) {
     /* falls back to this file if no file is specified in the command */
     code = strdup("code.sl");
     if (code == NULL) {
-      fprintf(stderr, "main(): strdup() failed to allocate memory and returned NULL\n"); 
+      fprintf(stderr,
+              "main(): strdup() failed to allocate memory and returned NULL\n");
       return -1;
     }
   }
@@ -62,6 +99,8 @@ int main(int argc, char **argv) {
 
   struct SL_Code sl_code = sl_init_sl_process();
   sl_add_func(&sl_code, "not", builtin_not_fn);
+  sl_add_custom_splitter(&sl_code, "then", then_end_splitter);
+  sl_add_custom_expr(&sl_code, "then", then_end_expression);
   init_sl_stdlib(&sl_code, argc, argv);
 
   if (sl_open_sl_process(&sl_code, code) != 0) {
