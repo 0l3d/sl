@@ -1992,7 +1992,6 @@ struct SL_Variable sl_expression_solver(struct SL_Code *code_s,
   }
 
   int old_curr = *current_token;
-
   if (max_tokens - *current_token == 1) {
     struct SL_Variable result = resolve_variable(
         code_s, expression, types, current_token, max_tokens, old_curr);
@@ -2112,6 +2111,24 @@ struct SL_Variable sl_expression_solver(struct SL_Code *code_s,
 int sl_find_end_of_expr(struct SL_Code *code_s, char **code,
                         enum TokenTypes *types, int starting, int max) {
   for (int i = starting; i < max; i++) {
+    if (code_s->custom_splitter_count > 0) {
+      int old_curr = i;
+
+      for (int k = 0; k < code_s->custom_splitter_count; k++) {
+        if (strcmp(code_s->custom_splitter[k], code[i]) == 0) {
+          old_curr = code_s->custom_splitterr[k](code_s, &i);
+          if (old_curr + 1 >= max)
+            return max;
+
+          if (operator_checker(code_s, code, types, old_curr, old_curr + 1) !=
+              1)
+            return old_curr;
+
+          i = old_curr;
+          break;
+        }
+      }
+    }
     int isitfunc = is_it_function_or_not(code, types, i, max);
     if (isitfunc != -1) {
       i = isitfunc - 1;
@@ -2299,9 +2316,18 @@ int is_has_token(char *token, char *tokens[], int current_position,
 int sl_then_finder(char *tokens[], enum TokenTypes *types, int current_token,
                    int max_tokens, int *then_pos) {
   int start_pos = 0;
-
+  int depth = 0;
   while (current_token < max_tokens) {
-    if (types[current_token] == T_THEN) {
+    if (tokens[current_token][0] == '(')
+      depth++;
+    if (tokens[current_token][0] == ')')
+      depth--;
+    if (depth > 0) {
+      current_token++;
+      continue;
+    }
+
+    if (types[current_token] == T_THEN && depth == 0) {
       start_pos = current_token;
       break;
     }

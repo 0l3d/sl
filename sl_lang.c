@@ -37,8 +37,7 @@ struct SL_Variable builtin_not_fn(struct SL_Code *code,
 int then_end_splitter(struct SL_Code *code, int *current_token) {
 
   int tokens = sl_find_end(code->code, code->types, *current_token,
-                           code->token_count, 0) +
-               1;
+                           code->token_count, 0);
   return tokens;
 }
 
@@ -65,6 +64,7 @@ struct SL_Variable then_end_expression(struct SL_Code *code,
   code_def.fixed_values = code->fixed_values;
   code->token_count = old_tokens;
   sl_clean_local_scope(code, start_var_index, start_func_index);
+  (*current_token)--;
   return return_val;
 }
 
