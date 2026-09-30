@@ -2,6 +2,4 @@
 
 ## Release Notes
 - Bugfixes
-- Hackability feature.
-- Standalone scope expressions.
-- More..
+- More complex examples.

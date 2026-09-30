@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,{}"
+
 struct SL_Variable builtin_not_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
@@ -34,10 +36,29 @@ struct SL_Variable builtin_not_fn(struct SL_Code *code,
   return return_var;
 }
 
+int find_end_brace(char **tokens, int start, int max_tokens) {
+  int depth = 0;
+
+  for (int i = start; i < max_tokens; i++) {
+    if (tokens[i] == NULL)
+      continue;
+
+    if (tokens[i][0] == '{') {
+      depth++;
+    } else if (tokens[i][0] == '}') {
+      if (depth == 0)
+        return i;
+
+      depth--;
+    }
+  }
+
+  return -1;
+}
 int then_end_splitter(struct SL_Code *code, int *current_token) {
 
-  int tokens = sl_find_end(code->code, code->types, *current_token,
-                           code->token_count, 0);
+  int tokens =
+      find_end_brace(code->code, (*current_token) + 1, code->token_count);
   return tokens;
 }
 
@@ -46,8 +67,8 @@ struct SL_Variable then_end_expression(struct SL_Code *code,
 
   struct SL_Variable return_val = {0};
   int old_tokens = code->token_count;
-  int tokens = sl_find_end(code->code, code->types, *current_token,
-                           code->token_count, 0);
+  int tokens =
+      find_end_brace(code->code, (*current_token) + 1, code->token_count);
   (*current_token)++;
   struct SL_Code code_def = *code;
   code_def.starting_token = *current_token;
@@ -98,9 +119,10 @@ int main(int argc, char **argv) {
   char **code_array;
 
   struct SL_Code sl_code = sl_init_sl_process();
+  sl_code.special_tokens = SPECIAL_TOKENS;
   sl_add_func(&sl_code, "not", builtin_not_fn);
-  sl_add_custom_splitter(&sl_code, "then", then_end_splitter);
-  sl_add_custom_expr(&sl_code, "then", then_end_expression);
+  sl_add_custom_splitter(&sl_code, "{", then_end_splitter);
+  sl_add_custom_expr(&sl_code, "{", then_end_expression);
   init_sl_stdlib(&sl_code, argc, argv);
 
   if (sl_open_sl_process(&sl_code, code) != 0) {
