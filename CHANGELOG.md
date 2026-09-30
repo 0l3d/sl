@@ -1,5 +1,4 @@
 # Changelog
 
 ## Release Notes
-- Bugfixes
-- More complex examples.
+- Bugfix and change local scope syntax.
