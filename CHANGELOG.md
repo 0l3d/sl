@@ -1,4 +1,4 @@
 # Changelog
 
 ## Release Notes
-- Bugfix and change local scope syntax.
+- Editor bugfix and stable editor.
