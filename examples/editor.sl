@@ -1,3 +1,4 @@
+#!/usr/bin/env sl
 # For posix based systems.
 use("console", "io", "types", "sys", "string", "list", "errors", "file", "time")
 
@@ -132,6 +133,7 @@ var total_renderable = $screen_height - 1
 var rendering_end_line = $rendering_start_line + $total_renderable
 
 var actual_y = $rendering_start_line + $cursor_y
+var actual_x = 0
 
 def render_indicator then
     console.cursor_position(0, $screen_height)
@@ -163,6 +165,36 @@ end
 
 var buffer = ""
 
+def update_cursor_x then
+    var cx = 0
+    var i = 0
+    var buf_len = string.len($buffer)
+    if errors.bool($buf_len) then
+        $buf_len = 0
+    end
+    var limit = $actual_x
+    if $limit > $buf_len then
+        $limit = $buf_len
+        $actual_x = $limit
+    end
+    while $i < $limit then
+        var c = string.char_at($buffer, $i)
+        var cs = types.char_to_str($c)
+        if $cs equ "\t" then
+            var next_tab_stop = $cx + 4
+            var remainder = $next_tab_stop % 8
+            if $remainder neq 0 then
+                $cx = $next_tab_stop + (8 - $remainder)
+            else
+                $cx = $next_tab_stop
+            end
+        else
+            $cx = $cx + 1
+        end
+        $i = $i + 1
+    end
+    $cursor_x = $cx
+end
 
 def render_highlighted -> str then 
     var string_indexer = 0 
@@ -270,6 +302,7 @@ def line_renderer -> all then
         end
     end
 end
+
 def render_screen then
     console.begin_update()
     
@@ -302,15 +335,15 @@ def new_line -> middler, length then
     var right_part = ""
 
     if $middler then
-        if $cursor_x > 0 then
-            $left_part = string.slice($buffer, 0, $cursor_x)
+        if $actual_x > 0 then
+            $left_part = string.slice($buffer, 0, $actual_x)
             if errors.bool($left_part) then
                 $left_part = ""
             end
         end
 
-        if $cursor_x < $length then
-            $right_part = string.slice($buffer, $cursor_x, $length)
+        if $actual_x < $length then
+            $right_part = string.slice($buffer, $actual_x, $length)
             if errors.bool($right_part) then
                 $right_part = ""
             end
@@ -361,6 +394,7 @@ def new_line -> middler, length then
         
         $smellslikeyouchangedsomethingspirit = 0
     end    
+    $actual_x = 0
     $cursor_x = 0
     $buffer = ""
     $rendering_end_line = $rendering_start_line + $total_renderable
@@ -385,19 +419,20 @@ end
 def backspace_b then
     var actual_y = $rendering_start_line + $cursor_y
 
-    if $cursor_x > 0 then
-        var remove_index = $cursor_x - 1
+    if $actual_x > 0 then
+        var remove_index = $actual_x - 1
         var new_buffer = string.remove_at($buffer, $remove_index)
 
         if errors.bool($new_buffer) then
             $status_message = "Could not delete character."
         else
-            $cursor_x = $cursor_x - 1
+            $actual_x = $actual_x - 1
             $buffer = $new_buffer
 
             if errors.bool(List.set($lines, $actual_y, $buffer)) then
                 List.push($lines, $buffer)
             end
+            update_cursor_x()
         end
         $smellslikeyouchangedsomethingspirit = 1
     else
@@ -420,17 +455,21 @@ def backspace_b then
 
             if $current_line equ "" then
                 List.remove($lines, $actual_y)
+                $buffer = $prev_line
             else
                 var merged_line = $prev_line + $current_line
                 List.set($lines, $prev_y, $merged_line)
                 List.remove($lines, $actual_y)
+                $buffer = $merged_line
             end
+            
+            $actual_x = $prev_len
+            update_cursor_x()
 
             console.save_cursor()
             console.cursor_position(0, $cursor_y)
             console.delete_line(1)
             console.load_cursor()
-            $cursor_x = $prev_len
 
             if $cursor_y > 0 then
                 $cursor_y = $cursor_y - 1
@@ -451,7 +490,8 @@ end
 def ascii_entered then
     var actual_y = $rendering_start_line + $cursor_y
 
-    $cursor_x = $cursor_x + 1
+    $actual_x = $actual_x + 1
+    update_cursor_x()
 
     if errors.bool(List.set($lines, $actual_y, $buffer)) then
         List.push($lines, $buffer)
@@ -497,19 +537,20 @@ def page_up then
 
     $rendering_end_line = $rendering_start_line + $total_renderable
 end
+
 def ascii_entered_middle -> charkey, length then
     var left = ""
     var right = ""
 
-    if $cursor_x > 0 then
-        $left = string.slice($buffer, 0, $cursor_x)
+    if $actual_x > 0 then
+        $left = string.slice($buffer, 0, $actual_x)
         if errors.bool($left) then
             $left = ""
         end
     end
 
-    if $cursor_x < $length then
-        $right = string.slice($buffer, $cursor_x, $length)
+    if $actual_x < $length then
+        $right = string.slice($buffer, $actual_x, $length)
         if errors.bool($right) then
             $right = ""
         end
@@ -523,7 +564,9 @@ def ascii_entered_middle -> charkey, length then
     if errors.bool(List.set($lines, $actual_y, $buffer)) then
         List.push($lines, $buffer)
     end
-    $cursor_x = $cursor_x + 1
+    $actual_x = $actual_x + 1
+    update_cursor_x()
+    
     $smellslikeyouchangedsomethingspirit = 1
 end
 
@@ -571,7 +614,7 @@ while true then
 
                 else
                     if $ckey neq '\0' then
-                        if $len > $cursor_x then
+                        if $len > $actual_x then
                             ascii_entered_middle($ckey, $len)
                         else
                             $buffer = $buffer + types.char_to_str($ckey)
@@ -583,45 +626,48 @@ while true then
             elif types.is_int($ckey) then
                 if $ckey equ $KEY_BACKSPACE then
                     backspace_b()
-                elif $ckey equ $KEY_TAB then
-                    var spaces = "    "
-                    var left = ""
-                    var right = ""
-
-                    if $cursor_x > 0 then
-                        $left = string.slice($buffer, 0, $cursor_x)
-                        if errors.bool($left) then
-                            $left = ""
-                        end
-                    end
-
-                    if $cursor_x < $len then
-                        $right = string.slice($buffer, $cursor_x, $len)
-                        if errors.bool($right) then
-                            $right = ""
-                        end
-                    end
-
-                    var actual_tab_y = $rendering_start_line + $cursor_y
-                    $buffer = $left + $spaces + $right
-                    $cursor_x = $cursor_x + 4
-
-                    if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
-                        List.push($lines, $buffer)
-                    end
-                    $smellslikeyouchangedsomethingspirit = 1
-
+     
+				elif $ckey equ $KEY_TAB then
+				    var spaces = "\t"
+				    var left = ""
+				    var right = ""
+				
+				    if $actual_x > 0 then
+				        $left = string.slice($buffer, 0, $actual_x)
+				        if errors.bool($left) then
+				            $left = ""
+				        end
+				    end
+				
+				    if $actual_x < $len then
+				        $right = string.slice($buffer, $actual_x, $len)
+				        if errors.bool($right) then
+				            $right = ""
+				        end
+				    end
+				
+				    var actual_tab_y = $rendering_start_line + $cursor_y
+				    $buffer = $left + $spaces + $right
+				    
+				    $actual_x = $actual_x + 1
+				    update_cursor_x()
+				
+				    if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
+				        List.push($lines, $buffer)
+				    end
+				    $smellslikeyouchangedsomethingspirit = 1	
                 elif $ckey equ $KEY_ENTER then
                     var middle = false
 
-                    if $len > $cursor_x then
+                    if $len > $actual_x then
                         $middle = true
                     end
 
                     new_line($middle, $len)
                     $smellslikeyouchangedsomethingspirit = 2
                 elif $ckey equ $KEY_HOME then
-                    $cursor_x = 0
+                    $actual_x = 0
+                    update_cursor_x()
 
                 elif $ckey equ $KEY_END then
                     var current_line = List.get($lines, $actual_y)
@@ -630,13 +676,16 @@ while true then
                         var len_str = string.len($current_line)
 
                         if not(errors.bool($len_str)) then
-                            $cursor_x = $len_str
+                            $actual_x = $len_str
+                            $buffer = $current_line
+                            update_cursor_x()
                         end
                     end
 
                 elif $ckey equ $KEY_LEFT then
-                    if $cursor_x > 0 then
-                        $cursor_x = $cursor_x - 1
+                    if $actual_x > 0 then
+                        $actual_x = $actual_x - 1
+                        update_cursor_x()
                     else
                         $status_message = "You are already in the beginning of the line."
                     end
@@ -644,16 +693,35 @@ while true then
                 elif $ckey equ $KEY_PAGE_DOWN then
                     page_down()
 
-                    var len = List.len($lines)
+                    var len_pd = List.len($lines)
                     if $cursor_y < $total_renderable then
                         $cursor_y = $total_renderable
                     end
 
-                    if $rendering_start_line + $cursor_y eqg $len then
-                        $cursor_y = $len - $rendering_start_line - 1
+                    if $rendering_start_line + $cursor_y eqg $len_pd then
+                        $cursor_y = $len_pd - $rendering_start_line - 1
                         if $cursor_y < 0 then
                             $cursor_y = 0
                         end
+                    end
+                    
+                    var pd_actual_y = $rendering_start_line + $cursor_y
+                    var pd_line = List.get($lines, $pd_actual_y)
+                    if not(errors.bool($pd_line)) then
+                        var pd_len = string.len($pd_line)
+                        if not(errors.bool($pd_len)) then
+                            if $pd_len < $actual_x then
+                                $actual_x = $pd_len
+                            end
+                        else
+                            $actual_x = 0
+                        end
+                        $buffer = $pd_line
+                        update_cursor_x()
+                    else
+                        $actual_x = 0
+                        $buffer = ""
+                        update_cursor_x()
                     end
 
                 elif $ckey equ $KEY_PAGE_UP then
@@ -661,7 +729,26 @@ while true then
 
                     if $cursor_y > 0 then
                         $cursor_y = 0
-                    end                
+                    end 
+                    
+                    var pu_actual_y = $rendering_start_line + $cursor_y
+                    var pu_line = List.get($lines, $pu_actual_y)
+                    if not(errors.bool($pu_line)) then
+                        var pu_len = string.len($pu_line)
+                        if not(errors.bool($pu_len)) then
+                            if $pu_len < $actual_x then
+                                $actual_x = $pu_len
+                            end
+                        else
+                            $actual_x = 0
+                        end
+                        $buffer = $pu_line
+                        update_cursor_x()
+                    else
+                        $actual_x = 0
+                        $buffer = ""
+                        update_cursor_x()
+                    end               
                 elif $ckey equ $KEY_RIGHT then
                     var current_line = List.get($lines, $actual_y)
 
@@ -669,18 +756,20 @@ while true then
                         var len = string.len($current_line)
 
                         if not(errors.bool($len)) then
-                            if $len > $cursor_x then
-                                $cursor_x = $cursor_x + 1
+                            if $len > $actual_x then
+                                $actual_x = $actual_x + 1
+                                $buffer = $current_line
+                                update_cursor_x()
                             else
                                 $status_message = "You are already in the end of the line."
                             end
                         end
                     end
                 elif $ckey equ $KEY_DOWN then
-                    var len = List.len($lines)
+                    var len_dn = List.len($lines)
 
                     if $cursor_y + 1 < $screen_height then
-                        if $rendering_start_line + $cursor_y + 1 < $len then
+                        if $rendering_start_line + $cursor_y + 1 < $len_dn then
                             $cursor_y = $cursor_y + 1
 
                             var next_actual_y = $rendering_start_line + $cursor_y
@@ -688,18 +777,25 @@ while true then
 
                             if not(errors.bool($next_line)) then
                                 var next_len = string.len($next_line)
-
                                 if not(errors.bool($next_len)) then
-                                    if $next_len < $cursor_x then
-                                        $cursor_x = $next_len
+                                    if $next_len < $actual_x then
+                                        $actual_x = $next_len
                                     end
+                                else
+                                    $actual_x = 0
                                 end
+                                $buffer = $next_line
+                                update_cursor_x()
+                            else
+                                $actual_x = 0
+                                $buffer = ""
+                                update_cursor_x()
                             end
                         else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
                     else
-                        if $rendering_start_line + $screen_height < $len then
+                        if $rendering_start_line + $screen_height < $len_dn then
                             $rendering_start_line = $rendering_start_line + 1
                             $rendering_end_line = $rendering_start_line + $total_renderable
                             
@@ -711,7 +807,26 @@ while true then
                             line_renderer(1) 
                             $cursor_y = $temp_y
                             
-                            $smellslikeyouchangedsomethingspirit = 0                        
+                            $smellslikeyouchangedsomethingspirit = 0
+
+                            var next_actual_y_scrolled = $rendering_start_line + $cursor_y
+                            var next_line_scrolled = List.get($lines, $next_actual_y_scrolled)
+                            if not(errors.bool($next_line_scrolled)) then
+                                var next_len_scrolled = string.len($next_line_scrolled)
+                                if not(errors.bool($next_len_scrolled)) then
+                                    if $next_len_scrolled < $actual_x then
+                                        $actual_x = $next_len_scrolled
+                                    end
+                                else
+                                    $actual_x = 0
+                                end
+                                $buffer = $next_line_scrolled
+                                update_cursor_x()
+                            else
+                                $actual_x = 0
+                                $buffer = ""
+                                update_cursor_x()
+                            end
                         else
                             $status_message = "Theres no extra line, press enter for new-line"
                         end
@@ -743,10 +858,18 @@ while true then
                         var prev_len = string.len($prev_line)
 
                         if not(errors.bool($prev_len)) then
-                            if $prev_len < $cursor_x then
-                                $cursor_x = $prev_len
+                            if $prev_len < $actual_x then
+                                $actual_x = $prev_len
                             end
+                        else
+                            $actual_x = 0
                         end
+                        $buffer = $prev_line
+                        update_cursor_x()
+                    else
+                        $actual_x = 0
+                        $buffer = ""
+                        update_cursor_x()
                     end
                 end
             end
@@ -758,5 +881,3 @@ while true then
         render_screen()
     end
 end
-
-
