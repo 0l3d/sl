@@ -540,7 +540,7 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
   
   int arg_count = func.total_arguments - 3;
   int alloc_capacity = arg_count > 0 ? arg_count : 4;
-  char **allocated_strings = malloc(alloc_capacity * sizeof(char *));
+  char **allocated_strings = smalloc(alloc_capacity * sizeof(char *));
   int alloc_count = 0;
 
   for (int i = 3; i < func.total_arguments; i++) {
@@ -640,6 +640,12 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
 struct SL_Variable dyn_free_fn(struct SL_Code *code, struct SL_L_Function func,
                                struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.call! Not enough arguments.";
+    return return_var;
+  } 
+
   struct SL_Variable handle_arg = sl_get_argument(*code, func, 0);
 
   DLLib *lib = (DLLib *)handle_arg.valp;
