@@ -1,4 +1,5 @@
 # Changelog
 
 ## Release Notes
-- Editor bugfix and stable editor.
+- Dynamic Shared Library loading. (dyn api)
+- Extra bugfixes and added byte.size function.
