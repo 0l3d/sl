@@ -466,11 +466,6 @@ def backspace_b then
             $actual_x = $prev_len
             update_cursor_x()
 
-            console.save_cursor()
-            console.cursor_position(0, $cursor_y)
-            console.delete_line(1)
-            console.load_cursor()
-
             if $cursor_y > 0 then
                 $cursor_y = $cursor_y - 1
             else
