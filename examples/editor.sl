@@ -110,7 +110,6 @@ if not(errors.bool($read)) then
             end
         end
 
-        List.free($spltnewlines)
     end
 end
 

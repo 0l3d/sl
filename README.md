@@ -37,6 +37,13 @@ You can edit SL files with basic syntax highlighting without using an external e
 However, `stdlib.h` may change in the future, but I aim to implement it for as many operating systems as possible.  
   
 The Console API and Network API are supported on both posix and windows.
+
+### Dynamic Loading (standart library dyn api)
+  
+Huge thanks to everyone who worked on dyncall and made such a great library.  
+  
+SL's dynamic loading support follows the same platforms supported by dyncall. I chose dyncall because libffi was too heavy for this project and would have been harder to embed into the repository, while dyncall is minimal and has very little impact on the binary size. Thanks to dyncall, you can load raylib functions and make games, use OpenGL, call system libraries, and pretty much anything else you can think of. Keep in mind that dynamic loading is unsafe and requires you to deal with C's memory management. you'll need to use the free functions provided by the library you're working with.  
+  
 ## API 
 All API functions here:
 ```c

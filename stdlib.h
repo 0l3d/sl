@@ -1,6 +1,9 @@
 #ifndef SL_STDLIB_H
 #define SL_STDLIB_H
 
+#include "libs/dyncall/dynload/dynload.h"
+#include "libs/dyncall/dyncall/dyncall.h"
+
 /*
  * SL Standard Library
  */
@@ -242,6 +245,7 @@ struct SL_List {
   int size;
   int fixed;
   int current;
+  int still_reachable;
 };
 
 /* Single Collection Struct */
@@ -441,6 +445,213 @@ int list_remove(struct SL_List *list, int index) {
 }
 
 /* LIST FUNCTIONS */
+
+/* DYNAMIC LOADING */
+struct SL_Variable dyn_open_lib_fn(struct SL_Code *code, struct SL_L_Function func,
+                                   struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.open_lib! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  char *path = sl_string_getter(first_arg.vals);
+
+  DLLib *lib = dlLoadLibrary(path);
+  free(path);
+
+  if (!lib) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to load dynamic library.";
+    return return_var;
+  }
+
+  return_var.type = POINTER;
+  return_var.valp = (void *)lib;
+  return return_var;
+}
+
+struct SL_Variable dyn_find_symbol_fn(struct SL_Code *code, struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+
+  struct SL_Variable return_var = {0};
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.find_symbol! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable handle_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable sym_arg = sl_get_argument(*code, func, 1);
+
+  DLLib *lib = (DLLib *)handle_arg.valp;
+  if (!lib) {
+      return_var.type = ERROR;
+      return_var.vals = "Invalid library handle.";
+      return return_var;
+  }
+
+  char *sym_name = sl_string_getter(sym_arg.vals);
+
+  void *symbol = dlFindSymbol(lib, sym_name);
+  free(sym_name);
+
+  if (!symbol) {
+    return_var.type = ERROR;
+    return_var.vals = "Symbol not found in library.";
+    return return_var;
+  }
+
+  return_var.type = POINTER;
+  return_var.valp = symbol;
+  return return_var;
+}
+
+struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.call! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable func_ptr_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable vm_size_arg  = sl_get_argument(*code, func, 1);
+  struct SL_Variable ret_type_arg = sl_get_argument(*code, func, 2);
+
+  void *target_func = func_ptr_arg.valp;
+  int vm_size = vm_size_arg.vali;
+  int expected_ret_type = ret_type_arg.vali; 
+
+  DCCallVM *vm = dcNewCallVM(vm_size);
+  if (!vm) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to create dyncall VM.";
+      return return_var;
+  }
+
+  dcMode(vm, DC_CALL_C_DEFAULT);
+  dcReset(vm);
+  
+  int arg_count = func.total_arguments - 3;
+  int alloc_capacity = arg_count > 0 ? arg_count : 4;
+  char **allocated_strings = malloc(alloc_capacity * sizeof(char *));
+  int alloc_count = 0;
+
+  for (int i = 3; i < func.total_arguments; i++) {
+    struct SL_Variable arg = sl_get_argument(*code, func, i);
+
+    switch (arg.type) {
+    case INTEGER:
+      dcArgInt(vm, arg.vali);
+      break;
+    case DOUBLE:
+      dcArgDouble(vm, arg.valf);
+      break;
+    case BOOLEAN:
+      dcArgBool(vm, arg.valb);
+      break;
+    case CHAR:
+      dcArgChar(vm, arg.valc);
+      break;
+    case LONG:
+      dcArgPointer(vm, (void *)(intptr_t)arg.valh);
+      break;
+    case POINTER:
+      dcArgPointer(vm, arg.valp);
+      break;
+    case STRING: {
+      char *str = sl_string_getter(arg.vals);
+      
+      if (alloc_count >= alloc_capacity) {
+        alloc_capacity *= 2;
+        allocated_strings = srealloc(allocated_strings, alloc_capacity * sizeof(char *));
+      }
+
+      allocated_strings[alloc_count++] = str;
+      dcArgPointer(vm, str);
+      break;
+    }
+    case BYTES:
+      dcArgPointer(vm, arg.vals); 
+      break;
+    default:
+      break;
+    }
+  }
+
+  switch (expected_ret_type) {
+  case INTEGER:
+    return_var.type = INTEGER;
+    return_var.vali = dcCallInt(vm, target_func);
+    break;
+  case DOUBLE:
+    return_var.type = DOUBLE;
+    return_var.valf = dcCallDouble(vm, target_func);
+    break;
+  case BOOLEAN:
+    return_var.type = BOOLEAN;
+    return_var.valb = dcCallBool(vm, target_func);
+    break;
+  case CHAR:
+    return_var.type = CHAR;
+    return_var.valc = dcCallChar(vm, target_func);
+    break;
+  case POINTER:
+    return_var.type = POINTER;
+    return_var.valp = dcCallPointer(vm, target_func);
+    break;
+  case STRING: {
+    char *ret_str = (char *)dcCallPointer(vm, target_func);
+    return_var.type = STRING;
+    if (ret_str != NULL) {
+      return_var.vals = sl_quote_string(ret_str);
+    } else {
+      return_var.vals = NULL;
+    }
+    break;
+  }
+  case LONG:
+    return_var.type = LONG;
+    return_var.valh = (intptr_t)dcCallPointer(vm, target_func);
+    break;
+  default:
+    dcCallVoid(vm, target_func);
+    return_var.type = INTEGER;
+    return_var.vali = 0;
+    break;
+  }
+
+  dcFree(vm);
+
+  for (int i = 0; i < alloc_count; i++) {
+    free(allocated_strings[i]);
+  }
+  free(allocated_strings);
+
+  return return_var;
+}
+
+struct SL_Variable dyn_free_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  struct SL_Variable handle_arg = sl_get_argument(*code, func, 0);
+
+  DLLib *lib = (DLLib *)handle_arg.valp;
+  dlFreeLibrary(lib);
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+/* DYNAMIC LOADING */
+
+
 
 /* Input/Output for stdout/stdin*/
 struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
@@ -2229,6 +2440,29 @@ struct SL_Variable byte_set_fn(struct SL_Code *code, struct SL_L_Function func,
   free(bytes);
   return return_var;
 }
+
+struct SL_Variable byte_size_fn(struct SL_Code *code, struct SL_L_Function func,
+                               struct SL_Function rfunc) {
+  if (func.total_arguments < 3) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at byte.size! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type != BYTES) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected bytes as the first argument to byte.size.";
+    return return_var;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = first_arg.length;
+  return return_var;
+}
+
+
 
 /* String Helper functions */
 struct SL_Variable string_charat_fn(struct SL_Code *code,
@@ -8410,6 +8644,7 @@ int used_collections = 0;
 int used_enums = 0;
 int used_net = 0;
 int used_console = 0;
+int used_dyn = 0;
 
 static void setup_gitignore(void);
 static int use_library(const char *git, struct SL_Code *code);
@@ -8436,6 +8671,91 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "io.input", input_fn);
       sl_add_func(code, "io.getchar", io_getchar_fn);
       sl_add_func(code, "io.flush", io_flush_fn);
+    } else if (strcmp(libstr, "dyn") == 0) {
+      if (used_dyn == 1) 
+	break;
+
+
+      int win = 0;
+      int linux_sys = 0;
+      int macos = 0;
+      int ios = 0;
+      int android = 0;
+      int freebsd = 0;
+      int openbsd = 0;
+      int netbsd = 0;
+      int dragonfly = 0;
+      int solaris = 0;
+      int aix = 0;
+      int hpux = 0;
+      int haiku = 0;
+      int cygwin = 0;
+      int msys = 0;
+      
+      #if defined(_WIN32) || defined(_WIN64)
+          win = 1;
+      #elif defined(__CYGWIN__)
+          cygwin = 1;
+      #elif defined(__MSYS__)
+          msys = 1;
+      #elif defined(__ANDROID__)
+          android = 1;
+      #elif defined(__APPLE__)
+          #include <TargetConditionals.h>
+          #if TARGET_OS_IPHONE
+              ios = 1;
+          #else
+              macos = 1;
+          #endif
+      #elif defined(__linux__)
+          linux_sys = 1;
+      #elif defined(__FreeBSD__)
+          freebsd = 1;
+      #elif defined(__OpenBSD__)
+          openbsd = 1;
+      #elif defined(__NetBSD__)
+          netbsd = 1;
+      #elif defined(__DragonFly__)
+          dragonfly = 1;
+      #elif defined(__sun) || defined(__SVR4)
+          solaris = 1;
+      #elif defined(_AIX)
+          aix = 1;
+      #elif defined(__hpux)
+          hpux = 1;
+      #elif defined(__HAIKU__)
+          haiku = 1;
+      #endif
+      
+      sl_add_fixed_int(code, "SYSTEM_WIN", win);
+      sl_add_fixed_int(code, "SYSTEM_CYGWIN", cygwin);
+      sl_add_fixed_int(code, "SYSTEM_MSYS", msys);
+      sl_add_fixed_int(code, "SYSTEM_LINUX", linux_sys);
+      sl_add_fixed_int(code, "SYSTEM_MACOS", macos);
+      sl_add_fixed_int(code, "SYSTEM_IOS", ios);
+      sl_add_fixed_int(code, "SYSTEM_ANDROID", android);
+      sl_add_fixed_int(code, "SYSTEM_FREEBSD", freebsd);
+      sl_add_fixed_int(code, "SYSTEM_OPENBSD", openbsd);
+      sl_add_fixed_int(code, "SYSTEM_NETBSD", netbsd);
+      sl_add_fixed_int(code, "SYSTEM_DRAGONFLY", dragonfly);
+      sl_add_fixed_int(code, "SYSTEM_SOLARIS", solaris);
+      sl_add_fixed_int(code, "SYSTEM_AIX", aix);
+      sl_add_fixed_int(code, "SYSTEM_HPUX", hpux);
+      sl_add_fixed_int(code, "SYSTEM_HAIKU", haiku);
+      
+      sl_add_fixed_int(code, "DYN_NORETURN", INIT);	
+      sl_add_fixed_int(code, "DYN_INTEGER", INTEGER);
+      sl_add_fixed_int(code, "DYN_DOUBLE", DOUBLE);
+      sl_add_fixed_int(code, "DYN_BOOLEAN", BOOLEAN);
+      sl_add_fixed_int(code, "DYN_CHAR", CHAR);
+      sl_add_fixed_int(code, "DYN_STRING", STRING);
+      sl_add_fixed_int(code, "DYN_LONG", LONG);
+      sl_add_fixed_int(code, "DYN_POINTER", POINTER);
+      sl_add_fixed_int(code, "DYN_BYTES", BYTES);
+      sl_add_func(code, "dyn.open_lib", dyn_open_lib_fn);
+      sl_add_func(code, "dyn.find_symbol", dyn_find_symbol_fn);
+      sl_add_func(code, "dyn.call", dyn_call_fn);
+      sl_add_func(code, "dyn.free", dyn_free_fn);
     } else if (strcmp(libstr, "file") == 0) {
       if (used_file == 1)
         break;
@@ -8471,6 +8791,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       used_bytes = 1;
       sl_add_func(code, "byte.get", byte_get_fn);
       sl_add_func(code, "byte.set", byte_set_fn);
+      sl_add_func(code, "byte.size", byte_size_fn);
     } else if (strcmp(libstr, "types") == 0) {
       if (used_types == 1)
         break;
