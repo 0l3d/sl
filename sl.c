@@ -6,7 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-void identifier_tokenizer(char **code, enum TokenTypes **types,
+void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
                           struct SL_Variable **fixed_values, int token_count);
 
 char *sl_bytes_copy(const char *bytes, size_t length) {
@@ -624,7 +624,6 @@ void sl_free_variable(struct SL_Variable *var) {
   if (var == NULL) {
     return;
   }
-
   if (var->name != NULL) {
     free(var->name);
     var->name = NULL;
@@ -2581,7 +2580,7 @@ static inline enum TokenTypes identifier_tokenizer_converter(const char *s) {
   return T_UNKNOWN;
 }
 
-void identifier_tokenizer(char **code, enum TokenTypes **types,
+void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
                           struct SL_Variable **fixed_values, int token_count) {
   if (code == NULL || types == NULL || *types == NULL || fixed_values == NULL ||
       *fixed_values == NULL)
@@ -2612,7 +2611,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
   int brk_sit = 0;
   int depth = 0;
   if (code_s->types_set == 0)
-    identifier_tokenizer(code_s->code, &code_s->types, &code_s->fixed_values,
+    sl_identifier_tokenizer(code_s->code, &code_s->types, &code_s->fixed_values,
                          code_s->token_count);
   int max_tokens = code_s->token_count;
   for (int current_token = code_s->starting_token;
@@ -2858,7 +2857,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
         module_name[old_len + part_len + 1] = '\0';
       }
-      current_token = i;
+      current_token = i - 1;
 
       char **imported_tokens = NULL;
       int imported_count = sl_init_sl_lexer(1024, module_name, &imported_tokens,
@@ -2881,7 +2880,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
         import_code.types = smalloc(imported_count * sizeof(enum TokenTypes));
         import_code.fixed_values =
-            smalloc(imported_count * sizeof(struct SL_Variable));
+            scalloc(imported_count, sizeof(struct SL_Variable));
         for (int i = 0; i < imported_count; i++) {
           import_code.types[i] = T_UNKNOWN;
         }
@@ -2899,7 +2898,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
         free(import_code.types);
         if (import_code.fixed_values != NULL) {
           for (int i = 0; i < imported_count; i++) {
-            sl_free_variable(&import_code.fixed_values[i]);
+	      sl_free_variable(&import_code.fixed_values[i]);
           }
           free(import_code.fixed_values);
         }

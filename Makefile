@@ -16,6 +16,7 @@ DYNCALL_C_SRCS = \
 	$(DYNCALL_DIR)/dyncall/dyncall_callvm.c \
 	$(DYNCALL_DIR)/dyncall/dyncall_callvm_base.c \
 	$(DYNCALL_DIR)/dyncall/dyncall_vector.c \
+	$(DYNCALL_DIR)/dyncall/dyncall_aggregate.c \
 
 UNAME_M := $(shell uname -m 2>/dev/null || echo x86_64)
 

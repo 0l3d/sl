@@ -130,6 +130,7 @@ int sl_then_finder(char *tokens[], enum TokenTypes *types, int current_token,int
 void sl_clean_local_scope(struct SL_Code *code, int starting_var_index, int starting_func_index);
 int sl_find_end(char **tokens, enum TokenTypes *types, int start, int max_tokens, int branch);
 struct SL_Variable sl_expression_solver(struct SL_Code *code_s, char *expression[], enum TokenTypes *types, int *current_token, int max_tokens);
+void sl_identifier_tokenizer(char **code, enum TokenTypes **types, struct SL_Variable **fixed_values, int token_count);
 void sl_throw_an_error(struct SL_Code code, char **tokens, int current_token, int max_tokens, char *error_msg, char *expected_tip);
 int sl_find_end_of_expr(struct SL_Code *code_s, char **code, enum TokenTypes *types, int starting, int max);
 int sl_add_custom_expr(struct SL_Code *code, char* expr_start, struct SL_Variable (*custom_exprr)(struct SL_Code *, int *current_token));

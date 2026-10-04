@@ -1,5 +1,7 @@
 #ifndef SL_STDLIB_H
 #define SL_STDLIB_H
+// TODO LEAK ON COLLECTIONS
+
 
 #include "libs/dyncall/dynload/dynload.h"
 #include "libs/dyncall/dyncall/dyncall.h"
@@ -283,6 +285,19 @@ int sl_add_fixed_int(struct SL_Code *code, char *name, int value) {
   return 1;
 }
 
+int sl_add_fixed_bool(struct SL_Code *code, char *name, int value) {
+  struct SL_Variable var = {0};
+  var.name = name;
+  var.hash = sl_hash_string(name);
+  var.scope_lifetime = code->scope_depth;
+  var.valb = value;
+  var.type = BOOLEAN;
+  sl_add_var(code, var);
+  return 1;
+}
+
+
+
 /* LIST FUNCTIONS */
 int create_new_list(int capacity, int fixed) {
   if (LISTS == NULL) {
@@ -447,6 +462,395 @@ int list_remove(struct SL_List *list, int index) {
 /* LIST FUNCTIONS */
 
 /* DYNAMIC LOADING */
+#define SL_DYN_STRUCT_PTR  -3
+#define SL_DYN_STRUCT_VAL  -4
+
+struct SL_DynStruct {
+  DCaggr *aggr;      
+  void *data;      
+  size_t size;    
+  int mode;       
+};
+
+static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
+  struct SL_DynStruct *s = smalloc(sizeof(*s));
+  if (!s) return NULL;
+  s->aggr = NULL;
+  s->data = NULL;
+  s->size = size;
+  s->mode = mode;
+  if (mode == SL_DYN_STRUCT_PTR) {
+    s->data = smalloc(sizeof(void*));
+    if (!s->data) { free(s); return NULL; }
+    *(void**)s->data = NULL;
+  }
+  return s;
+}
+
+static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
+  if (!s) return 0;
+  if (s->mode == SL_DYN_STRUCT_PTR) {
+    if (!s->data) return 0;
+    return 1;
+  }
+  if (s->data) return 1;
+  if (s->size == 0) return 0;
+  s->data = smalloc(s->size);
+  if (!s->data) return 0;
+  memset(s->data, 0, s->size);
+  return 1;
+}
+
+struct SL_Variable dyn_create_struct_fn(struct SL_Code *code, struct SL_L_Function func,
+                                       struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.create_struct! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable total_size_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable field_count_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable mode_arg = sl_get_argument(*code, func, 2);
+
+  if (total_size_arg.type != INTEGER || field_count_arg.type != INTEGER || mode_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected integer as the first argument to dyn.create_struct";
+    return return_var;
+  }
+
+  int total_size = total_size_arg.vali;
+  int field_count = field_count_arg.vali;
+  int mode = (mode_arg.vali ? SL_DYN_STRUCT_VAL : SL_DYN_STRUCT_PTR);
+
+  if (total_size <= 0 || field_count < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid total_size or field_count on dyn.create_struct.";
+    return return_var;
+  }
+
+  DCaggr *ag = dcNewAggr((DCsize)field_count, (DCsize)total_size);
+  if (!ag) {
+    return_var.type = ERROR;
+    return_var.vals = "dcNewAggr failed. (dyncall fail) on dyn.create_struct";
+    return return_var;
+  }
+
+  int idx = 3;
+  for (int f = 0; f < field_count; f++) {
+    if (idx + 2 >= func.total_arguments) {
+      dcFreeAggr(ag);
+      return_var.type = ERROR;
+      return_var.vals = "Insufficient field arguments on dyn.create_struct.";
+      return return_var;
+    }
+    struct SL_Variable type_arg = sl_get_argument(*code, func, idx++);
+    struct SL_Variable offset_arg = sl_get_argument(*code, func, idx++);
+    struct SL_Variable array_len_arg = sl_get_argument(*code, func, idx++);
+
+    if (type_arg.type != INTEGER || offset_arg.type != INTEGER || array_len_arg.type != INTEGER) {
+      dcFreeAggr(ag);
+      return_var.type = ERROR;
+      return_var.vals = "Expected integer as the field_arg to dyn.create_struct.";
+      return return_var;
+    }
+
+    DCsigchar type_char = (DCsigchar) type_arg.vali;
+    DCint offset = (DCint) offset_arg.vali;
+    DCsize array_len = (DCsize) array_len_arg.vali;
+
+    if (type_char == DC_SIGCHAR_AGGREGATE) {
+      if (idx >= func.total_arguments) {
+        dcFreeAggr(ag);
+        return_var.type = ERROR;
+        return_var.vals = "Missing nested aggregate pointer on dyn.create_struct.";
+        return return_var;
+      }
+      struct SL_Variable nested = sl_get_argument(*code, func, idx++);
+      if (nested.type != POINTER || nested.valp == NULL) {
+        dcFreeAggr(ag);
+        return_var.type = ERROR;
+        return_var.vals = "Expected pointer as nested aggregate to dyn.create_struct.";
+        return return_var;
+      }
+      struct SL_DynStruct *ns = (struct SL_DynStruct *) nested.valp;
+      if (!ns->aggr) {
+        dcFreeAggr(ag);
+        return_var.type = ERROR;
+        return_var.vals = "Nested dyn struct has no aggr on dyn.create_struct.";
+        return return_var;
+      }
+      dcAggrField(ag, type_char, offset, array_len, ns->aggr);
+    } else {
+      dcAggrField(ag, type_char, offset, array_len);
+    }
+  }
+
+  dcCloseAggr(ag);
+
+  struct SL_DynStruct *s = sl_dynstruct_alloc((size_t)total_size, mode);
+  if (!s) {
+    dcFreeAggr(ag);
+    return_var.type = ERROR;
+    return_var.vals = "Allocation failed on dyn.create_struct.";
+    return return_var;
+  }
+  s->aggr = ag;
+
+  return_var.type = POINTER;
+  return_var.valp = (void *)s;
+  return_var.info = mode;
+  return return_var;
+}
+
+struct SL_Variable dyn_set_field_fn(struct SL_Code *code, struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.set_field! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable handle = sl_get_argument(*code, func, 0);
+  struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable value = sl_get_argument(*code, func, 2);
+
+  if (handle.type != POINTER || offset_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected POINTER and INTEGER as first and second argument to dyn.set_field.";
+    return return_var;
+  }
+
+  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  if (!s) {
+    return_var.type = ERROR;
+    return_var.vals = "Null struct handle on dyn.set_field.";
+    return return_var;
+  }
+
+  int offset = offset_arg.vali;
+  if (offset < 0 || (size_t)offset >= s->size) {
+    return_var.type = ERROR;
+    return_var.vals = "Offset out of bounds on dyn.set_field.";
+    return return_var;
+  }
+
+  if (!sl_dynstruct_ensure_buffer(s)) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to allocate internal buffer on dyn.set_field.";
+    return return_var;
+  }
+
+  void *dst = (char*)s->data + offset;
+
+  switch (value.type) {
+    case INTEGER: {
+      if (offset + (int)sizeof(int) > (int)s->size) goto set_oob;
+      int v = value.vali; memcpy(dst, &v, sizeof(int));
+      break;
+    }
+    case DOUBLE: {
+      if (offset + (int)sizeof(double) > (int)s->size) goto set_oob;
+      double v = value.valf; memcpy(dst, &v, sizeof(double));
+      break;
+    }
+    case BOOLEAN: {
+      if (offset + (int)sizeof(int) > (int)s->size) goto set_oob;
+      int v = value.valb; memcpy(dst, &v, sizeof(int));
+      break;
+    }
+    case CHAR: {
+      if (offset + (int)sizeof(char) > (int)s->size) goto set_oob;
+      char v = value.valc; memcpy(dst, &v, sizeof(char));
+      break;
+    }
+    case LONG: {
+      if (offset + (int)sizeof(intptr_t) > (int)s->size) goto set_oob;
+      intptr_t v = value.valh; memcpy(dst, &v, sizeof(intptr_t));
+      break;
+    }
+    case POINTER: {
+      void *ptr_to_store = NULL;
+      struct SL_DynStruct *maybe = (struct SL_DynStruct *) value.valp;
+      if (maybe && (maybe->mode == SL_DYN_STRUCT_PTR || maybe->mode == SL_DYN_STRUCT_VAL) && maybe->aggr != NULL) {
+        if (maybe->mode == SL_DYN_STRUCT_PTR) {
+          ptr_to_store = *(void**)maybe->data;
+	} else {
+          if (!sl_dynstruct_ensure_buffer(maybe)) {
+            return_var.type = ERROR;
+            return_var.vals = "Nested dyn struct has no instance buffer on dyn.set_field.";
+            return return_var;
+          }
+          ptr_to_store = maybe->data;
+        }
+      } else {
+        ptr_to_store = value.valp;
+      }
+      if (offset + (int)sizeof(void*) > (int)s->size) goto set_oob;
+      memcpy(dst, &ptr_to_store, sizeof(void*));
+      break;
+    }
+    case STRING: {
+      if (offset + (int)sizeof(char*) > (int)s->size) goto set_oob;
+      char *v = value.vals ? strdup(value.vals) : NULL;
+      memcpy(dst, &v, sizeof(char*));
+      break;
+    }
+    case BYTES: {
+      if (value.vals == NULL || value.length == 0) break;
+      if (offset + (int)value.length > (int)s->size) goto set_oob;
+      memcpy(dst, value.vals, value.length);
+      break;
+    }
+    default: {
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported SL value type on dyn.set_field.";
+      return return_var;
+    }
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+
+set_oob:
+  return_var.type = ERROR;
+  return_var.vals = "Write would overflow struct buffer on dyn.set_field.";
+  return return_var;
+}
+
+struct SL_Variable dyn_get_field_fn(struct SL_Code *code, struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.get_field! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable handle = sl_get_argument(*code, func, 0);
+  struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable type_arg = sl_get_argument(*code, func, 2);
+
+  if (handle.type != POINTER || offset_arg.type != INTEGER || type_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected POINTER, INTEGER and INTEGER as first, second, third arguments to dyn.get_field.";
+    return return_var;
+  }
+
+  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  if (!s) {
+    return_var.type = ERROR;
+    return_var.vals = "Null struct handle on dyn.get_field.";
+    return return_var;
+  }
+
+  int offset = offset_arg.vali;
+  if (offset < 0 || (size_t)offset >= s->size) {
+    return_var.type = ERROR;
+    return_var.vals = "Offset out of bounds on dyn.get_field.";
+    return return_var;
+  }
+
+  if (!s->data) {
+    return_var.type = ERROR;
+    return_var.vals = "Instance buffer not initialized on dyn.get_field.";
+    return return_var;
+  }
+
+  void *src = (char*)s->data + offset;
+  DCsigchar type_char = (DCsigchar) type_arg.vali;
+
+  switch (type_char) {
+    case DC_SIGCHAR_INT:
+    case DC_SIGCHAR_UINT: {
+      int v = 0; memcpy(&v, src, sizeof(int));
+      return_var.type = INTEGER; return_var.vali = v; break;
+    }
+    case DC_SIGCHAR_DOUBLE: {
+      double v = 0.0; memcpy(&v, src, sizeof(double));
+      return_var.type = DOUBLE; return_var.valf = v; break;
+    }
+    case DC_SIGCHAR_BOOL: {
+      int v = 0; memcpy(&v, src, sizeof(int));
+      return_var.type = BOOLEAN; return_var.valb = v; break;
+    }
+    case DC_SIGCHAR_CHAR: {
+      char v = 0; memcpy(&v, src, sizeof(char));
+      return_var.type = CHAR; return_var.valc = v; break;
+    }
+    case DC_SIGCHAR_LONG:
+    case DC_SIGCHAR_ULONG: {
+      intptr_t v = 0; memcpy(&v, src, sizeof(intptr_t));
+      return_var.type = LONG; return_var.valh = v; break;
+    }
+    case DC_SIGCHAR_POINTER:
+    case DC_SIGCHAR_STRING: {
+      void *v = NULL; memcpy(&v, src, sizeof(void*));
+      return_var.type = POINTER; return_var.valp = v; break;
+    }
+    case DC_SIGCHAR_FLOAT: {
+      float v = 0.0f; memcpy(&v, src, sizeof(float));
+      return_var.type = DOUBLE; return_var.valf = (double)v; break;
+    }
+    case DC_SIGCHAR_LONGLONG:
+    case DC_SIGCHAR_ULONGLONG: {
+      long long v = 0; memcpy(&v, src, sizeof(long long));
+      return_var.type = LONG; return_var.valh = (intptr_t)v; break;
+    }
+    case DC_SIGCHAR_AGGREGATE: {
+      return_var.type = POINTER;
+      return_var.valp = src;
+      break;
+    }
+    default: {
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported type requested on dyn.get_field!";
+      break;
+    }
+  }
+
+  return return_var;
+}
+
+struct SL_Variable dyn_free_struct_fn(struct SL_Code *code, struct SL_L_Function func,
+                                      struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.free_struct! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable handle = sl_get_argument(*code, func, 0);
+  if (handle.type != POINTER || handle.valp == NULL) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid handle on dyn.free_struct.";
+    return return_var;
+  }
+
+  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  if (s->data) {
+    free(s->data);
+    s->data = NULL;
+  }
+  if (s->aggr) {
+    dcFreeAggr(s->aggr);
+    s->aggr = NULL;
+  }
+  free(s);
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 struct SL_Variable dyn_open_lib_fn(struct SL_Code *code, struct SL_L_Function func,
                                    struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
@@ -562,9 +966,31 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
     case LONG:
       dcArgPointer(vm, (void *)(intptr_t)arg.valh);
       break;
-    case POINTER:
+    case POINTER: {
+      struct SL_DynStruct *maybe = (struct SL_DynStruct *) arg.valp;
+      if (maybe && maybe->aggr != NULL) {
+        if (maybe->mode == SL_DYN_STRUCT_VAL) {
+          if (!sl_dynstruct_ensure_buffer(maybe)) {
+            dcFree(vm);
+            return_var.type = ERROR;
+            return_var.vals = "Aggregate instance buffer not initialized on dyn.call.";
+            return return_var;
+          }
+          dcArgAggr(vm, maybe->aggr, maybe->data);
+        } else {
+          void *ptrval = *(void**)maybe->data;
+          if (!ptrval) {
+            dcFree(vm);
+            return_var.type = ERROR;
+            return_var.vals = "Aggregate pointer is NULL for PTR-mode struct on dyn.call.";
+            return return_var;
+          }
+          dcArgPointer(vm, ptrval);
+        }
+        break;;
+      }
       dcArgPointer(vm, arg.valp);
-      break;
+		  }break;    
     case STRING: {
       char *str = sl_string_getter(arg.vals);
       
@@ -4388,13 +4814,14 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     func = raw_func;
     func.code_tokens[3] = smalloc(assigned_len + 3);
     snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);
+    sl_identifier_tokenizer(func.code_tokens, &func.types, &func.fixed_values, func.code_len);
     func.name = full_func_name;
     func.hash = sl_hash_string(full_func_name);
     func.scope_lifetime = scope;
     sl_add_raw_func(code, &func);
     free(full_func_name);
   }
-  return_var.vals = sl_quote_string(collections.collections[collec_index].name);
+  return_var.vals = sl_quote_string(assigned_var);
   return_var.type = STRING;
   return_var.info = SL_COLLECTION;
   return return_var;
@@ -4524,10 +4951,15 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       /* [var] [self] [=] ["attr_name"] 4 more tokens */
       link_func.code_tokens = srealloc(
           link_func.code_tokens, (link_func.code_len + 4) * sizeof(char *));
-      link_func.types = srealloc(link_func.types, (link_func.code_len + 4) *
+      link_func.types = scalloc((link_func.code_len + 4), 
                                                       sizeof(enum TokenTypes));
+      link_func.fixed_values = scalloc((link_func.code_len + 4),
+                                                      sizeof(struct SL_Variable));
+
       memmove(link_func.code_tokens + 4, link_func.code_tokens,
               link_func.code_len * sizeof(char *));
+
+
       link_func.code_tokens[0] = strdup("var");
       link_func.code_tokens[1] = strdup("self");
       link_func.code_tokens[2] = strdup("=");
@@ -8733,21 +9165,21 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
           haiku = 1;
       #endif
       
-      sl_add_fixed_int(code, "SYSTEM_WIN", win);
-      sl_add_fixed_int(code, "SYSTEM_CYGWIN", cygwin);
-      sl_add_fixed_int(code, "SYSTEM_MSYS", msys);
-      sl_add_fixed_int(code, "SYSTEM_LINUX", linux_sys);
-      sl_add_fixed_int(code, "SYSTEM_MACOS", macos);
-      sl_add_fixed_int(code, "SYSTEM_IOS", ios);
-      sl_add_fixed_int(code, "SYSTEM_ANDROID", android);
-      sl_add_fixed_int(code, "SYSTEM_FREEBSD", freebsd);
-      sl_add_fixed_int(code, "SYSTEM_OPENBSD", openbsd);
-      sl_add_fixed_int(code, "SYSTEM_NETBSD", netbsd);
-      sl_add_fixed_int(code, "SYSTEM_DRAGONFLY", dragonfly);
-      sl_add_fixed_int(code, "SYSTEM_SOLARIS", solaris);
-      sl_add_fixed_int(code, "SYSTEM_AIX", aix);
-      sl_add_fixed_int(code, "SYSTEM_HPUX", hpux);
-      sl_add_fixed_int(code, "SYSTEM_HAIKU", haiku);
+      sl_add_fixed_bool(code, "SYSTEM_WIN", win);
+      sl_add_fixed_bool(code, "SYSTEM_CYGWIN", cygwin);
+      sl_add_fixed_bool(code, "SYSTEM_MSYS", msys);
+      sl_add_fixed_bool(code, "SYSTEM_LINUX", linux_sys);
+      sl_add_fixed_bool(code, "SYSTEM_MACOS", macos);
+      sl_add_fixed_bool(code, "SYSTEM_IOS", ios);
+      sl_add_fixed_bool(code, "SYSTEM_ANDROID", android);
+      sl_add_fixed_bool(code, "SYSTEM_FREEBSD", freebsd);
+      sl_add_fixed_bool(code, "SYSTEM_OPENBSD", openbsd);
+      sl_add_fixed_bool(code, "SYSTEM_NETBSD", netbsd);
+      sl_add_fixed_bool(code, "SYSTEM_DRAGONFLY", dragonfly);
+      sl_add_fixed_bool(code, "SYSTEM_SOLARIS", solaris);
+      sl_add_fixed_bool(code, "SYSTEM_AIX", aix);
+      sl_add_fixed_bool(code, "SYSTEM_HPUX", hpux);
+      sl_add_fixed_bool(code, "SYSTEM_HAIKU", haiku);
       
       sl_add_fixed_int(code, "DYN_NORETURN", INIT);	
       sl_add_fixed_int(code, "DYN_INTEGER", INTEGER);
@@ -8758,7 +9190,44 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "DYN_LONG", LONG);
       sl_add_fixed_int(code, "DYN_POINTER", POINTER);
       sl_add_fixed_int(code, "DYN_BYTES", BYTES);
+      sl_add_fixed_int(code, "DYN_TYPE_VOID", DC_SIGCHAR_VOID);
+      sl_add_fixed_int(code, "DYN_TYPE_BOOL", DC_SIGCHAR_BOOL);
+      sl_add_fixed_int(code, "DYN_TYPE_CHAR", DC_SIGCHAR_CHAR);
+      sl_add_fixed_int(code, "DYN_TYPE_UCHAR", DC_SIGCHAR_UCHAR);
+      sl_add_fixed_int(code, "DYN_TYPE_SHORT", DC_SIGCHAR_SHORT);
+      sl_add_fixed_int(code, "DYN_TYPE_USHORT", DC_SIGCHAR_USHORT);
+      sl_add_fixed_int(code, "DYN_TYPE_INT", DC_SIGCHAR_INT);
+      sl_add_fixed_int(code, "DYN_TYPE_UINT", DC_SIGCHAR_UINT);
+      sl_add_fixed_int(code, "DYN_TYPE_LONG", DC_SIGCHAR_LONG);
+      sl_add_fixed_int(code, "DYN_TYPE_ULONG", DC_SIGCHAR_ULONG);
+      sl_add_fixed_int(code, "DYN_TYPE_LONGLONG", DC_SIGCHAR_LONGLONG);
+      sl_add_fixed_int(code, "DYN_TYPE_ULONGLONG", DC_SIGCHAR_ULONGLONG);
+      sl_add_fixed_int(code, "DYN_TYPE_FLOAT", DC_SIGCHAR_FLOAT);
+      sl_add_fixed_int(code, "DYN_TYPE_DOUBLE", DC_SIGCHAR_DOUBLE);
+      sl_add_fixed_int(code, "DYN_TYPE_POINTER", DC_SIGCHAR_POINTER);
+      sl_add_fixed_int(code, "DYN_TYPE_STRING", DC_SIGCHAR_STRING);
+      sl_add_fixed_int(code, "DYN_TYPE_AGGREGATE", DC_SIGCHAR_AGGREGATE);
+      sl_add_fixed_int(code, "DYN_TYPE_ENDARG", DC_SIGCHAR_ENDARG);
+      sl_add_fixed_int(code, "DYN_STRUCT_VAL", 1);
+      sl_add_fixed_int(code, "DYN_STRUCT_PTR", 0); 
+      sl_add_fixed_int(code, "DYN_SIZEOF_CHAR", sizeof(char));
+      sl_add_fixed_int(code, "DYN_SIZEOF_UCHAR", sizeof(unsigned char));
+      sl_add_fixed_int(code, "DYN_SIZEOF_SHORT", sizeof(short));
+      sl_add_fixed_int(code, "DYN_SIZEOF_USHORT", sizeof(unsigned short));
+      sl_add_fixed_int(code, "DYN_SIZEOF_INT", sizeof(int));
+      sl_add_fixed_int(code, "DYN_SIZEOF_UINT", sizeof(unsigned int));
+      sl_add_fixed_int(code, "DYN_SIZEOF_LONG", sizeof(long));
+      sl_add_fixed_int(code, "DYN_SIZEOF_ULONG", sizeof(unsigned long));
+      sl_add_fixed_int(code, "DYN_SIZEOF_LONGLONG", sizeof(long long));
+      sl_add_fixed_int(code, "DYN_SIZEOF_ULONGLONG", sizeof(unsigned long long));
+      sl_add_fixed_int(code, "DYN_SIZEOF_FLOAT", sizeof(float));
+      sl_add_fixed_int(code, "DYN_SIZEOF_DOUBLE", sizeof(double));
+      sl_add_fixed_int(code, "DYN_SIZEOF_POINTER", sizeof(void *));
       sl_add_func(code, "dyn.open_lib", dyn_open_lib_fn);
+      sl_add_func(code, "dyn.create_struct", dyn_create_struct_fn);
+      sl_add_func(code, "dyn.set_field", dyn_set_field_fn);
+      sl_add_func(code, "dyn.get_field", dyn_get_field_fn);
+      sl_add_func(code, "dyn.free_struct", dyn_free_struct_fn);
       sl_add_func(code, "dyn.find_symbol", dyn_find_symbol_fn);
       sl_add_func(code, "dyn.call", dyn_call_fn);
       sl_add_func(code, "dyn.free", dyn_free_fn);
@@ -10085,49 +10554,8 @@ void close_sl_stdlib() {
         for (int j = 0; j < collections.collections[i].total_funcs; j++) {
 
           struct SL_Function *func = &collections.collections[i].functions[j];
-
-          if (func->name != NULL) {
-            free(func->name);
-            func->name = NULL;
-          }
-
-          if (func->code_tokens != NULL) {
-            for (int k = 0; k < func->code_len; k++) {
-              if (func->code_tokens[k] != NULL) {
-                free(func->code_tokens[k]);
-                func->code_tokens[k] = NULL;
-              }
-            }
-
-            free(func->code_tokens);
-            func->code_tokens = NULL;
-          }
-
-          if (func->types != NULL) {
-            free(func->types);
-            func->types = NULL;
-          }
-          if (func->arguments != NULL) {
-            for (int arg_idx = 0; arg_idx < func->total_arguments; arg_idx++) {
-              if (func->arguments[arg_idx].name != NULL) {
-                free(func->arguments[arg_idx].name);
-                func->arguments[arg_idx].name = NULL;
-              }
-
-              if ((func->arguments[arg_idx].type == STRING ||
-                   func->arguments[arg_idx].type == RETURN) &&
-                  func->arguments[arg_idx].vals != NULL) {
-
-                free(func->arguments[arg_idx].vals);
-                func->arguments[arg_idx].vals = NULL;
-              }
-            }
-
-            free(func->arguments);
-            func->arguments = NULL;
-          }
-        }
-
+	  sl_free_function(func);
+	}
         free(collections.collections[i].functions);
         collections.collections[i].functions = NULL;
       }
