@@ -512,6 +512,7 @@ int list_remove(struct SL_List *list, int index) {
 /* DYNAMIC LOADING */
 #define SL_DYN_STRUCT_PTR -3
 #define SL_DYN_STRUCT_VAL -4
+#define SL_DYN_STRUCT_REF -5
 
 struct SL_DynStruct {
   DCaggr *aggr;
@@ -524,18 +525,31 @@ static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
   struct SL_DynStruct *s = smalloc(sizeof(*s));
   if (!s)
     return NULL;
+
   s->aggr = NULL;
   s->data = NULL;
   s->size = size;
   s->mode = mode;
+
   if (mode == SL_DYN_STRUCT_PTR) {
     s->data = smalloc(sizeof(void *));
     if (!s->data) {
       free(s);
       return NULL;
     }
+
     *(void **)s->data = NULL;
+
+  } else if (mode == SL_DYN_STRUCT_REF) {
+    s->data = smalloc(size);
+    if (!s->data) {
+      free(s);
+      return NULL;
+    }
+
+    memset(s->data, 0, size);
   }
+
   return s;
 }
 
@@ -556,6 +570,49 @@ static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
     return 0;
   memset(s->data, 0, s->size);
   return 1;
+}
+
+struct SL_Variable dyn_ptr_fn(struct SL_Code *code, struct SL_L_Function func,
+                              struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.ptr! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  switch (first_arg.type) {
+  case STRING:
+    return_var.valp = (void *)first_arg.vals;
+    break;
+
+  case CHAR:
+    return_var.valp = (void *)(uintptr_t)first_arg.valc;
+    break;
+
+  case INTEGER:
+    return_var.valp = (void *)(uintptr_t)first_arg.vali;
+    break;
+
+  case BOOLEAN:
+    return_var.valp = (void *)(uintptr_t)first_arg.valb;
+    break;
+
+  case LONG:
+    return_var.valp = (void *)(uintptr_t)first_arg.valh;
+    break;
+
+  default:
+    return_var.vals = "Unsupported type.";
+    return_var.type = ERROR;
+    return return_var;
+  }
+
+  return_var.type = POINTER;
+  return return_var;
 }
 
 struct SL_Variable dyn_create_struct_fn(struct SL_Code *code,
@@ -583,7 +640,13 @@ struct SL_Variable dyn_create_struct_fn(struct SL_Code *code,
 
   int total_size = total_size_arg.vali;
   int field_count = field_count_arg.vali;
-  int mode = (mode_arg.vali ? SL_DYN_STRUCT_VAL : SL_DYN_STRUCT_PTR);
+  int mode = mode_arg.vali;
+  if (mode != SL_DYN_STRUCT_PTR && mode != SL_DYN_STRUCT_VAL &&
+      mode != SL_DYN_STRUCT_REF) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid struct mode.";
+    return return_var;
+  }
 
   if (total_size <= 0 || field_count < 0) {
     return_var.type = ERROR;
@@ -868,11 +931,18 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     }
     case POINTER: {
       void *ptr_to_store = NULL;
-      struct SL_DynStruct *maybe = (struct SL_DynStruct *)value.valp;
-      if (maybe &&
-          (maybe->mode == SL_DYN_STRUCT_PTR ||
-           maybe->mode == SL_DYN_STRUCT_VAL) &&
-          maybe->aggr != NULL) {
+
+      if (value.info == SL_DYN_STRUCT_PTR || value.info == SL_DYN_STRUCT_VAL ||
+          value.info == SL_DYN_STRUCT_REF) {
+
+        struct SL_DynStruct *maybe = (struct SL_DynStruct *)value.valp;
+
+        if (!maybe || !maybe->aggr) {
+          return_var.type = ERROR;
+          return_var.vals = "Invalid dyn struct pointer.";
+          return return_var;
+        }
+
         if (maybe->mode == SL_DYN_STRUCT_PTR) {
           ptr_to_store = *(void **)maybe->data;
         } else {
@@ -882,13 +952,17 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
                 "Nested dyn struct has no instance buffer on dyn.set_field.";
             return return_var;
           }
+
           ptr_to_store = maybe->data;
         }
+
       } else {
         ptr_to_store = value.valp;
       }
+
       if (offset + (int)sizeof(void *) > (int)s->size)
         goto set_oob;
+
       memcpy(dst, &ptr_to_store, sizeof(void *));
       break;
     }
@@ -1200,9 +1274,18 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
       dcArgPointer(vm, (void *)(intptr_t)arg.valh);
       break;
     case POINTER: {
-      struct SL_DynStruct *maybe = (struct SL_DynStruct *)arg.valp;
-      if (maybe && maybe->aggr != NULL) {
+      if (arg.info == SL_DYN_STRUCT_PTR || arg.info == SL_DYN_STRUCT_VAL ||
+          arg.info == SL_DYN_STRUCT_REF) {
+
+        struct SL_DynStruct *maybe = (struct SL_DynStruct *)arg.valp;
+
+        if (!maybe) {
+          dcArgPointer(vm, NULL);
+          break;
+        }
+
         if (maybe->mode == SL_DYN_STRUCT_VAL) {
+
           if (!sl_dynstruct_ensure_buffer(maybe)) {
             dcFree(vm);
             return_var.type = ERROR;
@@ -1210,9 +1293,13 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
                 "Aggregate instance buffer not initialized on dyn.call.";
             return return_var;
           }
+
           dcArgAggr(vm, maybe->aggr, maybe->data);
-        } else {
+
+        } else if (maybe->mode == SL_DYN_STRUCT_PTR) {
+
           void *ptrval = *(void **)maybe->data;
+
           if (!ptrval) {
             dcFree(vm);
             return_var.type = ERROR;
@@ -1220,13 +1307,27 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
                 "Aggregate pointer is NULL for PTR-mode struct on dyn.call.";
             return return_var;
           }
+
           dcArgPointer(vm, ptrval);
+
+        } else if (maybe->mode == SL_DYN_STRUCT_REF) {
+
+          if (!sl_dynstruct_ensure_buffer(maybe)) {
+            dcFree(vm);
+            return_var.type = ERROR;
+            return_var.vals = "Struct buffer not initialized on dyn.call.";
+            return return_var;
+          }
+
+          dcArgPointer(vm, maybe->data);
         }
-        break;
-        ;
+
+      } else {
+        dcArgPointer(vm, arg.valp);
       }
-      dcArgPointer(vm, arg.valp);
-    } break;
+
+      break;
+    }
     case STRING: {
       char *str = sl_string_getter(arg.vals);
 
@@ -1477,6 +1578,11 @@ struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
 
     case LONG:
       length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, value.valh);
+      if (length > 0)
+        sl_console_write(buffer, (size_t)length);
+      break;
+    case POINTER:
+      length = snprintf(buffer, sizeof(buffer), "%p", value.valp);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -9516,8 +9622,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "DYN_TYPE_STRING", DC_SIGCHAR_STRING);
       sl_add_fixed_int(code, "DYN_TYPE_AGGREGATE", DC_SIGCHAR_AGGREGATE);
       sl_add_fixed_int(code, "DYN_TYPE_ENDARG", DC_SIGCHAR_ENDARG);
-      sl_add_fixed_int(code, "DYN_STRUCT_VAL", 1);
-      sl_add_fixed_int(code, "DYN_STRUCT_PTR", 0);
+      sl_add_fixed_int(code, "DYN_STRUCT_REF", SL_DYN_STRUCT_REF);
+      sl_add_fixed_int(code, "DYN_STRUCT_VAL", SL_DYN_STRUCT_VAL);
+      sl_add_fixed_int(code, "DYN_STRUCT_PTR", SL_DYN_STRUCT_PTR);
       sl_add_fixed_int(code, "DYN_SIZEOF_CHAR", sizeof(char));
       sl_add_fixed_int(code, "DYN_SIZEOF_UCHAR", sizeof(unsigned char));
       sl_add_fixed_int(code, "DYN_SIZEOF_SHORT", sizeof(short));
@@ -9536,6 +9643,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "dyn.create_struct", dyn_create_struct_fn);
       sl_add_func(code, "dyn.set_field", dyn_set_field_fn);
       sl_add_func(code, "dyn.get_field", dyn_get_field_fn);
+      sl_add_func(code, "dyn.ptr", dyn_ptr_fn);
       sl_add_func(code, "dyn.free_struct", dyn_free_struct_fn);
       sl_add_func(code, "dyn.find_symbol", dyn_find_symbol_fn);
       sl_add_func(code, "dyn.call", dyn_call_fn);

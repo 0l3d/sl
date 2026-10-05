@@ -8,7 +8,7 @@ var function = dyn.find_symbol($lib, "print_struct")
 var struct = dyn.create_struct(
 	$DYN_SIZEOF_INT * 2, # How much? sizeof(int) * 2 = 8
 	2,  # field count = 2 
-	$DYN_STRUCT_VAL, # var or PTR: $DYN_STRUCT_PTR?
+	$DYN_STRUCT_VAL, # var or PTR: $DYN_STRUCT_PTR or $DYN_STRUCT_REF?
 	$DYN_TYPE_INT, $DYN_SIZEOF_INT * 0, 1, # TYPE, OFFSET, LEN 
 	$DYN_TYPE_INT, $DYN_SIZEOF_INT * 1, 1  # TYPE, OFFSET, LEN 
 )
@@ -33,7 +33,7 @@ dyn.free($lib)
 # var struct = dyn.create_struct(
 #         $DYN_SIZEOF_FLOAT * 2, # How much? sizeof(float) * 2 = 8
 #         2,  # field count = 2
-#         $DYN_STRUCT_VAL, # var or PTR: $DYN_STRUCT_PTR?
+#         $DYN_STRUCT_VAL, # var or PTR: $DYN_STRUCT_PTR or $DYN_STRUCT_REF?
 #         $DYN_TYPE_FLOAT, $DYN_SIZEOF_FLOAT * 0, 1, # TYPE, OFFSET, LEN
 #         $DYN_TYPE_FLOAT, $DYN_SIZEOF_FLOAT * 1, 1  # TYPE, OFFSET, LEN
 # )
