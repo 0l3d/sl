@@ -58,6 +58,7 @@
 /* SL INFO TABLE */
 #define SL_LIST -1
 #define SL_COLLECTION -2
+#define SL_RUNTIME_ERROR -3
 /* SL INFO TABLE */
 
 /* CONSOLE API */
@@ -470,7 +471,7 @@ int list_set(struct SL_List *list, int index, struct SL_Variable value) {
   if (index < 0 || index >= list->size)
     return 0;
 
-  if ((list->vars[index].type == STRING || list->vars[index].type == RETURN) &&
+  if ((list->vars[index].type == STRING || list->vars[index].type == RETURN || list->vars[index].type == BYTES) &&
       list->vars[index].vals != NULL) {
     free(list->vars[index].vals);
     list->vars[index].vals = NULL;
@@ -482,7 +483,6 @@ int list_set(struct SL_List *list, int index, struct SL_Variable value) {
   }
 
   list->vars[index] = sl_copy_variable(value);
-
   return 1;
 }
 
@@ -3749,10 +3749,31 @@ struct SL_Variable errors_string_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  if (first_arg.type == ERROR) {
-    printf("%s\n", first_arg.vals);
+  if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
+	char* raw_text = sl_string_getter(first_arg.vals);
+    printf("%s\n", raw_text);
+	free(raw_text);
   }
   return sl_copy_variable(first_arg);
+}
+
+struct SL_Variable errors_return_fn(struct SL_Code *code,
+                                    struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at errors.string! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  char *raw_text = sl_string_getter(first_arg.vals);
+  struct SL_Variable return_var = {0};
+  return_var.type = STRING;
+  return_var.vals = sl_quote_string(raw_text);
+  free(raw_text);
+  return_var.info = SL_RUNTIME_ERROR;
+  return return_var;
 }
 
 struct SL_Variable errors_bool_fn(struct SL_Code *code,
@@ -3766,7 +3787,7 @@ struct SL_Variable errors_bool_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  if (first_arg.type == ERROR) {
+  if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
     return_var.valb = 1;
     return_var.type = BOOLEAN;
     return return_var;
@@ -3787,9 +3808,10 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  if (first_arg.type == ERROR) {
-    printf("Program panicked with error: %s\n",
-           sl_string_getter(first_arg.vals));
+  if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
+	char* raw_text = sl_string_getter(first_arg.vals);
+    printf("Program panicked with error: %s\n", raw_text);
+	free(raw_text);
     exit(-1);
   }
   return return_var;
@@ -4171,8 +4193,15 @@ struct SL_Variable List_get_fn(struct SL_Code *code, struct SL_L_Function func,
     return_var.vals = "Buffer overflow on List element.";
     return return_var;
   }
-
-  return sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
+  struct SL_Variable result =
+      sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
+  
+  if (result.name != NULL) {
+      free(result.name);
+      result.name = NULL;
+  }
+  
+  return result;
 }
 
 struct SL_Variable List_remove_fn(struct SL_Code *code,
@@ -4895,6 +4924,7 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
              raw_func.name);
     struct SL_Function func = {0};
     func = raw_func;
+	free(func.code_tokens[3]);
     func.code_tokens[3] = smalloc(assigned_len + 3);
     snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);
     sl_identifier_tokenizer(func.code_tokens, &func.types, &func.fixed_values, func.code_len);
@@ -4959,6 +4989,7 @@ struct SL_Variable collections_get_attr_fn(struct SL_Code *code,
   snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
   struct SL_Variable *ref_var = sl_get_var(code, full_var_name);
   return_var = sl_copy_variable(*ref_var);
+  return_var.scope_lifetime = 0;
   if (return_var.name != NULL) {
     free(return_var.name);
     return_var.name = NULL;
@@ -5061,6 +5092,7 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       link_func.code_tokens[0] = strdup("var");
       link_func.code_tokens[1] = strdup("self");
       link_func.code_tokens[2] = strdup("=");
+	  link_func.code_tokens[3] = strdup("false");
       link_func.code_len += 4;
       if (link_func.name != NULL)
         free(link_func.name);
@@ -9416,6 +9448,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
         break;
       used_errors = 1;
       sl_add_func(code, "errors.string", errors_string_fn);
+	  sl_add_func(code, "errors.return", errors_return_fn);
       sl_add_func(code, "errors.bool", errors_bool_fn);
       sl_add_func(code, "errors.panic", errors_panic_fn);
     } else if (strcmp(libstr, "collections") == 0) {
