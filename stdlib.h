@@ -1,7 +1,10 @@
 #ifndef SL_STDLIB_H
 #define SL_STDLIB_H
-// TODO LEAK ON COLLECTIONS
 
+/* DISCLAIMER:
+ * LIST GARBAGE COLLECTOR IS MARK-AND-SWEEP.
+ * SEE: list_garbage_collector() / mark_list().
+ */
 
 #include "libs/dyncall/dynload/dynload.h"
 #include "libs/dyncall/dyncall/dyncall.h"
@@ -321,30 +324,40 @@ int create_new_list(int capacity, int fixed) {
     LISTS = tmp;
     LISTS_capacity = new_capacity;
   }
-
-  LISTS[LISTS_count].vars =
+  int real_count = LISTS_count; 
+  
+  for (int i = 0; i < LISTS_count; i++) {
+	  if (LISTS[i].still_reachable == 0) 
+		  real_count = i;
+  }
+  
+  LISTS[real_count].vars =
       calloc((size_t)capacity, sizeof(struct SL_Variable));
 
-  if (LISTS[LISTS_count].vars == NULL) {
+  if (LISTS[real_count].vars == NULL) {
     return -1;
   }
 
-  LISTS[LISTS_count].capacity = capacity;
-  LISTS[LISTS_count].current = 0;
-  LISTS[LISTS_count].fixed = fixed;
+  LISTS[real_count].capacity = capacity;
+  LISTS[real_count].current = 0;
+  LISTS[real_count].fixed = fixed;
 
   if (fixed) {
-    LISTS[LISTS_count].size = capacity;
+    LISTS[real_count].size = capacity;
 
     for (int i = 0; i < capacity; i++) {
-      LISTS[LISTS_count].vars[i].type = INTEGER;
-      LISTS[LISTS_count].vars[i].vali = 0;
+      LISTS[real_count].vars[i].type = INTEGER;
+      LISTS[real_count].vars[i].vali = 0;
     }
   } else {
-    LISTS[LISTS_count].size = 0;
+    LISTS[real_count].size = 0;
   }
 
-  return LISTS_count++;
+  if (LISTS_count == real_count) {
+	  LISTS_count++;
+  }
+
+  return real_count;
 }
 
 int list_push(struct SL_List *list, struct SL_Variable value) {
@@ -386,14 +399,51 @@ int list_free(int index) {
 
     free(list->vars);
   }
-
+  
   list->vars = NULL;
   list->capacity = 0;
   list->size = 0;
   list->current = 0;
   list->fixed = 0;
+  list->still_reachable = 0;
 
   return 1;
+}
+
+void mark_list(int index) {
+    if (index < 0 || index >= LISTS_count)
+        return;
+
+    if (LISTS[index].still_reachable)
+        return;
+
+    LISTS[index].still_reachable = 1;
+
+    for (int i = 0; i < LISTS[index].size; i++) {
+        struct SL_Variable *var = &LISTS[index].vars[i];
+
+        if (var->type == SL_LIST) {
+            mark_list(var->vali);
+        }
+    }
+}
+
+void list_garbage_collector(struct SL_Code code) {
+    for (int i = 0; i < LISTS_count; i++) {
+        LISTS[i].still_reachable = 0;
+    }
+
+    for (int i = 0; i < code.total_vars; i++) {
+        if (code.vars[i].info == SL_LIST) {
+            mark_list(code.vars[i].vali);
+        }
+    }
+
+    for (int i = 0; i < LISTS_count; i++) {
+        if (LISTS[i].still_reachable == 0) {
+            list_free(i);
+        }
+    }
 }
 
 struct SL_Variable list_pop(struct SL_List *list) {
@@ -1082,8 +1132,6 @@ struct SL_Variable dyn_free_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 /* DYNAMIC LOADING */
-
-
 
 /* Input/Output for stdout/stdin*/
 struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
@@ -2252,6 +2300,38 @@ struct SL_Variable is_double_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
+struct SL_Variable is_list_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.is_list! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.info == SL_LIST)
+    return_var.valb = 1;
+  return_var.type = BOOLEAN;
+  return return_var;
+}
+
+struct SL_Variable is_ptr_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.is_ptr! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable return_var = {0};
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  if (first_arg.type == POINTER)
+    return_var.valb = 1;
+  return_var.type = BOOLEAN;
+  return return_var;
+}
+
 struct SL_Variable is_not_initialized_fn(struct SL_Code *code,
                                          struct SL_L_Function func,
                                          struct SL_Function rfunc) {
@@ -3321,6 +3401,7 @@ struct SL_Variable string_index_of_fn(struct SL_Code *code,
 struct SL_Variable string_split_fn(struct SL_Code *code,
                                    struct SL_L_Function func,
                                    struct SL_Function rfunc) {
+  list_garbage_collector(*code);
   struct SL_Variable return_var = {0};
 
   if (func.total_arguments < 2) {
@@ -3848,6 +3929,7 @@ struct SL_Variable sys_popen_fn(struct SL_Code *code, struct SL_L_Function func,
 /* Dynamic/Static Array system for SL. */
 struct SL_Variable List_new_fn(struct SL_Code *code, struct SL_L_Function func,
                                struct SL_Function rfunc) {
+  list_garbage_collector(*code);
   struct SL_Variable first_arg;
   int fixed = 0;
   if (func.total_arguments > 0) {
@@ -4670,6 +4752,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
 struct SL_Variable db_to_lists_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
+  list_garbage_collector(*code);
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -4949,13 +5032,28 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       struct SL_Function *link_func_p = sl_get_func(code, actual_name);
       struct SL_Function link_func = sl_copy_function(*link_func_p);
       /* [var] [self] [=] ["attr_name"] 4 more tokens */
-      link_func.code_tokens = srealloc(
-          link_func.code_tokens, (link_func.code_len + 4) * sizeof(char *));
-      link_func.types = scalloc((link_func.code_len + 4), 
-                                                      sizeof(enum TokenTypes));
-      link_func.fixed_values = scalloc((link_func.code_len + 4),
-                                                      sizeof(struct SL_Variable));
+	  int old_len = link_func.code_len;
+	  int new_len = old_len + 4;
 
+	  link_func.code_tokens = srealloc(
+		link_func.code_tokens,
+		new_len * sizeof(*link_func.code_tokens));
+
+	  link_func.types = srealloc(
+		link_func.types,
+		new_len * sizeof(*link_func.types));
+
+	  link_func.fixed_values = srealloc(
+		link_func.fixed_values,
+		new_len * sizeof(*link_func.fixed_values));
+		memset(link_func.types + old_len,
+					0,
+					4 * sizeof(*link_func.types));
+
+	  memset(link_func.fixed_values + old_len,
+					0,
+					4 * sizeof(*link_func.fixed_values));
+	   
       memmove(link_func.code_tokens + 4, link_func.code_tokens,
               link_func.code_len * sizeof(char *));
 
@@ -9283,6 +9381,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_char", is_char_fn);
       sl_add_func(code, "types.is_string", is_string_fn);
       sl_add_func(code, "types.is_double", is_double_fn);
+	  sl_add_func(code, "types.is_list", is_list_fn);
+	  sl_add_func(code, "types.is_ptr", is_ptr_fn);
       sl_add_func(code, "types.is_not_initialized", is_not_initialized_fn);
       sl_add_func(code, "types.typeof", typeof_fn);
 
@@ -10552,10 +10652,9 @@ void close_sl_stdlib() {
 
       if (collections.collections[i].functions != NULL) {
         for (int j = 0; j < collections.collections[i].total_funcs; j++) {
-
           struct SL_Function *func = &collections.collections[i].functions[j];
-	  sl_free_function(func);
-	}
+		  sl_free_function(func);
+		}
         free(collections.collections[i].functions);
         collections.collections[i].functions = NULL;
       }
