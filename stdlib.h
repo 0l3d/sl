@@ -6,8 +6,8 @@
  * SEE: list_garbage_collector() / mark_list().
  */
 
-#include "libs/dyncall/dynload/dynload.h"
 #include "libs/dyncall/dyncall/dyncall.h"
+#include "libs/dyncall/dynload/dynload.h"
 
 /*
  * SL Standard Library
@@ -300,8 +300,6 @@ int sl_add_fixed_bool(struct SL_Code *code, char *name, int value) {
   return 1;
 }
 
-
-
 /* LIST FUNCTIONS */
 int create_new_list(int capacity, int fixed) {
   if (LISTS == NULL) {
@@ -325,15 +323,14 @@ int create_new_list(int capacity, int fixed) {
     LISTS = tmp;
     LISTS_capacity = new_capacity;
   }
-  int real_count = LISTS_count; 
-  
+  int real_count = LISTS_count;
+
   for (int i = 0; i < LISTS_count; i++) {
-	  if (LISTS[i].still_reachable == 0) 
-		  real_count = i;
+    if (LISTS[i].still_reachable == 0)
+      real_count = i;
   }
-  
-  LISTS[real_count].vars =
-      calloc((size_t)capacity, sizeof(struct SL_Variable));
+
+  LISTS[real_count].vars = calloc((size_t)capacity, sizeof(struct SL_Variable));
 
   if (LISTS[real_count].vars == NULL) {
     return -1;
@@ -355,7 +352,7 @@ int create_new_list(int capacity, int fixed) {
   }
 
   if (LISTS_count == real_count) {
-	  LISTS_count++;
+    LISTS_count++;
   }
 
   return real_count;
@@ -400,7 +397,7 @@ int list_free(int index) {
 
     free(list->vars);
   }
-  
+
   list->vars = NULL;
   list->capacity = 0;
   list->size = 0;
@@ -412,39 +409,39 @@ int list_free(int index) {
 }
 
 void mark_list(int index) {
-    if (index < 0 || index >= LISTS_count)
-        return;
+  if (index < 0 || index >= LISTS_count)
+    return;
 
-    if (LISTS[index].still_reachable)
-        return;
+  if (LISTS[index].still_reachable)
+    return;
 
-    LISTS[index].still_reachable = 1;
+  LISTS[index].still_reachable = 1;
 
-    for (int i = 0; i < LISTS[index].size; i++) {
-        struct SL_Variable *var = &LISTS[index].vars[i];
+  for (int i = 0; i < LISTS[index].size; i++) {
+    struct SL_Variable *var = &LISTS[index].vars[i];
 
-        if (var->type == SL_LIST) {
-            mark_list(var->vali);
-        }
+    if (var->type == SL_LIST) {
+      mark_list(var->vali);
     }
+  }
 }
 
 void list_garbage_collector(struct SL_Code code) {
-    for (int i = 0; i < LISTS_count; i++) {
-        LISTS[i].still_reachable = 0;
-    }
+  for (int i = 0; i < LISTS_count; i++) {
+    LISTS[i].still_reachable = 0;
+  }
 
-    for (int i = 0; i < code.total_vars; i++) {
-        if (code.vars[i].info == SL_LIST) {
-            mark_list(code.vars[i].vali);
-        }
+  for (int i = 0; i < code.total_vars; i++) {
+    if (code.vars[i].info == SL_LIST) {
+      mark_list(code.vars[i].vali);
     }
+  }
 
-    for (int i = 0; i < LISTS_count; i++) {
-        if (LISTS[i].still_reachable == 0) {
-            list_free(i);
-        }
+  for (int i = 0; i < LISTS_count; i++) {
+    if (LISTS[i].still_reachable == 0) {
+      list_free(i);
     }
+  }
 }
 
 struct SL_Variable list_pop(struct SL_List *list) {
@@ -471,7 +468,8 @@ int list_set(struct SL_List *list, int index, struct SL_Variable value) {
   if (index < 0 || index >= list->size)
     return 0;
 
-  if ((list->vars[index].type == STRING || list->vars[index].type == RETURN || list->vars[index].type == BYTES) &&
+  if ((list->vars[index].type == STRING || list->vars[index].type == RETURN ||
+       list->vars[index].type == BYTES) &&
       list->vars[index].vals != NULL) {
     free(list->vars[index].vals);
     list->vars[index].vals = NULL;
@@ -512,47 +510,57 @@ int list_remove(struct SL_List *list, int index) {
 /* LIST FUNCTIONS */
 
 /* DYNAMIC LOADING */
-#define SL_DYN_STRUCT_PTR  -3
-#define SL_DYN_STRUCT_VAL  -4
+#define SL_DYN_STRUCT_PTR -3
+#define SL_DYN_STRUCT_VAL -4
 
 struct SL_DynStruct {
-  DCaggr *aggr;      
-  void *data;      
-  size_t size;    
-  int mode;       
+  DCaggr *aggr;
+  void *data;
+  size_t size;
+  int mode;
 };
 
 static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
   struct SL_DynStruct *s = smalloc(sizeof(*s));
-  if (!s) return NULL;
+  if (!s)
+    return NULL;
   s->aggr = NULL;
   s->data = NULL;
   s->size = size;
   s->mode = mode;
   if (mode == SL_DYN_STRUCT_PTR) {
-    s->data = smalloc(sizeof(void*));
-    if (!s->data) { free(s); return NULL; }
-    *(void**)s->data = NULL;
+    s->data = smalloc(sizeof(void *));
+    if (!s->data) {
+      free(s);
+      return NULL;
+    }
+    *(void **)s->data = NULL;
   }
   return s;
 }
 
 static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
-  if (!s) return 0;
+  if (!s)
+    return 0;
   if (s->mode == SL_DYN_STRUCT_PTR) {
-    if (!s->data) return 0;
+    if (!s->data)
+      return 0;
     return 1;
   }
-  if (s->data) return 1;
-  if (s->size == 0) return 0;
+  if (s->data)
+    return 1;
+  if (s->size == 0)
+    return 0;
   s->data = smalloc(s->size);
-  if (!s->data) return 0;
+  if (!s->data)
+    return 0;
   memset(s->data, 0, s->size);
   return 1;
 }
 
-struct SL_Variable dyn_create_struct_fn(struct SL_Code *code, struct SL_L_Function func,
-                                       struct SL_Function rfunc) {
+struct SL_Variable dyn_create_struct_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
   if (func.total_arguments < 3) {
@@ -565,9 +573,11 @@ struct SL_Variable dyn_create_struct_fn(struct SL_Code *code, struct SL_L_Functi
   struct SL_Variable field_count_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable mode_arg = sl_get_argument(*code, func, 2);
 
-  if (total_size_arg.type != INTEGER || field_count_arg.type != INTEGER || mode_arg.type != INTEGER) {
+  if (total_size_arg.type != INTEGER || field_count_arg.type != INTEGER ||
+      mode_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals = "Expected integer as the first argument to dyn.create_struct";
+    return_var.vals =
+        "Expected integer as the first argument to dyn.create_struct";
     return return_var;
   }
 
@@ -600,32 +610,36 @@ struct SL_Variable dyn_create_struct_fn(struct SL_Code *code, struct SL_L_Functi
     struct SL_Variable offset_arg = sl_get_argument(*code, func, idx++);
     struct SL_Variable array_len_arg = sl_get_argument(*code, func, idx++);
 
-    if (type_arg.type != INTEGER || offset_arg.type != INTEGER || array_len_arg.type != INTEGER) {
+    if (type_arg.type != INTEGER || offset_arg.type != INTEGER ||
+        array_len_arg.type != INTEGER) {
       dcFreeAggr(ag);
       return_var.type = ERROR;
-      return_var.vals = "Expected integer as the field_arg to dyn.create_struct.";
+      return_var.vals =
+          "Expected integer as the field_arg to dyn.create_struct.";
       return return_var;
     }
 
-    DCsigchar type_char = (DCsigchar) type_arg.vali;
-    DCint offset = (DCint) offset_arg.vali;
-    DCsize array_len = (DCsize) array_len_arg.vali;
+    DCsigchar type_char = (DCsigchar)type_arg.vali;
+    DCint offset = (DCint)offset_arg.vali;
+    DCsize array_len = (DCsize)array_len_arg.vali;
 
     if (type_char == DC_SIGCHAR_AGGREGATE) {
       if (idx >= func.total_arguments) {
         dcFreeAggr(ag);
         return_var.type = ERROR;
-        return_var.vals = "Missing nested aggregate pointer on dyn.create_struct.";
+        return_var.vals =
+            "Missing nested aggregate pointer on dyn.create_struct.";
         return return_var;
       }
       struct SL_Variable nested = sl_get_argument(*code, func, idx++);
       if (nested.type != POINTER || nested.valp == NULL) {
         dcFreeAggr(ag);
         return_var.type = ERROR;
-        return_var.vals = "Expected pointer as nested aggregate to dyn.create_struct.";
+        return_var.vals =
+            "Expected pointer as nested aggregate to dyn.create_struct.";
         return return_var;
       }
-      struct SL_DynStruct *ns = (struct SL_DynStruct *) nested.valp;
+      struct SL_DynStruct *ns = (struct SL_DynStruct *)nested.valp;
       if (!ns->aggr) {
         dcFreeAggr(ag);
         return_var.type = ERROR;
@@ -655,7 +669,8 @@ struct SL_Variable dyn_create_struct_fn(struct SL_Code *code, struct SL_L_Functi
   return return_var;
 }
 
-struct SL_Variable dyn_set_field_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
+                                    struct SL_L_Function func,
                                     struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -665,17 +680,24 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code, struct SL_L_Function f
     return return_var;
   }
 
+  int specific_typed = 0;
+
+  if (func.total_arguments == 4) {
+    specific_typed = 1;
+  }
+
   struct SL_Variable handle = sl_get_argument(*code, func, 0);
   struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable value = sl_get_argument(*code, func, 2);
 
   if (handle.type != POINTER || offset_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals = "Expected POINTER and INTEGER as first and second argument to dyn.set_field.";
+    return_var.vals = "Expected POINTER and INTEGER as first and second "
+                      "argument to dyn.set_field.";
     return return_var;
   }
 
-  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  struct SL_DynStruct *s = (struct SL_DynStruct *)handle.valp;
   if (!s) {
     return_var.type = ERROR;
     return_var.vals = "Null struct handle on dyn.set_field.";
@@ -695,44 +717,169 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code, struct SL_L_Function f
     return return_var;
   }
 
-  void *dst = (char*)s->data + offset;
+  void *dst = (char *)s->data + offset;
 
-  switch (value.type) {
+  if (specific_typed == 1) {
+    if (value.type != CHAR) {
+      return_var.type = ERROR;
+      return_var.vals = "Expected CHAR as type argument to dyn.set_field.";
+      return return_var;
+    }
+    struct SL_Variable value_next = sl_get_argument(*code, func, 3);
+    char type_char = value.valc;
+    switch (type_char) {
+    case DC_SIGCHAR_INT: {
+      int v = (int)value_next.vali;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_UINT: {
+      unsigned int v = (unsigned int)value_next.vali;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_DOUBLE: {
+      double v = (double)value_next.valf;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_FLOAT: {
+      float v = (float)value_next.valf;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_BOOL: {
+      int v = (int)value_next.valb;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_CHAR: {
+      char v = (char)value_next.vali;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_LONG: {
+      intptr_t v = (intptr_t)value_next.valh;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_ULONG: {
+      uintptr_t v = (uintptr_t)value_next.valh;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_LONGLONG: {
+      long long v = (long long)value_next.valh;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_ULONGLONG: {
+      unsigned long long v = (unsigned long long)value_next.valh;
+
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_POINTER: {
+      void *v = value_next.valp;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_STRING: {
+      char *v = value_next.vals;
+      if (offset + sizeof(v) > s->size)
+        goto set_oob;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+    default:
+      return_var.type = ERROR;
+      return_var.vals = "Unsupported type requested on dyn.set_field.";
+      return return_var;
+    }
+  } else {
+    switch (value.type) {
     case INTEGER: {
-      if (offset + (int)sizeof(int) > (int)s->size) goto set_oob;
-      int v = value.vali; memcpy(dst, &v, sizeof(int));
+      if (offset + (int)sizeof(int) > (int)s->size)
+        goto set_oob;
+      int v = value.vali;
+      memcpy(dst, &v, sizeof(int));
       break;
     }
     case DOUBLE: {
-      if (offset + (int)sizeof(double) > (int)s->size) goto set_oob;
-      double v = value.valf; memcpy(dst, &v, sizeof(double));
+      if (offset + (int)sizeof(double) > (int)s->size)
+        goto set_oob;
+      double v = value.valf;
+      memcpy(dst, &v, sizeof(double));
       break;
     }
     case BOOLEAN: {
-      if (offset + (int)sizeof(int) > (int)s->size) goto set_oob;
-      int v = value.valb; memcpy(dst, &v, sizeof(int));
+      if (offset + (int)sizeof(int) > (int)s->size)
+        goto set_oob;
+      int v = value.valb;
+      memcpy(dst, &v, sizeof(int));
       break;
     }
     case CHAR: {
-      if (offset + (int)sizeof(char) > (int)s->size) goto set_oob;
-      char v = value.valc; memcpy(dst, &v, sizeof(char));
+      if (offset + (int)sizeof(char) > (int)s->size)
+        goto set_oob;
+      char v = value.valc;
+      memcpy(dst, &v, sizeof(char));
       break;
     }
     case LONG: {
-      if (offset + (int)sizeof(intptr_t) > (int)s->size) goto set_oob;
-      intptr_t v = value.valh; memcpy(dst, &v, sizeof(intptr_t));
+      if (offset + (int)sizeof(intptr_t) > (int)s->size)
+        goto set_oob;
+      intptr_t v = value.valh;
+      memcpy(dst, &v, sizeof(intptr_t));
       break;
     }
     case POINTER: {
       void *ptr_to_store = NULL;
-      struct SL_DynStruct *maybe = (struct SL_DynStruct *) value.valp;
-      if (maybe && (maybe->mode == SL_DYN_STRUCT_PTR || maybe->mode == SL_DYN_STRUCT_VAL) && maybe->aggr != NULL) {
+      struct SL_DynStruct *maybe = (struct SL_DynStruct *)value.valp;
+      if (maybe &&
+          (maybe->mode == SL_DYN_STRUCT_PTR ||
+           maybe->mode == SL_DYN_STRUCT_VAL) &&
+          maybe->aggr != NULL) {
         if (maybe->mode == SL_DYN_STRUCT_PTR) {
-          ptr_to_store = *(void**)maybe->data;
-	} else {
+          ptr_to_store = *(void **)maybe->data;
+        } else {
           if (!sl_dynstruct_ensure_buffer(maybe)) {
             return_var.type = ERROR;
-            return_var.vals = "Nested dyn struct has no instance buffer on dyn.set_field.";
+            return_var.vals =
+                "Nested dyn struct has no instance buffer on dyn.set_field.";
             return return_var;
           }
           ptr_to_store = maybe->data;
@@ -740,26 +887,32 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code, struct SL_L_Function f
       } else {
         ptr_to_store = value.valp;
       }
-      if (offset + (int)sizeof(void*) > (int)s->size) goto set_oob;
-      memcpy(dst, &ptr_to_store, sizeof(void*));
+      if (offset + (int)sizeof(void *) > (int)s->size)
+        goto set_oob;
+      memcpy(dst, &ptr_to_store, sizeof(void *));
       break;
     }
     case STRING: {
-      if (offset + (int)sizeof(char*) > (int)s->size) goto set_oob;
+      if (offset + (int)sizeof(char *) > (int)s->size)
+        goto set_oob;
       char *v = value.vals ? strdup(value.vals) : NULL;
-      memcpy(dst, &v, sizeof(char*));
+      memcpy(dst, &v, sizeof(char *));
       break;
     }
     case BYTES: {
-      if (value.vals == NULL || value.length == 0) break;
-      if (offset + (int)value.length > (int)s->size) goto set_oob;
+      if (value.vals == NULL || value.length == 0)
+        break;
+      if (offset + (int)value.length > (int)s->size)
+        goto set_oob;
       memcpy(dst, value.vals, value.length);
       break;
     }
     default: {
       return_var.type = ERROR;
-      return_var.vals = "Unsupported SL value type on dyn.set_field.";
+      return_var.vals = "Write would overflow struct buffer on dyn.set_field.";
       return return_var;
+      break;
+    }
     }
   }
 
@@ -773,7 +926,8 @@ set_oob:
   return return_var;
 }
 
-struct SL_Variable dyn_get_field_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable dyn_get_field_fn(struct SL_Code *code,
+                                    struct SL_L_Function func,
                                     struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -787,13 +941,15 @@ struct SL_Variable dyn_get_field_fn(struct SL_Code *code, struct SL_L_Function f
   struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable type_arg = sl_get_argument(*code, func, 2);
 
-  if (handle.type != POINTER || offset_arg.type != INTEGER || type_arg.type != INTEGER) {
+  if (handle.type != POINTER || offset_arg.type != INTEGER ||
+      type_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals = "Expected POINTER, INTEGER and INTEGER as first, second, third arguments to dyn.get_field.";
+    return_var.vals = "Expected POINTER, INTEGER and INTEGER as first, second, "
+                      "third arguments to dyn.get_field.";
     return return_var;
   }
 
-  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  struct SL_DynStruct *s = (struct SL_DynStruct *)handle.valp;
   if (!s) {
     return_var.type = ERROR;
     return_var.vals = "Null struct handle on dyn.get_field.";
@@ -813,62 +969,87 @@ struct SL_Variable dyn_get_field_fn(struct SL_Code *code, struct SL_L_Function f
     return return_var;
   }
 
-  void *src = (char*)s->data + offset;
-  DCsigchar type_char = (DCsigchar) type_arg.vali;
+  void *src = (char *)s->data + offset;
+  DCsigchar type_char = (DCsigchar)type_arg.vali;
 
   switch (type_char) {
-    case DC_SIGCHAR_INT:
-    case DC_SIGCHAR_UINT: {
-      int v = 0; memcpy(&v, src, sizeof(int));
-      return_var.type = INTEGER; return_var.vali = v; break;
-    }
-    case DC_SIGCHAR_DOUBLE: {
-      double v = 0.0; memcpy(&v, src, sizeof(double));
-      return_var.type = DOUBLE; return_var.valf = v; break;
-    }
-    case DC_SIGCHAR_BOOL: {
-      int v = 0; memcpy(&v, src, sizeof(int));
-      return_var.type = BOOLEAN; return_var.valb = v; break;
-    }
-    case DC_SIGCHAR_CHAR: {
-      char v = 0; memcpy(&v, src, sizeof(char));
-      return_var.type = CHAR; return_var.valc = v; break;
-    }
-    case DC_SIGCHAR_LONG:
-    case DC_SIGCHAR_ULONG: {
-      intptr_t v = 0; memcpy(&v, src, sizeof(intptr_t));
-      return_var.type = LONG; return_var.valh = v; break;
-    }
-    case DC_SIGCHAR_POINTER:
-    case DC_SIGCHAR_STRING: {
-      void *v = NULL; memcpy(&v, src, sizeof(void*));
-      return_var.type = POINTER; return_var.valp = v; break;
-    }
-    case DC_SIGCHAR_FLOAT: {
-      float v = 0.0f; memcpy(&v, src, sizeof(float));
-      return_var.type = DOUBLE; return_var.valf = (double)v; break;
-    }
-    case DC_SIGCHAR_LONGLONG:
-    case DC_SIGCHAR_ULONGLONG: {
-      long long v = 0; memcpy(&v, src, sizeof(long long));
-      return_var.type = LONG; return_var.valh = (intptr_t)v; break;
-    }
-    case DC_SIGCHAR_AGGREGATE: {
-      return_var.type = POINTER;
-      return_var.valp = src;
-      break;
-    }
-    default: {
-      return_var.type = ERROR;
-      return_var.vals = "Unsupported type requested on dyn.get_field!";
-      break;
-    }
+  case DC_SIGCHAR_INT:
+  case DC_SIGCHAR_UINT: {
+    int v = 0;
+    memcpy(&v, src, sizeof(int));
+    return_var.type = INTEGER;
+    return_var.vali = v;
+    break;
+  }
+  case DC_SIGCHAR_DOUBLE: {
+    double v = 0.0;
+    memcpy(&v, src, sizeof(double));
+    return_var.type = DOUBLE;
+    return_var.valf = v;
+    break;
+  }
+  case DC_SIGCHAR_BOOL: {
+    int v = 0;
+    memcpy(&v, src, sizeof(int));
+    return_var.type = BOOLEAN;
+    return_var.valb = v;
+    break;
+  }
+  case DC_SIGCHAR_CHAR: {
+    char v = 0;
+    memcpy(&v, src, sizeof(char));
+    return_var.type = CHAR;
+    return_var.valc = v;
+    break;
+  }
+  case DC_SIGCHAR_LONG:
+  case DC_SIGCHAR_ULONG: {
+    intptr_t v = 0;
+    memcpy(&v, src, sizeof(intptr_t));
+    return_var.type = LONG;
+    return_var.valh = v;
+    break;
+  }
+  case DC_SIGCHAR_POINTER:
+  case DC_SIGCHAR_STRING: {
+    void *v = NULL;
+    memcpy(&v, src, sizeof(void *));
+    return_var.type = POINTER;
+    return_var.valp = v;
+    break;
+  }
+  case DC_SIGCHAR_FLOAT: {
+    float v = 0.0f;
+    memcpy(&v, src, sizeof(float));
+    return_var.type = DOUBLE;
+    return_var.valf = (double)v;
+    break;
+  }
+  case DC_SIGCHAR_LONGLONG:
+  case DC_SIGCHAR_ULONGLONG: {
+    long long v = 0;
+    memcpy(&v, src, sizeof(long long));
+    return_var.type = LONG;
+    return_var.valh = (intptr_t)v;
+    break;
+  }
+  case DC_SIGCHAR_AGGREGATE: {
+    return_var.type = POINTER;
+    return_var.valp = src;
+    break;
+  }
+  default: {
+    return_var.type = ERROR;
+    return_var.vals = "Unsupported type requested on dyn.get_field!";
+    break;
+  }
   }
 
   return return_var;
 }
 
-struct SL_Variable dyn_free_struct_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable dyn_free_struct_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
                                       struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -885,7 +1066,7 @@ struct SL_Variable dyn_free_struct_fn(struct SL_Code *code, struct SL_L_Function
     return return_var;
   }
 
-  struct SL_DynStruct *s = (struct SL_DynStruct *) handle.valp;
+  struct SL_DynStruct *s = (struct SL_DynStruct *)handle.valp;
   if (s->data) {
     free(s->data);
     s->data = NULL;
@@ -901,7 +1082,8 @@ struct SL_Variable dyn_free_struct_fn(struct SL_Code *code, struct SL_L_Function
   return return_var;
 }
 
-struct SL_Variable dyn_open_lib_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable dyn_open_lib_fn(struct SL_Code *code,
+                                   struct SL_L_Function func,
                                    struct SL_Function rfunc) {
   struct SL_Variable return_var = {0};
 
@@ -928,7 +1110,8 @@ struct SL_Variable dyn_open_lib_fn(struct SL_Code *code, struct SL_L_Function fu
   return return_var;
 }
 
-struct SL_Variable dyn_find_symbol_fn(struct SL_Code *code, struct SL_L_Function func,
+struct SL_Variable dyn_find_symbol_fn(struct SL_Code *code,
+                                      struct SL_L_Function func,
                                       struct SL_Function rfunc) {
 
   struct SL_Variable return_var = {0};
@@ -943,9 +1126,9 @@ struct SL_Variable dyn_find_symbol_fn(struct SL_Code *code, struct SL_L_Function
 
   DLLib *lib = (DLLib *)handle_arg.valp;
   if (!lib) {
-      return_var.type = ERROR;
-      return_var.vals = "Invalid library handle.";
-      return return_var;
+    return_var.type = ERROR;
+    return_var.vals = "Invalid library handle.";
+    return return_var;
   }
 
   char *sym_name = sl_string_getter(sym_arg.vals);
@@ -975,23 +1158,23 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
   }
 
   struct SL_Variable func_ptr_arg = sl_get_argument(*code, func, 0);
-  struct SL_Variable vm_size_arg  = sl_get_argument(*code, func, 1);
+  struct SL_Variable vm_size_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable ret_type_arg = sl_get_argument(*code, func, 2);
 
   void *target_func = func_ptr_arg.valp;
   int vm_size = vm_size_arg.vali;
-  int expected_ret_type = ret_type_arg.vali; 
+  int expected_ret_type = ret_type_arg.vali;
 
   DCCallVM *vm = dcNewCallVM(vm_size);
   if (!vm) {
-      return_var.type = ERROR;
-      return_var.vals = "Failed to create dyncall VM.";
-      return return_var;
+    return_var.type = ERROR;
+    return_var.vals = "Failed to create dyncall VM.";
+    return return_var;
   }
 
   dcMode(vm, DC_CALL_C_DEFAULT);
   dcReset(vm);
-  
+
   int arg_count = func.total_arguments - 3;
   int alloc_capacity = arg_count > 0 ? arg_count : 4;
   char **allocated_strings = smalloc(alloc_capacity * sizeof(char *));
@@ -1017,36 +1200,40 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
       dcArgPointer(vm, (void *)(intptr_t)arg.valh);
       break;
     case POINTER: {
-      struct SL_DynStruct *maybe = (struct SL_DynStruct *) arg.valp;
+      struct SL_DynStruct *maybe = (struct SL_DynStruct *)arg.valp;
       if (maybe && maybe->aggr != NULL) {
         if (maybe->mode == SL_DYN_STRUCT_VAL) {
           if (!sl_dynstruct_ensure_buffer(maybe)) {
             dcFree(vm);
             return_var.type = ERROR;
-            return_var.vals = "Aggregate instance buffer not initialized on dyn.call.";
+            return_var.vals =
+                "Aggregate instance buffer not initialized on dyn.call.";
             return return_var;
           }
           dcArgAggr(vm, maybe->aggr, maybe->data);
         } else {
-          void *ptrval = *(void**)maybe->data;
+          void *ptrval = *(void **)maybe->data;
           if (!ptrval) {
             dcFree(vm);
             return_var.type = ERROR;
-            return_var.vals = "Aggregate pointer is NULL for PTR-mode struct on dyn.call.";
+            return_var.vals =
+                "Aggregate pointer is NULL for PTR-mode struct on dyn.call.";
             return return_var;
           }
           dcArgPointer(vm, ptrval);
         }
-        break;;
+        break;
+        ;
       }
       dcArgPointer(vm, arg.valp);
-		  }break;    
+    } break;
     case STRING: {
       char *str = sl_string_getter(arg.vals);
-      
+
       if (alloc_count >= alloc_capacity) {
         alloc_capacity *= 2;
-        allocated_strings = srealloc(allocated_strings, alloc_capacity * sizeof(char *));
+        allocated_strings =
+            srealloc(allocated_strings, alloc_capacity * sizeof(char *));
       }
 
       allocated_strings[alloc_count++] = str;
@@ -1054,7 +1241,7 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
       break;
     }
     case BYTES:
-      dcArgPointer(vm, arg.vals); 
+      dcArgPointer(vm, arg.vals);
       break;
     default:
       break;
@@ -1120,7 +1307,7 @@ struct SL_Variable dyn_free_fn(struct SL_Code *code, struct SL_L_Function func,
     return_var.type = ERROR;
     return_var.vals = "Error usage at dyn.call! Not enough arguments.";
     return return_var;
-  } 
+  }
 
   struct SL_Variable handle_arg = sl_get_argument(*code, func, 0);
 
@@ -2301,7 +2488,7 @@ struct SL_Variable is_double_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 
 struct SL_Variable is_list_fn(struct SL_Code *code, struct SL_L_Function func,
-                                struct SL_Function rfunc) {
+                              struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -2317,7 +2504,7 @@ struct SL_Variable is_list_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 
 struct SL_Variable is_ptr_fn(struct SL_Code *code, struct SL_L_Function func,
-                                struct SL_Function rfunc) {
+                             struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -2954,7 +3141,7 @@ struct SL_Variable byte_set_fn(struct SL_Code *code, struct SL_L_Function func,
 }
 
 struct SL_Variable byte_size_fn(struct SL_Code *code, struct SL_L_Function func,
-                               struct SL_Function rfunc) {
+                                struct SL_Function rfunc) {
   if (func.total_arguments < 3) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -2973,8 +3160,6 @@ struct SL_Variable byte_size_fn(struct SL_Code *code, struct SL_L_Function func,
   return_var.vali = first_arg.length;
   return return_var;
 }
-
-
 
 /* String Helper functions */
 struct SL_Variable string_charat_fn(struct SL_Code *code,
@@ -3750,9 +3935,9 @@ struct SL_Variable errors_string_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
-	char* raw_text = sl_string_getter(first_arg.vals);
+    char *raw_text = sl_string_getter(first_arg.vals);
     printf("%s\n", raw_text);
-	free(raw_text);
+    free(raw_text);
   }
   return sl_copy_variable(first_arg);
 }
@@ -3809,9 +3994,9 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
-	char* raw_text = sl_string_getter(first_arg.vals);
+    char *raw_text = sl_string_getter(first_arg.vals);
     printf("Program panicked with error: %s\n", raw_text);
-	free(raw_text);
+    free(raw_text);
     exit(-1);
   }
   return return_var;
@@ -4195,12 +4380,12 @@ struct SL_Variable List_get_fn(struct SL_Code *code, struct SL_L_Function func,
   }
   struct SL_Variable result =
       sl_copy_variable(LISTS[first_arg.vali].vars[second_arg.vali]);
-  
+
   if (result.name != NULL) {
-      free(result.name);
-      result.name = NULL;
+    free(result.name);
+    result.name = NULL;
   }
-  
+
   return result;
 }
 
@@ -4924,10 +5109,11 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
              raw_func.name);
     struct SL_Function func = {0};
     func = raw_func;
-	free(func.code_tokens[3]);
+    free(func.code_tokens[3]);
     func.code_tokens[3] = smalloc(assigned_len + 3);
     snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);
-    sl_identifier_tokenizer(func.code_tokens, &func.types, &func.fixed_values, func.code_len);
+    sl_identifier_tokenizer(func.code_tokens, &func.types, &func.fixed_values,
+                            func.code_len);
     func.name = full_func_name;
     func.hash = sl_hash_string(full_func_name);
     func.scope_lifetime = scope;
@@ -5063,36 +5249,29 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       struct SL_Function *link_func_p = sl_get_func(code, actual_name);
       struct SL_Function link_func = sl_copy_function(*link_func_p);
       /* [var] [self] [=] ["attr_name"] 4 more tokens */
-	  int old_len = link_func.code_len;
-	  int new_len = old_len + 4;
+      int old_len = link_func.code_len;
+      int new_len = old_len + 4;
 
-	  link_func.code_tokens = srealloc(
-		link_func.code_tokens,
-		new_len * sizeof(*link_func.code_tokens));
+      link_func.code_tokens = srealloc(
+          link_func.code_tokens, new_len * sizeof(*link_func.code_tokens));
 
-	  link_func.types = srealloc(
-		link_func.types,
-		new_len * sizeof(*link_func.types));
+      link_func.types =
+          srealloc(link_func.types, new_len * sizeof(*link_func.types));
 
-	  link_func.fixed_values = srealloc(
-		link_func.fixed_values,
-		new_len * sizeof(*link_func.fixed_values));
-		memset(link_func.types + old_len,
-					0,
-					4 * sizeof(*link_func.types));
+      link_func.fixed_values = srealloc(
+          link_func.fixed_values, new_len * sizeof(*link_func.fixed_values));
+      memset(link_func.types + old_len, 0, 4 * sizeof(*link_func.types));
 
-	  memset(link_func.fixed_values + old_len,
-					0,
-					4 * sizeof(*link_func.fixed_values));
-	   
+      memset(link_func.fixed_values + old_len, 0,
+             4 * sizeof(*link_func.fixed_values));
+
       memmove(link_func.code_tokens + 4, link_func.code_tokens,
               link_func.code_len * sizeof(char *));
-
 
       link_func.code_tokens[0] = strdup("var");
       link_func.code_tokens[1] = strdup("self");
       link_func.code_tokens[2] = strdup("=");
-	  link_func.code_tokens[3] = strdup("false");
+      link_func.code_tokens[3] = strdup("false");
       link_func.code_len += 4;
       if (link_func.name != NULL)
         free(link_func.name);
@@ -9240,9 +9419,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "io.getchar", io_getchar_fn);
       sl_add_func(code, "io.flush", io_flush_fn);
     } else if (strcmp(libstr, "dyn") == 0) {
-      if (used_dyn == 1) 
-	break;
-
+      if (used_dyn == 1)
+        break;
 
       int win = 0;
       int linux_sys = 0;
@@ -9259,42 +9437,42 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       int haiku = 0;
       int cygwin = 0;
       int msys = 0;
-      
-      #if defined(_WIN32) || defined(_WIN64)
-          win = 1;
-      #elif defined(__CYGWIN__)
-          cygwin = 1;
-      #elif defined(__MSYS__)
-          msys = 1;
-      #elif defined(__ANDROID__)
-          android = 1;
-      #elif defined(__APPLE__)
-          #include <TargetConditionals.h>
-          #if TARGET_OS_IPHONE
-              ios = 1;
-          #else
-              macos = 1;
-          #endif
-      #elif defined(__linux__)
-          linux_sys = 1;
-      #elif defined(__FreeBSD__)
-          freebsd = 1;
-      #elif defined(__OpenBSD__)
-          openbsd = 1;
-      #elif defined(__NetBSD__)
-          netbsd = 1;
-      #elif defined(__DragonFly__)
-          dragonfly = 1;
-      #elif defined(__sun) || defined(__SVR4)
-          solaris = 1;
-      #elif defined(_AIX)
-          aix = 1;
-      #elif defined(__hpux)
-          hpux = 1;
-      #elif defined(__HAIKU__)
-          haiku = 1;
-      #endif
-      
+
+#if defined(_WIN32) || defined(_WIN64)
+      win = 1;
+#elif defined(__CYGWIN__)
+      cygwin = 1;
+#elif defined(__MSYS__)
+      msys = 1;
+#elif defined(__ANDROID__)
+      android = 1;
+#elif defined(__APPLE__)
+#include <TargetConditionals.h>
+#if TARGET_OS_IPHONE
+      ios = 1;
+#else
+      macos = 1;
+#endif
+#elif defined(__linux__)
+      linux_sys = 1;
+#elif defined(__FreeBSD__)
+      freebsd = 1;
+#elif defined(__OpenBSD__)
+      openbsd = 1;
+#elif defined(__NetBSD__)
+      netbsd = 1;
+#elif defined(__DragonFly__)
+      dragonfly = 1;
+#elif defined(__sun) || defined(__SVR4)
+      solaris = 1;
+#elif defined(_AIX)
+      aix = 1;
+#elif defined(__hpux)
+      hpux = 1;
+#elif defined(__HAIKU__)
+      haiku = 1;
+#endif
+
       sl_add_fixed_bool(code, "SYSTEM_WIN", win);
       sl_add_fixed_bool(code, "SYSTEM_CYGWIN", cygwin);
       sl_add_fixed_bool(code, "SYSTEM_MSYS", msys);
@@ -9310,8 +9488,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_bool(code, "SYSTEM_AIX", aix);
       sl_add_fixed_bool(code, "SYSTEM_HPUX", hpux);
       sl_add_fixed_bool(code, "SYSTEM_HAIKU", haiku);
-      
-      sl_add_fixed_int(code, "DYN_NORETURN", INIT);	
+
+      sl_add_fixed_int(code, "DYN_NORETURN", INIT);
       sl_add_fixed_int(code, "DYN_INTEGER", INTEGER);
       sl_add_fixed_int(code, "DYN_DOUBLE", DOUBLE);
       sl_add_fixed_int(code, "DYN_BOOLEAN", BOOLEAN);
@@ -9339,7 +9517,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "DYN_TYPE_AGGREGATE", DC_SIGCHAR_AGGREGATE);
       sl_add_fixed_int(code, "DYN_TYPE_ENDARG", DC_SIGCHAR_ENDARG);
       sl_add_fixed_int(code, "DYN_STRUCT_VAL", 1);
-      sl_add_fixed_int(code, "DYN_STRUCT_PTR", 0); 
+      sl_add_fixed_int(code, "DYN_STRUCT_PTR", 0);
       sl_add_fixed_int(code, "DYN_SIZEOF_CHAR", sizeof(char));
       sl_add_fixed_int(code, "DYN_SIZEOF_UCHAR", sizeof(unsigned char));
       sl_add_fixed_int(code, "DYN_SIZEOF_SHORT", sizeof(short));
@@ -9349,7 +9527,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "DYN_SIZEOF_LONG", sizeof(long));
       sl_add_fixed_int(code, "DYN_SIZEOF_ULONG", sizeof(unsigned long));
       sl_add_fixed_int(code, "DYN_SIZEOF_LONGLONG", sizeof(long long));
-      sl_add_fixed_int(code, "DYN_SIZEOF_ULONGLONG", sizeof(unsigned long long));
+      sl_add_fixed_int(code, "DYN_SIZEOF_ULONGLONG",
+                       sizeof(unsigned long long));
       sl_add_fixed_int(code, "DYN_SIZEOF_FLOAT", sizeof(float));
       sl_add_fixed_int(code, "DYN_SIZEOF_DOUBLE", sizeof(double));
       sl_add_fixed_int(code, "DYN_SIZEOF_POINTER", sizeof(void *));
@@ -9413,8 +9592,8 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.is_char", is_char_fn);
       sl_add_func(code, "types.is_string", is_string_fn);
       sl_add_func(code, "types.is_double", is_double_fn);
-	  sl_add_func(code, "types.is_list", is_list_fn);
-	  sl_add_func(code, "types.is_ptr", is_ptr_fn);
+      sl_add_func(code, "types.is_list", is_list_fn);
+      sl_add_func(code, "types.is_ptr", is_ptr_fn);
       sl_add_func(code, "types.is_not_initialized", is_not_initialized_fn);
       sl_add_func(code, "types.typeof", typeof_fn);
 
@@ -9448,7 +9627,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
         break;
       used_errors = 1;
       sl_add_func(code, "errors.string", errors_string_fn);
-	  sl_add_func(code, "errors.return", errors_return_fn);
+      sl_add_func(code, "errors.return", errors_return_fn);
       sl_add_func(code, "errors.bool", errors_bool_fn);
       sl_add_func(code, "errors.panic", errors_panic_fn);
     } else if (strcmp(libstr, "collections") == 0) {
@@ -10686,8 +10865,8 @@ void close_sl_stdlib() {
       if (collections.collections[i].functions != NULL) {
         for (int j = 0; j < collections.collections[i].total_funcs; j++) {
           struct SL_Function *func = &collections.collections[i].functions[j];
-		  sl_free_function(func);
-		}
+          sl_free_function(func);
+        }
         free(collections.collections[i].functions);
         collections.collections[i].functions = NULL;
       }
