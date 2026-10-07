@@ -28,7 +28,7 @@ You can edit SL files with basic syntax highlighting without using an external e
 ./sl examples/editor.sl examples/brainfuck.sl # or your path 
 # Cross Platform editor for SL.
 ```
-  [See the Pictures](#bundled-editor-exampleseditorsl)
+  [See the Pictures of editor](#bundled-editor-exampleseditorsl)
   
 ## Platform compatibility 
   
