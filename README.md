@@ -28,6 +28,7 @@ You can edit SL files with basic syntax highlighting without using an external e
 ./sl examples/editor.sl examples/brainfuck.sl # or your path 
 # Cross Platform editor for SL.
 ```
+  [See the Pictures](#bundled-editor-exampleseditorsl)
   
 ## Platform compatibility 
   
@@ -98,6 +99,18 @@ struct SL_Function *sl_get_func(struct SL_Code *code, const char *name);
 /* EXTRAS FOR ANYTHING */
 ```
 Check wiki for API REF.  
+
+### Bundled Editor (examples/editor.sl)
+Originally written for SL, this is a simple and lightweight code editor with basic C syntax highlighting (also written in SL). Its purpose is to allow editing SL code on any platform without requiring an additional editor to be installed.  
+  
+#### Editing Code
+<img width="1182" height="677" alt="image" src="https://github.com/user-attachments/assets/2655828c-52e1-4cbc-8282-0fa452a7f87a" />  
+
+#### F2 Help 
+<img width="467" height="136" alt="image" src="https://github.com/user-attachments/assets/8a6934a7-7fe6-48a8-846a-a80b276ae9e7" />  
+
+#### F6 Running Code
+<img width="573" height="226" alt="image" src="https://github.com/user-attachments/assets/1aa27be6-b9a1-4bff-93f7-e86db2d675f2" />  
 
 ## License
 
