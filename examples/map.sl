@@ -1,8 +1,8 @@
-# Simple hashmap implementation.
+# Simple map implementation.
 
 use("collections", "list", "errors", "io", "types")
 
-def Hash_add -> key, value then 
+def Map_add -> key, value then 
 	var list_var = Collections.get_attr($self, "key_list")
 	var value_var = Collections.get_attr($self, "value_list")
 	if not(types.is_list($list_var)) then 
@@ -17,7 +17,7 @@ def Hash_add -> key, value then
 	List.push($value_var, $value)
 end
 
-def Hash_get -> key then 
+def Map_get -> key then 
 	var list_var = Collections.get_attr($self, "key_list")
 	var value_var = Collections.get_attr($self, "value_list")
 	if not(types.is_list($list_var)) then 
@@ -27,7 +27,7 @@ def Hash_get -> key then
 	return List.get($value_var, $index)
 end
 
-def Hash_set -> key, new_val then 
+def Map_set -> key, new_val then 
 	var list_var = Collections.get_attr($self, "key_list")
 	var value_var = Collections.get_attr($self, "value_list")
 	if not(types.is_list($list_var)) then 
@@ -37,26 +37,26 @@ def Hash_set -> key, new_val then
 	List.set($value_var, $index, $new_val)
 end
 
-Collections.create_collection("HashMap", 
+Collections.create_collection("Map", 
 				"v:key_list", 
 				"v:value_list", 
-				"f:Hash_add:add", 
-				"f:Hash_get:get",
-				"f:Hash_set:set"
+				"f:Map_add:add", 
+				"f:Map_get:get",
+				"f:Map_set:set"
 )
 
-var hashmap = HashMap:new()
+var map = Map:new()
 
-hashmap:add("Country", "United States")
-hashmap:add("State", "California")
-hashmap:add("City", "Berkeley")
+map:add("Country", "United States")
+map:add("State", "California")
+map:add("City", "Berkeley")
 
-hashmap:set("City", "San Francisco")
+map:set("City", "San Francisco")
 
 io.print(
-	"Country: ", hashmap:get("Country"), "\n", 
-	"State: ", hashmap:get("State"), "\n",
-	"City: ", hashmap:get("City"), "\n")
+	"Country: ", map:get("Country"), "\n", 
+	"State: ", map:get("State"), "\n",
+	"City: ", map:get("City"), "\n")
 	
 # Output:
 # Country: United States
