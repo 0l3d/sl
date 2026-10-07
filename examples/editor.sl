@@ -28,6 +28,7 @@ var background_color_enabled = false
 # EDITOR SETTINGS
 
 var file_name = sys.get_arg(2)
+var sl_runtime = sys.get_arg(0)
 if errors.bool($file_name) then
     $file_name = "test.sl"
 end
@@ -145,12 +146,13 @@ def render_indicator then
         $cursor_x,
         " y:",
         $actual_y,
-        " msg:",
+        " | msg:",
         $status_message,
-        " File Name: ",
+        " | File Name: ",
         $file_name,
-        " TIME: ",
-        time.string("%H:%M")
+        " | TIME: ",
+        time.string("%H:%M"),
+		" | F2 for Help "
     )
 
     console.reset_color()
@@ -564,6 +566,45 @@ def ascii_entered_middle -> charkey, length then
     $smellslikeyouchangedsomethingspirit = 1
 end
 
+
+def change_window_reset then 
+	console.reset_scroll_area()
+	console.leave_alt_screen()
+	console.raw_mode(false)
+	console.autowrap(true)
+end
+
+def change_window_goback then 
+	console.enter_alt_screen()
+	console.raw_mode(true)
+	console.autowrap(false)
+	console.scroll_area(0, $screen_height - 1)
+	$smellslikeyouchangedsomethingspirit = 2
+	render_screen()
+end
+
+def editor_help then 
+	change_window_reset()
+	io.print("\n", 
+	"CTRL + S -> Save \n",
+	"CTRL + Q -> Quit \n",
+	"F6 -> Run Code \n",
+	"PRESS ENTER TO BACK TO THE EDITOR.\n")
+	io.flush()
+	io.input()
+	change_window_goback()
+end
+
+def run_code -> code_path then
+	change_window_reset()
+	io.print("\nPROGRAM START\n")
+	io.flush()
+	sys.system($sl_runtime + " " + $code_path)
+	io.print("\nPROGRAM FINISHED\nPRESS ENTER TO BACK TO THE EDITOR.\n")
+	io.getchar()
+	change_window_goback()
+end
+
 render_screen()
 
 while true then
@@ -616,40 +657,44 @@ while true then
                         end
                     end
                 end
-
             elif types.is_int($ckey) then
                 if $ckey equ $KEY_BACKSPACE then
                     backspace_b()
      
 				elif $ckey equ $KEY_TAB then
-				    var spaces = "\t"
-				    var left = ""
-				    var right = ""
-				
-				    if $actual_x > 0 then
-				        $left = string.slice($buffer, 0, $actual_x)
-				        if errors.bool($left) then
-				            $left = ""
-				        end
-				    end
-				
-				    if $actual_x < $len then
-				        $right = string.slice($buffer, $actual_x, $len)
-				        if errors.bool($right) then
-				            $right = ""
-				        end
-				    end
-				
-				    var actual_tab_y = $rendering_start_line + $cursor_y
-				    $buffer = $left + $spaces + $right
-				    
-				    $actual_x = $actual_x + 1
-				    update_cursor_x()
-				
-				    if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
-				        List.push($lines, $buffer)
-				    end
-				    $smellslikeyouchangedsomethingspirit = 1	
+					var spaces = "\t"
+					var left = ""
+					var right = ""
+						
+					if $actual_x > 0 then
+						$left = string.slice($buffer, 0, $actual_x)
+						if errors.bool($left) then
+							$left = ""
+						end
+					end
+					
+					if $actual_x < $len then
+						$right = string.slice($buffer, $actual_x, $len)
+						if errors.bool($right) then
+							$right = ""
+						end
+					end
+					
+					var actual_tab_y = $rendering_start_line + $cursor_y
+					$buffer = $left + $spaces + $right
+					
+					$actual_x = $actual_x + 1
+					update_cursor_x()
+					
+					if errors.bool(List.set($lines, $actual_tab_y, $buffer)) then
+						List.push($lines, $buffer)
+					end
+					$smellslikeyouchangedsomethingspirit = 1
+				elif $ckey equ $KEY_F2 then
+					editor_help()
+				elif $ckey equ $KEY_F6 then
+					# Running SL CODE!
+					run_code($file_name)	
                 elif $ckey equ $KEY_ENTER then
                     var middle = false
 
@@ -875,3 +920,4 @@ while true then
         render_screen()
     end
 end
+

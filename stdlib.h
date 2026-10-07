@@ -19,7 +19,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <time.h>
+#include <errno.h>
+
+#if INTMAX_MAX == LLONG_MAX
+    #define dcArgIntMax(vm, v) dcArgLongLong(vm, (long long)(v))
+    #define dcCallIntMax(vm, f) ((intmax_t)dcCallLongLong(vm, f))
+#elif INTMAX_MAX == LONG_MAX
+    #define dcArgIntMax(vm, v) dcArgLong(vm, (long)(v))
+    #define dcCallIntMax(vm, f) ((intmax_t)dcCallLong(vm, f))
+#else
+    #error "Unsupported intmax_t mapping"
+#endif
 
 #ifdef _WIN32
 #define CHAR WIN32_CHAR
@@ -85,56 +97,58 @@
 #define SL_MOUSE_EVENT 1
 #define SL_WINDOW_RESIZE_EVENT 1
 
-#define SL_KEY_UNKNOWN 0
-#define SL_KEY_CHAR 1
+#define SL_KEY_UNKNOWN      256
+#define SL_KEY_CHAR         257
 
-#define SL_KEY_ENTER 2
-#define SL_KEY_ESCAPE 3
-#define SL_KEY_BACKSPACE 4
-#define SL_KEY_TAB 5
+#define SL_KEY_ENTER        258
+#define SL_KEY_ESCAPE       259
+#define SL_KEY_BACKSPACE    260
+#define SL_KEY_TAB          261
 
-#define SL_MOUSE_NONE 0
-#define SL_MOUSE_LEFT_PRESSED 1
-#define SL_MOUSE_RIGHT_PRESSED 2
-#define SL_MOUSE_MIDDLE_PRESSED 3
-#define SL_MOUSE_MOVED 4
-#define SL_MOUSE_DOUBLE_CLICK 5
-#define SL_MOUSE_WHEEL_UP 6
-#define SL_MOUSE_WHEEL_DOWN 7
+#define SL_KEY_UP           262
+#define SL_KEY_DOWN         263
+#define SL_KEY_LEFT         264
+#define SL_KEY_RIGHT        265
 
-#define SL_KEY_UP 10
-#define SL_KEY_DOWN 11
-#define SL_KEY_LEFT 12
-#define SL_KEY_RIGHT 13
+#define SL_KEY_HOME         266
+#define SL_KEY_END          267
+#define SL_KEY_INSERT       268
+#define SL_KEY_DELETE       269
 
-#define SL_KEY_HOME 20
-#define SL_KEY_END 21
-#define SL_KEY_INSERT 22
-#define SL_KEY_DELETE 23
+#define SL_KEY_PAGE_UP      270
+#define SL_KEY_PAGE_DOWN    271
 
-#define SL_KEY_PAGE_UP 24
-#define SL_KEY_PAGE_DOWN 25
+#define SL_KEY_F1           272
+#define SL_KEY_F2           273
+#define SL_KEY_F3           274
+#define SL_KEY_F4           275
+#define SL_KEY_F5           276
+#define SL_KEY_F6           277
+#define SL_KEY_F7           278
+#define SL_KEY_F8           279
+#define SL_KEY_F9           280
+#define SL_KEY_F10          281
+#define SL_KEY_F11          282
+#define SL_KEY_F12          283
 
-#define SL_KEY_F1 30
-#define SL_KEY_F2 31
-#define SL_KEY_F3 32
-#define SL_KEY_F4 33
-#define SL_KEY_F5 34
-#define SL_KEY_F6 35
-#define SL_KEY_F7 36
-#define SL_KEY_F8 37
-#define SL_KEY_F9 38
-#define SL_KEY_F10 39
-#define SL_KEY_F11 40
-#define SL_KEY_F12 41
 
-#define SL_MOD_NONE 0
-#define SL_MOD_SHIFT (1 << 0)
-#define SL_MOD_CTRL (1 << 1)
-#define SL_MOD_ALT (1 << 2)
-#define SL_MOD_SUPER (1 << 3)
+#define SL_MOUSE_NONE            512
+#define SL_MOUSE_LEFT_PRESSED    513
+#define SL_MOUSE_RIGHT_PRESSED   514
+#define SL_MOUSE_MIDDLE_PRESSED  515
+#define SL_MOUSE_MOVED           516
+#define SL_MOUSE_DOUBLE_CLICK    517
+#define SL_MOUSE_WHEEL_UP        518
+#define SL_MOUSE_WHEEL_DOWN      519
+
+
+#define SL_MOD_NONE          0
+#define SL_MOD_SHIFT         (1 << 0)
+#define SL_MOD_CTRL          (1 << 1)
+#define SL_MOD_ALT           (1 << 2)
+#define SL_MOD_SUPER         (1 << 3)
+
 #define SL_COLOR_DEFAULT 0
-
 #define SL_COLOR_BLACK 1
 #define SL_COLOR_RED 2
 #define SL_COLOR_GREEN 3
@@ -840,7 +854,7 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     }
 
     case DC_SIGCHAR_LONG: {
-      intptr_t v = (intptr_t)value_next.valh;
+      intmax_t v = value_next.valh;
       if (offset + sizeof(v) > s->size)
         goto set_oob;
       memcpy(dst, &v, sizeof(v));
@@ -848,7 +862,7 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     }
 
     case DC_SIGCHAR_ULONG: {
-      uintptr_t v = (uintptr_t)value_next.valh;
+      uintmax_t v = value_next.valh;
       if (offset + sizeof(v) > s->size)
         goto set_oob;
       memcpy(dst, &v, sizeof(v));
@@ -856,7 +870,7 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     }
 
     case DC_SIGCHAR_LONGLONG: {
-      long long v = (long long)value_next.valh;
+      long long v = value_next.valh;
       if (offset + sizeof(v) > s->size)
         goto set_oob;
       memcpy(dst, &v, sizeof(v));
@@ -864,7 +878,7 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     }
 
     case DC_SIGCHAR_ULONGLONG: {
-      unsigned long long v = (unsigned long long)value_next.valh;
+      unsigned long long v = value_next.valh;
 
       if (offset + sizeof(v) > s->size)
         goto set_oob;
@@ -925,7 +939,7 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
     case LONG: {
       if (offset + (int)sizeof(intptr_t) > (int)s->size)
         goto set_oob;
-      intptr_t v = value.valh;
+      intmax_t v = value.valh;
       memcpy(dst, &v, sizeof(intptr_t));
       break;
     }
@@ -1104,7 +1118,7 @@ struct SL_Variable dyn_get_field_fn(struct SL_Code *code,
     long long v = 0;
     memcpy(&v, src, sizeof(long long));
     return_var.type = LONG;
-    return_var.valh = (intptr_t)v;
+    return_var.valh = v;
     break;
   }
   case DC_SIGCHAR_AGGREGATE: {
@@ -1271,7 +1285,7 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
       dcArgChar(vm, arg.valc);
       break;
     case LONG:
-      dcArgPointer(vm, (void *)(intptr_t)arg.valh);
+      dcArgIntMax(vm, arg.valh);
       break;
     case POINTER: {
       if (arg.info == SL_DYN_STRUCT_PTR || arg.info == SL_DYN_STRUCT_VAL ||
@@ -1382,7 +1396,7 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
   }
   case LONG:
     return_var.type = LONG;
-    return_var.valh = (intptr_t)dcCallPointer(vm, target_func);
+    return_var.valh = dcCallIntMax(vm, target_func);
     break;
   default:
     dcCallVoid(vm, target_func);
@@ -1468,7 +1482,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
         break;
 
       case LONG:
-        length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, return_var.valh);
+        length = snprintf(buffer, sizeof(buffer), "%jd", return_var.valh);
         if (length > 0)
           sl_console_write(buffer, (size_t)length);
         break;
@@ -1522,7 +1536,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
             sl_console_write(&list.vars[j].valc, 1);
             break;
           case LONG:
-            length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR,
+            length = snprintf(buffer, sizeof(buffer), "%jd",
                               list.vars[j].valh);
             if (length > 0)
               sl_console_write(buffer, (size_t)length);
@@ -1577,7 +1591,7 @@ struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
       break;
 
     case LONG:
-      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, value.valh);
+      length = snprintf(buffer, sizeof(buffer), "%jd", value.valh);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -1637,7 +1651,7 @@ struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
       break;
 
     case LONG:
-      length = snprintf(buffer, sizeof(buffer), "%" PRIdPTR, return_var.valh);
+      length = snprintf(buffer, sizeof(buffer), "%jd", return_var.valh);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -2497,6 +2511,126 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
   return_var.type = STRING;
   return return_var;
 }
+
+struct SL_Variable long_to_int_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.long_to_int! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  if (first_arg.valh > INT_MAX || first_arg.valh < INT_MIN) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Value is out of int range on types.long_to_int.";
+    return return_var;
+  }
+
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.vali = (int)first_arg.valh;
+
+  return return_var;
+}
+
+struct SL_Variable int_to_long_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.int_to_long! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.valh = first_arg.vali;
+  return return_var;
+}
+
+struct SL_Variable str_to_long_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at types.str_to_long! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  char *raw_str = sl_string_getter(first_arg.vals);
+  char *endptr = NULL;
+
+  intmax_t temp = strtoimax(raw_str, &endptr, 10);
+
+  if (endptr == raw_str || *endptr != '\0') {
+    free(raw_str);
+
+    return_var.type = ERROR;
+    return_var.vals = "Invalid characters in long value on types.str_to_long.";
+    return return_var;
+  }
+
+  if (errno == ERANGE) {
+    free(raw_str);
+
+    return_var.type = ERROR;
+    return_var.vals = "Long value is out of bounds on types.str_to_long.";
+    return return_var;
+  }
+
+  free(raw_str);
+
+  return_var.type = LONG;
+  return_var.valh = temp;
+
+  return return_var;
+}
+
+struct SL_Variable long_to_str_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at types.long_to_str! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+
+  int size = snprintf(NULL, 0, "%jd", first_arg.valh);
+
+  if (size < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to convert long to string on types.long_to_str.";
+    return return_var;
+  }
+
+  char *tmp = smalloc((size_t)size + 1);
+
+  snprintf(tmp, (size_t)size + 1, "%jd", first_arg.valh);
+
+  return_var.vals = sl_quote_string(tmp);
+
+  free(tmp);
+
+  return_var.type = STRING;
+  return return_var;
+}
+
 
 struct SL_Variable typeof_fn(struct SL_Code *code, struct SL_L_Function func,
                              struct SL_Function rfunc) {
@@ -4149,12 +4283,18 @@ struct SL_Variable sys_get_arg_fn(struct SL_Code *code,
 struct SL_Variable sys_get_env_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at sys.get_env! Not enough arguments.";
+    return return_var;
+  }					  
   struct SL_Variable return_var = {0};
   struct SL_Variable arg = sl_get_argument(*code, func, 0);
 
   if (arg.type != STRING) {
     return_var.type = ERROR;
-    return_var.vals = "Expected string argument for env.get";
+    return_var.vals = "Expected string argument for sys.get_env";
     return return_var;
   }
 
@@ -4172,6 +4312,81 @@ struct SL_Variable sys_get_env_fn(struct SL_Code *code,
 
   return return_var;
 }
+
+struct SL_Variable sys_set_env_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+   if (func.total_arguments < 2) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at sys.set_env! Not enough arguments.";
+    return return_var;
+  }			
+  struct SL_Variable return_var = {0};
+  struct SL_Variable name_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable value_arg = sl_get_argument(*code, func, 1);
+
+  if (name_arg.type != STRING || value_arg.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string arguments for sys.set_env";
+    return return_var;
+  }
+
+  char *var_name = sl_string_getter(name_arg.vals);
+  char *var_value = sl_string_getter(value_arg.vals);
+
+  int result = 0;
+
+#ifdef _WIN32
+  result = _putenv_s(var_name, var_value);
+#else
+  result = setenv(var_name, var_value, 1);
+#endif
+  free(var_name);
+  free(var_value);
+
+  if (result != 0) {
+    return_var.type = ERROR;
+    return_var.vals = "Failed to set environment variable on sys.set_env";
+    return return_var;
+  }
+
+  return_var.type = STRING;
+  return_var.vals = strdup("");
+  return return_var;
+}
+
+struct SL_Variable sys_system_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+   if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at sys.system! Not enough arguments.";
+    return return_var;
+  }			
+  struct SL_Variable return_var = {0};
+  struct SL_Variable comm = sl_get_argument(*code, func, 0);
+
+  if (comm.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected string arguments for sys.system";
+    return return_var;
+  }
+
+  char *command = sl_string_getter(comm.vals);
+  int out = system(command);
+  free(command);
+
+  if (out != 0) {
+  	return_var.vals = "Failed to run command on sys.system.";
+	return_var.type = ERROR;
+	return return_var;
+  }
+
+  return return_var;
+}
+
 
 struct SL_Variable sys_popen_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
@@ -4548,35 +4763,6 @@ struct SL_Variable List_remove_fn(struct SL_Code *code,
   return_var.type = BOOLEAN;
   return_var.valb = success;
   return return_var;
-}
-
-struct SL_Variable List_free_fn(struct SL_Code *code, struct SL_L_Function func,
-                                struct SL_Function rfunc) {
-  struct SL_Variable result = {0};
-
-  if (func.total_arguments < 1) {
-    result.type = ERROR;
-    result.vals = "Error usage at List.free! Not enough arguments.";
-    return result;
-  }
-
-  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-
-  if (first_arg.info != SL_LIST) {
-    result.type = ERROR;
-    result.vals = "Expected list_variable as the first argument to List.free.";
-    return result;
-  }
-
-  if (!list_free(first_arg.vali)) {
-    result.type = ERROR;
-    result.vals = "Invalid list variable.";
-    return result;
-  }
-
-  result.type = BOOLEAN;
-  result.valb = 1;
-  return result;
 }
 
 struct SL_Variable List_find_fn(struct SL_Code *code, struct SL_L_Function func,
@@ -5038,7 +5224,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
         snprintf(item_str, sizeof(item_str), "%c", item.valc);
         break;
       case LONG:
-        snprintf(item_str, sizeof(item_str), "%" PRIdPTR, item.valh);
+        snprintf(item_str, sizeof(item_str), "%jd" , item.valh);
         break;
       default:
         break;
@@ -9694,6 +9880,10 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.char_to_int", char_to_int_fn);
       sl_add_func(code, "types.char_to_str", char_to_str_fn);
       sl_add_func(code, "types.int_to_str", int_to_str_fn);
+	  sl_add_func(code, "types.str_to_long", str_to_long_fn);
+	  sl_add_func(code, "types.long_to_str", long_to_str_fn);
+	  sl_add_func(code, "types.int_to_long", int_to_long_fn);
+	  sl_add_func(code, "types.long_to_int", long_to_int_fn);
 
       /* TYPE CHECK */
       sl_add_func(code, "types.is_int", is_int_fn);
@@ -9729,7 +9919,9 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
       sl_add_func(code, "sys.get_env", sys_get_env_fn);
+	  sl_add_func(code, "sys.set_env", sys_set_env_fn);
       sl_add_func(code, "sys.popen", sys_popen_fn);
+      sl_add_func(code, "sys.system", sys_system_fn);
     } else if (strcmp(libstr, "errors") == 0) {
       if (used_errors == 1)
         break;
@@ -10745,7 +10937,6 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.peek", List_peek_fn);
       sl_add_func(code, "List.set", List_set_fn);
       sl_add_func(code, "List.get", List_get_fn);
-      sl_add_func(code, "List.free", List_free_fn);
       sl_add_func(code, "List.find", List_find_fn);
       sl_add_func(code, "List.next", List_next_fn);
       sl_add_func(code, "List.iter", List_iter_fn);

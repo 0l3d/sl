@@ -41,7 +41,7 @@ struct SL_Variable
         int valb;
         char valc;
         char *vals;
-        intptr_t valh;
+        intmax_t valh;
         void* valp;
     };
 };
