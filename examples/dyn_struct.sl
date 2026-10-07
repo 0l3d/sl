@@ -37,9 +37,9 @@ dyn.free($lib)
 #         $DYN_TYPE_FLOAT, $DYN_SIZEOF_FLOAT * 0, 1, # TYPE, OFFSET, LEN
 #         $DYN_TYPE_FLOAT, $DYN_SIZEOF_FLOAT * 1, 1  # TYPE, OFFSET, LEN
 # )
-# dyn.set_field($struct, $DYN_SIZEOF_FLOAT * 0, 'f' # Difference from regular usage.
+# dyn.set_field($struct, $DYN_SIZEOF_FLOAT * 0, $DYN_TYPE_FLOAT # Difference from regular usage.
 #                                                 , 40.1) # We are explicitly casting the SL Variable to a C float.
-# dyn.set_field($struct, $DYN_SIZEOF_FLOAT * 1, 'f'
+# dyn.set_field($struct, $DYN_SIZEOF_FLOAT * 1, $DYN_TYPE_FLOAT
 #                                                 , 20.1)
 #
 # dyn.call($function, 4096, $DYN_NORETURN, $struct)
