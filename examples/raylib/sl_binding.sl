@@ -3,20 +3,23 @@ use("dyn", "types", "collections", "sys", "io")
 # RAYLIB
 if $SYSTEM_LINUX then
 	var lib = dyn.open_lib("./libraylib.so.6.0.0")
-	var InitWindow = dyn.find_symbol($lib, "InitWindow")
-	var SetTargetFPS = dyn.find_symbol($lib, "SetTargetFPS")
-	var WindowShouldClose = dyn.find_symbol($lib, "WindowShouldClose")
-	var BeginDrawing = dyn.find_symbol($lib, "BeginDrawing")
-	var ClearBackground = dyn.find_symbol($lib, "ClearBackground")
-	var DrawText = dyn.find_symbol($lib, "DrawText")
-	var EndDrawing = dyn.find_symbol($lib, "EndDrawing")
-	var CloseWindow = dyn.find_symbol($lib, "CloseWindow")
+elif $SYSTEM_WIN then 
+	var lib = dyn.open_lib("./raylib.dll")
 else 
 	io.print("Not supported on this platform!")
 	io.flush()
 	sys.exit(1)
 end
+var InitWindow = dyn.find_symbol($lib, "InitWindow")
+var SetTargetFPS = dyn.find_symbol($lib, "SetTargetFPS")
+var WindowShouldClose = dyn.find_symbol($lib, "WindowShouldClose")
+var BeginDrawing = dyn.find_symbol($lib, "BeginDrawing")
+var ClearBackground = dyn.find_symbol($lib, "ClearBackground")
+var DrawText = dyn.find_symbol($lib, "DrawText")
+var EndDrawing = dyn.find_symbol($lib, "EndDrawing")
+var CloseWindow = dyn.find_symbol($lib, "CloseWindow")
 # RAYLIB
+
 
 def init_window -> width, height, title then 
 	dyn.call($InitWindow, 4096, $DYN_NORETURN, $width, $height, $title)

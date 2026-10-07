@@ -1,0 +1,643 @@
+++ NAME 
+SL = Simple Language/Scripting Language/Simple scripting Language.  
+Call it whatever you want.
+
+
+++ VARIABLES
+SL uses dynamic variables.
+For example:
+-----------
+# Correct way to define variable
+var number = 10 # integer 
+var string = "Hello, World" # string 
+var char = 'A' # char 
+var double = 10.1 # floating point
+var bool = true # booleans
+var long = 0xBFFF # or binary or octal, also used as pointer, but base language doesnt support pointers as well.
+var number2 = 10 var number3 = 20 # number2 is 10 and number3 is 20
+
+# Wrong way 
+var number: int = 10 
+int number = 20 
+var number int = 20 
+var number = 10, number2 = 40
+---
+
+++ ASSIGNMENTS
+I dont support hidden assignments in SL, code should be clear enough on its own, and you should explicitly state what you re doing, which is why assignments aren't included in expressions.  
+For example:
+-----------
+# Correct way
+var number = 10 
+$number = 23
+
+# Correct way 
+var number2 = 20 
+$number2 = 10 $number = 50 # now number2 is 10 and number is 50
+
+# Wrong way 
+10 + ($number = 32) - 20 
+
+# Wrong way 
+if ($number = 32) equ 32 then # ...
+
+# Wrong Way 
+function($number = 32, "Hello", false)
+---
+
+++ CONDITIONS
+In SL the only supported condition is the `if` block.
+For example:
+------------
+# Condition expressions:
+# equ = equal 
+# neq = not equal
+# eqg = equal or greater 
+# eql = equal or lesser 
+# > = greater 
+# < = lesser 
+
+# Correct way to use if
+if (10 + 10) equ (20 + 10) - 10 then 
+<CODE>
+end
+
+# Correct way to use if with else
+if (10 + 10) equ (20 + 10) - 10 then 
+<CODE>
+else
+<CODE>
+end
+
+if $number1 equ 20 then # ...
+if function(10, 10) equ 20 then # ...
+if 20 > function(10, 10) then # ...
+
+# Correct way to use if with elif
+if (10 + 10) equ (20 + 10) - 10 then 
+<CODE>
+elif (10 + 10) equ (20 - 10) + 10 then 
+<CODE>
+else
+<CODE>
+end
+
+# Wrong way 
+if (10 + 10) equ (20 + 10) - 10 then 
+<CODE>
+else if 
+<CODE>
+else 
+<CODE>
+end
+<CODE>
+
+++ LOOPS
+SL only supports `while` loop. It works similarly to `if`. (Both `continue` and `break` are supported)  
+For Example:
+-----------
+var i = 0
+while $i < 10 then 
+   <CODE>
+end
+
+# Wrong way 
+while $i < 10 { #...
+---
+
++++ NOTES FOR PROGRAMMERS
+Dont forget that while loops are very costly in SL, so heavy use of them can significantly reduce performance. Make sure to optimize your while loops as much as possible. Since SL doesnt use bytecode, while loops can be slower than in languages like Python, Lua, or Ruby, but with reasonable usage and proper optimization, their performance can sometimes be comparable.
+
+
+++ FUNCTIONS
+SL uses a simple function syntax.  
+For example:
+-----------
+# Function without arguments
+def func then 
+<CODE>
+end 
+
+func()
+
+# Function with arguments
+def func -> number1, number2, string then 
+    return $number1 + $number2 
+end
+
+func(10 + 10, 10 / 2)
+func($number1 + 100 / (40 + 24), 10, "Hello, World") 
+
+# Function with VA ARGS
+def func -> number1, number2, ... then 
+    # then arguments named like: <function_name>_VA_ARGUMENT_<index>
+    return $number1 + $number2 + $func_VA_ARGUMENT_0 # which is first one
+end
+
+func(10, 10, 10)
+
+# Wrong way 
+def func() then #...
+def func(number1, number2) then #...
+def func -> number1 = 10, number2 = 20 then # ...
+---
+
+
+++ EXPRESSIONS
+SL supports all mathematical expressions and solves them at the speed of light.  
+
+
+++ MULTIPLE FILES
+---
+import file_name # without STRING LITERAL!! 
+---
+
+-- EXTRAS -- API REF -- C CODE SECTION -- 
+
+Here I'll provide information about the SL API so you can implement your own.  
+
+++ Standart Library
+
+The project does not bundle `stdlib.h` together with the standard `sl.c` and `sl.h` single-header libraries included in the project directory.   
+If you want access to the `standard library` when using the scripting language, you will need to include your own implementation of stdlib.h in your project.  
+The required steps are described below:  
+--------------------------------------
+// INCLUDE IT
+#include "stdlib.h" // or your path
+
+// Initialize it to load the standard library.
+// This must be done after init_sl_process() and before calling
+// open_sl_process() or sl_dostr_sl_process(), since the functions
+// need to be loaded before the runtime starts.
+init_sl_stdlib(&sl_code, argc, argv);
+
+// When you are finished, shut it down to clean up the standard
+// library and the memory allocations associated with it.
+close_sl_stdlib();
+---
+
+++ Memory Allocation
+In SL if you want to automatically allocate memory and continue on your way without having to deal with it yourself you first need to init a process.
+-------
+// MAIN:
+struct SL_Code  sl_code = sl_init_sl_process();
+----
+In the later steps I'll continue with the examples using the variable we allocated (sl_code).  
+ 
+
+++ Safe Memory Allocation
+  
+Safe Memory Allocation functions check for errors while allocating memory and if they cannot allocate it, they return an operating system dependent error message and terminate the program. (This does not mean you dont need to call free later. Safe functions are __not__ garbage collectors)  
+  
+Their usage is no different from the original versions, but an ``s`` is added to the beginning.(the ``s`` stands for ``safe``)  
+-----------------------
+/* Safe Memory Allocation Functions */
+void *smalloc(size_t size);
+void *scalloc(size_t how_much, size_t size);
+void *srealloc(void *pptr, size_t size);
+/* Safe Memory Allocation Functions */
+----- 
+ 
+++++ Raw Lexer
+Although you will most likely not need to use it, in some cases you may need to tokenize something yourself (for example, when writing HTML inside a multi-line string or using your own custom macro like expressions inside a multi-line string). In such cases, you can use SLs built-in tokenizer.  
+----------
+// Function definition
+int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count, char *special_tokens, int start_size);
+
+// Special Tokens
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,"
+
+// Usage Examples
+char **code_array = smalloc(1024 * sizeof(char *));
+int count = sl_raw_lexer( // It returns the number of tokens generated. (total tokens)
+code_string,  // Your Code string
+&code_array, // Output array
+strlen(code_string), // Len of your code string
+SPECIAL_TOKENS, // Special tokens
+1024 // memory allocated at the beginning
+);
+------
+++++ Structure info
+---------------
+enum TokenTypes
+{
+    T_UNKNOWN = 0,
+    T_IF,
+    T_DEF,
+    T_WHILE,
+    T_THEN,
+    T_END,
+    T_VAR,
+    T_ELSE,
+    T_ELIF,
+    T_IMPORT,
+    T_BREAK,
+    T_CONTINUE,
+    T_RETURN,
+    T_EQU,
+    T_NEQ,
+    T_EQG,
+    T_EQL,
+    T_AND,
+    T_OR,
+    T_SHLEFT,
+    T_SHRIGHT,
+};
+
+struct SL_Code
+{
+    char **code;
+    enum TokenTypes *types;
+    struct SL_Variable *fixed_values;
+    int token_count;
+    struct SL_Variable *vars;
+    int total_size_v;
+    int total_vars;
+    struct SL_Function *funcs;
+    int total_size_f;
+    int total_funcs;
+    int scope_depth;
+    int types_set;
+    char* special_tokens;
+    char **custom_keyword;
+    char **custom_expr;
+    char **custom_splitter;
+    int custom_keyword_count;
+    int custom_expr_count;
+    int custom_expr_capacity;
+    int custom_splitter_count;
+    int custom_splitter_capacity;
+    int custom_keyword_capacity;
+    void (**custom_keywordr)(struct SL_Code *, int *current_token);
+    int (**custom_splitterr)(struct SL_Code *, int *current_token);
+    struct SL_Variable (**custom_exprr)(struct SL_Code *, int *current_token);
+    int starting_token;
+};
+-------------
+++ Linking a Function
+Linking functions in SL is very simple as shown below.  
+----------
+// YOUR FUNCTION
+struct SL_Variable myfunc(struct SL_Code *code, struct SL_L_Function func, struct SL_Function rfunc) {
+     // GETTING FUNCTION ARGUMENTS
+     struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+     // sl_get_argument(code from myfunc's arguments, func from myfunc's arguments, which argument? 0 is first, 1 is second, ...)
+}
+
+// MAIN:
+sl_add_func(&sl_code, "myfunc", myfunc);
+------------
+++ Adding a Raw Function
+Raw functions are the standard way to add functions to SL. `sl_add_raw_function` gives you full control, but requires manual memory management, so use it carefully. Check `sl.h` for usage.  
+  
+++++ Getting Function info
+If you want to get information about a function in SL you can use this function and store the function information in a variable of type `SL_Function`.  
+--------------
+// MAIN:
+struct SL_Function *getfu = sl_get_func(&sl_code, "print");
+printf("Linked function? : %d\n", getfu->linked_function);
+-------
+
+++++ Copying a Function
+If you want to copy information about a function in SL, you can use this function and store the result in a variable of type `SL_Function`.
+-------------
+// MAIN:
+struct SL_Function copied = sl_copy_function(func);
+------
+
+++++ Freeing a Function
+If you want to free the memory used by a function in SL, you can use this function to free it.
+--------
+sl_free_function(func <pointer>);
+------
+
++++ Structure info
+-----
+struct SL_L_Function
+{
+    int total_arguments;
+    int *argument_indexes;
+    int starting_index;
+};
+
+struct SL_Function
+{
+    char *name;
+    unsigned long hash;
+    struct SL_Variable *arguments;
+    int total_arguments;
+    char **code_tokens;
+    enum TokenTypes *types;
+    struct SL_Variable *fixed_values;
+    int info;
+    int code_len;
+    int vaargs;
+    struct SL_Variable (*funcr)(struct SL_Code *, struct SL_L_Function, struct SL_Function);
+    int linked_function;
+    int scope_lifetime;
+};
+---------
+
++++ Adding a Variable
+Since adding a variable requires operations such as manually allocating memory, use the `sl_dostr_sl_process` function instead of the `sl_add_var function` (which hasn't even been tested).
+-------
+// MAIN:
+sl_dostr_sl_process(&sl_code, "var a = 10");
+
+// FOR STRINGS
+sl_dostr_sl_process(&sl_code, "var a = \"Hello, World\"");
+------
+
++++ Copying a Variable
+If you want to copy information about a variable in SL, you can use this function and store the result in a variable of type `SL_Variable`.
+-----------
+// MAIN:
+struct SL_Variable copied = sl_copy_variable(var);
+------
+
++++ Freeing a Variable
+If you want to free the memory used by a variable in SL, you can use this function to free it.
+----------
+sl_free_variable(var <pointer>);
+----
+
++++ Getting a Variable
+If you want to get information about a variable in SL, you can use this function and store the result in a variable of type `SL_Variable`.
+-----
+// MAIN:
+struct SL_Variable *getva = sl_get_var(&sl_code, "enable_notify");
+printf("Value of [%s]: %d\n", getva->name, getva->valb);
+-----
+
++++++ Pointer and Bytes Type 
+Although pointer and bytes types aren't used in the base language, they are compatible with `valp` (pointer) and `vals` (bytes) when used in functions linked from C.
+
++++++ Structure Info
+---------
+enum SL_Types
+{
+    INIT = 0,
+    INTEGER = 1,
+    DOUBLE = 2,
+    CHAR = 3,
+    STRING = 4,
+    BOOLEAN = 5,
+    RETURN = 6,
+    LONG = 7,
+    ERROR = 8,
+    POINTER = 9,
+    BYTES = 10,
+};
+
+struct SL_Variable
+{
+    char *name;
+    unsigned long hash;
+    int cache_index;
+    enum SL_Types type;
+    int scope_lifetime;
+    size_t length;
+    int info;
+    union {
+        int vali;
+        double valf;
+        int valb;
+        char valc;
+        char *vals;
+        intptr_t valh;
+        void* valp;
+    };
+};
+-------
+
+++ Running a single String
+As mentioned earlier you can use the `sl_dostr_sl_process` function to run strings that don't contain `\n` and aren't considered files.  
+------
+// MAIN:
+sl_dostr_sl_process(&sl_code, "print($a, \"\n\")");
+-----
+
+++ Simple Helpers
+To keep things short and easy to understand, I'll go over some basic helper functions here without getting into lengthy explanations.  
+---------------------------------------------------------------
+// sl strings may be quoted, so use sl_string_getter to safely get the raw string without quotes.
+char *raw_string = sl_string_getter(<VARIABLE OR QUOTED STRING> (For example: first_arg.vals));
+// then free it when you finish your job
+free(raw_string);
+
+// copy bytes 
+// char *sl_bytes_copy(const char *bytes, size_t length);
+// then free it when you done.
+
+// sl_string_getter converts an SL string into a C friendly format by removing
+// its quotes. To convert it back to SL format, use sl_quote_string. It adds
+// quotes and escapes special characters so SL can handle the string correctly.
+char *str = sl_quote_string(<VARIABLE OR QUOTED STRING> (For example: raw_str));
+// Free the returned string when you are done with it, unless you return it.
+// Examples can be found in the string section of stdlib.h.
+free(str);
+
+// you can use the c api to get the name of a variable that is being created or assigned a value at runtime.
+char *assigned_val = sl_get_assignment_var();
+
+// sl uses a scope system to track the scope depth of variables and functions, so you can get the current scope through the c api.
+int scope_level = sl_get_scope(<CODE POINTER> (for example: &sl_code));
+// note: scope 1 is the main code, scope 2 can be a function, scope 3 can be a scope inside that function, and so on. leaving a scope decreases the
+// lifetime by 1, and it gets removed when it reaches 0. use -1 to make it persist across all scopes.
+
+// variables and functions use simple hashes for faster lookup, then compare names for exact matches. use the hash string function.
+unsigned long hash = sl_hash_string(<STRING> (for example: variable name/function name));
+-----------------------------------------------------------
+
+++ Opening a Process
+You can automatically run files by opening an SL process. 
+-------
+// MAIN:
+if (sl_open_sl_process(&sl_code, "file.sl") != 0) {
+    exit(-1);
+}
+// sl_open_sl_process(SL_Code as pointer, filename)
+-----
+
+++ Closing a Opened Process and Initialized Process
+You can automatically close a process that has been opened or initialized.
+--------------
+// MAIN:
+if (sl_close_sl_process(&sl_code) == -1) {
+	fprintf(stderr, "close_sl_process failed.");
+	return -1;
+}
+-------
+
++ Example SL Code 
+-----
+import lib.sl
+
+use("io")
+
+var enable_notify = true
+io.print("Hello world", "\n", 10, "\n", true, "\n", false, "\n", 10.1, "\n", 'A', "\n")
+$enable_notify = false # setting false again
+io.print("10 + 200 = ", add(10, 200), "\n")
+----- 
+ 
+For more complex examples, check the examples in the project tree.  
+
++ Hackability
+
+SL lets you tweak and modify things heavily without changing the core language. You can add mathematical expressions, introduce new keywords, or build custom forms using existing structures.
+
+++ Adding a New Expression
+
+(Example taken from `sl_lang.c`)
+
+Every custom expression requires 2 functions:
+
+1) Splitter function: Tells the parser how far your expression spans from start to end. 
+For example:
+-----------
+int find_end_brace(char **tokens, int start, int max_tokens) {
+  int depth = 0;
+
+  for (int i = start; i < max_tokens; i++) {
+    if (tokens[i] == NULL)
+      continue;
+
+    if (tokens[i][0] == '{') {
+      depth++;
+    } else if (tokens[i][0] == '}') {
+      if (depth == 0)
+        return i;
+
+      depth--;
+    }
+  }
+
+  return -1;
+}
+int then_end_splitter(struct SL_Code *code, int *current_token) {
+
+  int tokens =
+      find_end_brace(code->code, (*current_token) + 1, code->token_count);
+  return tokens;
+}
+
+---------
+
+Here, we start at `{` and go all the way to `}`. In case you're wondering why it starts at `{`:
+
+------------
+sl_add_custom_splitter(&sl_code, "{", then_end_splitter);
+----------
+
+We basically told it: when you hit `{`, stop, run this splitter function, and resume parsing from the index returned by the function.
+
+2) Expression evaluator function: Since we're adding a mathematical expression, we need to evaluate it. We define an expression function like this:
+---------
+struct SL_Variable then_end_expression(struct SL_Code *code,
+                                       int *current_token) {
+
+  struct SL_Variable return_val = {0};
+  int old_tokens = code->token_count;
+  int tokens = sl_find_end(code->code, code->types, *current_token,
+                           code->token_count, 0);
+  (*current_token)++;
+  struct SL_Code code_def = *code;
+  code_def.starting_token = *current_token;
+  code_def.token_count = tokens;
+  int start_var_index = code->total_vars;
+  int start_func_index = code->total_funcs;
+  return_val = sl_init_sl_parser(&code_def);
+  code->vars = code_def.vars;
+  code->total_size_v = code_def.total_size_v;
+  code->total_vars = code_def.total_vars;
+  code->funcs = code_def.funcs;
+  code->total_size_f = code_def.total_size_f;
+  code->total_funcs = code_def.total_funcs;
+  code_def.fixed_values = code->fixed_values;
+  code->token_count = old_tokens;
+  sl_clean_local_scope(code, start_var_index, start_func_index);
+  return return_val;
+}
+----------
+
+Then we register the expression function like this:
+
+-----------
+sl_add_custom_expr(&sl_code, "{", then_end_expression);
+-------
+
++++ What did we just do?
+
+We set up internal scopes for `{` and `}`. (Why we use `{` and `}` is to avoid conflicts with core language features like `then` and `end`. If you use `then` and `end`, you may encounter undefined behavior. While it normally works fine in simple code, you cannot support it inside functions because functions search specifically for `end`. Since the main `end` search routine won't account for your custom `then` or any other keywords, it will mistake your block's closing `end` for the function's own `end`. It is recommended to leverage SL's hackability using custom syntax rather than overriding existing language keywords.)
+If you run the code below and it behaves consistently without throwing errors, you're on the right track:
+
+---------------
+use("io", "types")
+
+io.print("$first_number + 10 + $second_number = ",
+{
+    var out = types.str_to_int(io.input("Enter first number: "))
+    return $out
+}
++
+10
++
+{
+    var out = types.str_to_int(io.input("Enter second number: "))
+    return $out
+},
+"\n")
+# result is: 50
+------------------
+
+*(Note: I wrote this with newlines just for readability. Formatting it all on a single line won't break anything.)*
+
+NOTE: Base `SL` does not support curly braces, therefore, you must define a C macro yourself as shown below and register it with your code variable.
+-----------
+#define SPECIAL_TOKENS "()+-/*%^&|=<>,{}"
+
+// MAIN
+sl_code.special_tokens = SPECIAL_TOKENS;
+----------
+
+
+++ Adding a Keyword
+
+Now let's add a keyword. To keep things simple, I won't write a full parser from scratch here. Let's define a function for `for`:
+
+Keep in mind: keywords **cannot** be used inside mathematical expressions. If you need something that works within mathematical expressions, don't use keywords. Keywords are meant for standalone structures with their own custom parsing logic (like `if`, `while`, or `def`).
+
+-------------------
+void for_keyword(struct SL_Code *code, int *current_token) {
+
+  printf("FOR FOUND!");
+}
+------------
+
+Base SL doesn't have a `for` loop, which is why I chose it for this example. You could technically override base language features with your own parsing algorithm, but I wouldn't really recommend doing that.
+
+Here is how you register the keyword:
+
+-----
+sl_add_custom_keyword(&sl_code, "for", for_keyword);
+----
+
+++ Dynamic Management & Runtime Control
+
+You can do these setups via the `use` function in `stdlib.h`, or even design `use` as its own custom keyword, it'll work either way.
+
+All of these extensions can be dynamically registered or removed at runtime. To remove them, use the corresponding `sl_remove_*` functions. Note that removals happen by **index**, not by name, so keeping track of your registered keywords/expressions is up to you.
+
+Example usage:
+
+-----------
+sl_remove_custom_expr(&sl_code, 0);
+sl_remove_custom_splitter(&sl_code, 0);
+sl_remove_custom_keyword(&sl_code, 0);
+-------
+
+If you want to dive deeper into hackability or create a custom dialect on top of SL (without writing a parser from scratch), take a look at `stdlib.h`, `sl.c`, and `sl_lang.c`, or check `sl.h` for available functions and API usage.
+  
++++++++ Thats it! ++++++++++++
+Yes that's it! You've finished the entire wiki.

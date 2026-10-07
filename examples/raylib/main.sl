@@ -1,4 +1,4 @@
-# !Example for linux!
+# Example for LINUX and WINDOWS only.
 # Im not freeing all structs on Close in this example but you need to free them.
 
 import sl_binding.sl

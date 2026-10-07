@@ -1,0 +1,1494 @@
+: :: : : 
+: IO : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("io")
+
+-- FUNCTIONS --
+io.print -> ... | Variable
+Prints formatted variables and lists to stdout. Returns last value.
+
+io.print_raw -> ... | Variable
+Prints raw values without formatting. Useful for raw strings and pointer addresses (%p).
+
+io.input -> [prompt1, prompt2, ...] | STRING (or ERROR)
+Prints optional prompt arguments first, then reads a line from stdin.
+
+io.getchar -> none | CHAR
+Reads a single character from stdin.
+
+io.flush -> none | BOOLEAN (or ERROR)
+Flushes stdout buffer. Returns true or ERROR.
+
+-- USAGE OF ALL FUNCTIONS --
+use("io")
+
+# Formatted print
+io.print("User: ", true, " | Age: ", 25)
+
+# Input with prompt
+var name = io.input("Enter name: ")
+io.print("Hello, ", $name)
+
+# Raw print
+io.print_raw("Raw/Pointer: ", 1024)
+
+# Single char read
+io.print("Continue (y/n)? ")
+var choice = io.getchar()
+
+# Flush buffer
+io.flush()
+
+: : : IO : : : : : : : -
+-------------------------------------------------------
+: :::: : : 
+: FILE : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("file")
+
+-- FUNCTIONS --
+++ FOR STRING ++ 
+
+file.read_to_str -> path | STRING (or ERROR)
+Reads entire text file into a string.
+
+file.write_from_str -> path, content | STRING (or ERROR)
+Overwrites text file with content. Returns written string.
+
+file.append_from_str -> path, content | STRING (or ERROR)
+Appends string content to text file. Returns appended string.
+
+++ OPERATIONS ++ 
+
+file.remove -> path | BOOLEAN (or ERROR)
+Deletes specified file. Returns true.
+
+file.rename -> old_path, new_path | BOOLEAN (or ERROR)
+Renames or moves a file. Returns true.
+
++++ FOR BINARY +++
+
+file.read -> path | BYTES (or ERROR)
+Reads file in binary mode into a BYTES type.
+
+file.write -> path, data | none (or ERROR)
+Overwrites file with BYTES data. Second argument must be BYTES.
+
+file.append -> path, data | none (or ERROR)
+Appends BYTES data to file. Second argument must be BYTES.
+
+-- USAGE OF ALL FUNCTIONS --
+use("file")
+
+# Text file operations
+file.write_from_str("data.txt", "Hello World\n")
+file.append_from_str("data.txt", "New line\n")
+
+# Operations
+var text = file.read_to_str("data.txt")
+file.rename("data.txt", "backup.txt")
+file.remove("backup.txt")
+
+# Binary file operations
+var bin_data = file.read("image.png")
+file.write("copy.png", $bin_data)
+file.append("copy.png", $bin_data)
+
+: : : FILE : : : : : : : -
+-------------------------------------------------------
+: ::::: : : 
+: TYPES : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("types")
+
+-- FUNCTIONS --
+types.str_to_int -> val | INTEGER (or ERROR)
+Converts string to int.
+
+types.int_to_str -> val | STRING (or ERROR)
+Converts int to string.
+
+types.str_to_long -> val | LONG (or ERROR)
+Converts string to long integer.
+
+types.long_to_str -> val | STRING (or ERROR)
+Converts long integer to string.
+
+types.long_to_int -> val | INTEGER (or ERROR)
+Converts long integer to int (checks bounds).
+
+types.int_to_long -> val | LONG (or ERROR)
+Converts int to long integer.
+
+types.int_to_char -> val | CHAR (or ERROR)
+Converts int ASCII value to char.
+
+types.char_to_int -> val | INTEGER (or ERROR)
+Converts char to int ASCII value.
+
+types.char_to_str -> val | STRING (or ERROR)
+Converts char to string.
+
+types.to_lower -> val | STRING or CHAR (or ERROR)
+Converts string or char to lowercase.
+
+types.to_upper -> val | STRING or CHAR (or ERROR)
+Converts string or char to uppercase.
+
+types.typeof -> val | INTEGER
+Returns internal type id of variable.
+
+types.is_int -> val | BOOLEAN
+Checks if variable is int.
+
+types.is_char -> val | BOOLEAN
+Checks if variable is char.
+
+types.is_bool -> val | BOOLEAN
+Checks if variable is bool.
+
+types.is_string -> val | BOOLEAN
+Checks if variable is string.
+
+types.is_double -> val | BOOLEAN
+Checks if variable is double.
+
+types.is_list -> val | BOOLEAN
+Checks if variable is list.
+
+types.is_ptr -> val | BOOLEAN
+Checks if variable is pointer.
+
+types.is_not_initialized -> val | BOOLEAN
+Checks if variable is uninitialized.
+
+types.is_digit -> val | BOOLEAN
+Checks if char or string contains only digits.
+
+types.is_space -> val | BOOLEAN
+Checks if char or string contains only spaces.
+
+types.is_alpha -> val | BOOLEAN
+Checks if char or string contains only letters.
+
+types.is_alnum -> val | BOOLEAN
+Checks if char or string contains only letters or digits.
+
+types.is_upper -> val | BOOLEAN
+Checks if char or string is uppercase.
+
+types.is_lower -> val | BOOLEAN
+Checks if char or string is lowercase.
+
+types.is_punct -> val | BOOLEAN
+Checks if char or string contains only punctuation.
+
+types.is_xdigit -> val | BOOLEAN
+Checks if char or string contains only hex digits.
+
+types.sizeof -> ... | INTEGER (or ERROR)
+Calculates total size in bytes of arguments.
+
+types.pack -> ... | BYTES (or ERROR)
+Packs arguments into raw BYTES buffer.
+
+-- USAGE OF ALL FUNCTIONS --
+use("types")
+
+# Conversions
+var num = types.str_to_int("123")
+var str_num = types.int_to_str(123)
+var long_val = types.str_to_long("9223372036854775807")
+var str_long = types.long_to_str($long_val)
+var int_val = types.long_to_int($long_val)
+var converted_long = types.int_to_long(123)
+var ascii_char = types.int_to_char(65)
+var ascii_val = types.char_to_int('A')
+var char_str = types.char_to_str('A')
+var lower = types.to_lower("HELLO")
+var upper = types.to_upper("hello")
+
+# Type checking
+var type_id = types.typeof($num)
+var check_int = types.is_int($num)
+var check_char = types.is_char('A')
+var check_bool = types.is_bool(true)
+var check_str = types.is_string("text")
+var check_dbl = types.is_double(3.14)
+var check_lst = types.is_list($listvar)
+var check_ptr = types.is_ptr($ptr_var)
+var check_init = types.is_not_initialized($uninit_var)
+
+# Content inspection
+var is_num = types.is_digit("123")
+var is_spc = types.is_space("  ")
+var is_let = types.is_alpha("abc")
+var is_an = types.is_alnum("a12")
+var is_up = types.is_upper("ABC")
+var is_lw = types.is_lower("abc")
+var is_pnc = types.is_punct("!")
+var is_hex = types.is_xdigit("1A")
+
+# Size and packing
+var bytes_count = types.sizeof(123, "hello", true)
+var packed_data = types.pack(123, "hello", true)
+
+++ NOTES
+- Content inspection functions like is_digit work on both single CHAR and whole STRING variables.
+- to_lower and to_upper accept both CHAR and STRING types.
+: : : TYPES : : : : : : : -
+-------------------------------------------------------
+: ::::: : : 
+: BYTES : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("bytes")
+
+-- FUNCTIONS --
+byte.get -> bytes_var, index | CHAR (or ERROR)
+Gets the byte at the specified index as a char.
+
+byte.set -> bytes_var, index, char_val | BYTES (or ERROR)
+Sets the byte at the specified index with a char value and returns a new modified bytes buffer.
+
+byte.size -> bytes_var | INTEGER (or ERROR)
+Returns the size (length) of the bytes buffer.
+
+-- USAGE OF ALL FUNCTIONS --
+use("bytes")
+
+# Byte operations
+var first_byte = byte.get($my_bytes, 0)
+var modified_bytes = byte.set($my_bytes, 0, 'A')
+var total_bytes = byte.size($my_bytes)
+: : : BYTES : : : : : : : -
+-------------------------------------------------------
+: :::::: : : 
+: STRING : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("string")
+
+-- FUNCTIONS --
+string.char_at -> str, index | CHAR (or ERROR)
+Gets the character at the specified index in the string.
+
+string.set_char_at -> str, index, char_val | STRING (or ERROR)
+Sets the character at the specified index with a new char value and returns a new modified string.
+
+string.len -> str | INTEGER (or ERROR)
+Returns the total length (number of characters) of the string.
+
+string.replace -> str, old_sub, new_sub | STRING (or ERROR)
+Replaces all occurrences of a specified substring with a new string and returns the result.
+
+string.startswith -> str, prefix | BOOLEAN (or ERROR)
+Checks if the string starts with the specified prefix. Returns true or false.
+
+string.endswith -> str, suffix | BOOLEAN (or ERROR)
+Checks if the string ends with the specified suffix. Returns true or false.
+
+string.remove_at -> str, index | STRING (or ERROR)
+Removes the character at the specified index and returns the new modified string.
+
+string.index_of -> str, target | INTEGER (or ERROR)
+Returns the first index of the specified character or substring. Returns -1 if not found.
+
+string.split -> str, delimiter | LIST (or ERROR)
+Splits the string into a list of substrings based on the provided delimiter string and returns the list ID.
+
+string.contains -> str, sub | BOOLEAN (or ERROR)
+Checks if the string contains the specified substring. Returns true or false.
+
+string.slice -> str, start, end | STRING (or ERROR)
+Extracts a section of the string from a start index up to an end index and returns it as a new string.
+
+string.reverse -> str | STRING (or ERROR)
+Reverses the characters in the string and returns the new reversed string.
+
+string.trim -> str | STRING (or ERROR)
+Removes leading and trailing whitespace from the string and returns the new string.
+
+-- USAGE OF ALL FUNCTIONS --
+use("string")
+
+# String operations
+var text = "Hello, World!"
+
+var char_val = string.char_at($text, 7)
+var set_char = string.set_char_at($text, 0, 'J')
+var total_len = string.len($text)
+
+var replaced_text = string.replace($text, "World", "Universe")
+var is_start = string.startswith($text, "Hello")
+var is_end = string.endswith($text, "World!")
+
+var removed_text = string.remove_at($text, 5)
+var found_idx = string.index_of($text, "World")
+var split_list = string.split($text, ", ")
+
+var has_sub = string.contains($text, "lo, W")
+var sliced = string.slice($text, 0, 5)
+var reversed = string.reverse($text)
+
+var messy_text = "   spaced out text   "
+var cleaned = string.trim($messy_text)
+: : : STRING : : : : : : : -
+-------------------------------------------------------
+: :::::: : : 
+: ERRORS : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("errors")
+
+-- FUNCTIONS --
+errors.string -> val | VAR
+If the argument is an error or runtime error, prints its raw text to the console and returns a copy of the variable.
+
+errors.return -> msg | ERROR
+Creates and returns a runtime error variable with the specified string message.
+
+errors.bool -> val | BOOLEAN
+Checks if the argument is an error or runtime error. Returns true if it is an error, otherwise false.
+
+errors.panic -> val | VOID
+Prints a panic error message and immediately terminates program execution if the argument is an error.
+
+-- USAGE OF ALL FUNCTIONS --
+use("errors")
+
+# Error handling operations
+var custom_err = errors.return("Critical system failure!")
+
+var is_err = errors.bool($custom_err)
+var logged_err = errors.string($custom_err)
+
+# Will print panic message and terminate execution if custom_err is an error
+errors.panic($custom_err)
+
+: : : ERRORS : : : : : : : -
+-------------------------------------------------------
+: ::: : : 
+: SYS : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("sys")
+
+-- FUNCTIONS --
+sys.exit -> status_code | NORETURN
+Terminates program execution immediately with the specified integer status code.
+
+sys.get_arg -> index | STRING
+Retrieves the command-line argument string at the specified zero-based index.
+
+sys.get_env -> name | STRING
+Retrieves the value of the specified environment variable as a string.
+
+sys.set_env -> name, val | NORETURN
+Sets the specified environment variable to the given string value.
+
+sys.popen -> command | STRING
+Executes the specified shell command and returns its complete standard output as a string.
+
+sys.system -> command | NORETURN
+Executes the specified shell command directly to standard output.
+
+-- USAGE OF ALL FUNCTIONS --
+use("sys")
+
+# System operations
+var arg0 = sys.get_arg(0)
+var path_env = sys.get_env("PATH")
+sys.set_env("MY_VAR", "123")
+var output = sys.popen("echo Hello World")
+
+# Exits process with status code 0
+sys.exit(0)
+
+: : : SYS : : : : : : : -
+-------------------------------------------------------
+: :::: : : 
+: LIST : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("list")
+
+-- FUNCTIONS --
+List.new -> [capacity] | LIST
+Creates and returns a new list with an optional initial capacity.
+
+List.push -> list_var, item1, ... | INTEGER
+Appends one or more items to the specified list.
+
+List.pop -> list_var | VAR
+Removes and returns the last element of the list.
+
+List.peek -> list_var | VAR
+Returns the last element of the list without removing it.
+
+List.set -> list_var, index, value | INTEGER
+Sets the element at the specified index to a new value.
+
+List.get -> list_var, index | VAR
+Retrieves the element at the specified index in the list.
+
+List.remove -> list_var, index | BOOLEAN
+Removes the element at the specified index from the list.
+
+List.find -> list_var, value | INTEGER
+Searches for an item in the list and returns its zero-based index.
+
+List.iter -> list_var | BOOLEAN
+Checks if the list iterator has remaining elements.
+
+List.next -> list_var | VAR
+Returns the current iterator element and advances the iterator index.
+
+List.reverse -> list_var | BOOLEAN
+Reverses the order of elements in the list in place.
+
+List.sort -> list_var | BOOLEAN
+Sorts the elements of the list in place.
+
+List.copy -> list_var | LIST
+Creates and returns an independent copy of the specified list.
+
+List.relative -> list_var, offset | VAR
+Retrieves an element relative to the current iterator position.
+
+List.len -> list_var | INTEGER
+Returns the total number of elements in the list.
+
+-- USAGE OF ALL FUNCTIONS --
+use("list")
+
+# List operations
+var my_list = List.new(10)
+
+List.push($my_list, "apple", "banana", "cherry")
+
+var first_item = List.get($my_list, 0)
+List.set($my_list, 1, "blueberry")
+
+var top_item = List.peek($my_list)
+var popped = List.pop($my_list)
+
+var idx = List.find($my_list, "apple")
+var total_len = List.len($my_list)
+
+List.sort($my_list)
+List.reverse($my_list)
+
+var cloned_list = List.copy($my_list)
+List.remove($my_list, 0)
+
+# Iterating over list
+while List.iter($my_list) then
+    var val = List.next($my_list)
+    var rel_val = List.relative($my_list, -1)
+end
+
+++ NOTES
+The List garbage collector uses a Mark & Sweep algorithm.
+
+++ DISCLAIMER
+Using List.next inside a List.iter loop is mandatory to advance the internal iterator, otherwise, the loop will run infinitely.
++++
+: : : LIST : : : : : : : -
+-------------------------------------------------------
+: ::: : : 
+: NET : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("net")
+
+-- FUNCTIONS --
+net.new_socket -> domain, type, protocol | INTEGER
+Creates and returns a new socket file descriptor.
+
+net.bind -> sockfd, arg1, arg2, [arg3] | VOID
+Binds a socket to a local address and port. (See DIFFERENCES for overloads).
+
+net.listen -> sockfd, backlog | VOID
+Marks the socket as a passive socket to accept incoming connection requests.
+
+net.accept -> sockfd | INTEGER
+Accepts an incoming connection on a listening socket, returning the new client socket file descriptor.
+
+net.recv -> sockfd, [buffer_size], [flags] | STRING
+Receives data from a connected socket. Buffer size defaults to 1024 if omitted.
+
+net.select -> nfds, readfds, writefds, exceptfds, [timeout_ms] | INTEGER
+Monitors multiple file descriptor sets to see if they are ready for I/O operations.
+
+net.new_fd -> NONE | INTEGER
+Allocates a new file descriptor set (fd_set) and returns its internal ID.
+
+net.zero_fd -> fd_id | VOID
+Clears all file descriptors from the specified fd_set.
+
+net.add_fd -> sockfd, fd_id | VOID
+Adds a socket file descriptor to the specified fd_set.
+
+net.check_fd -> sockfd, fd_id | BOOLEAN
+Checks if a socket file descriptor is present in the specified fd_set.
+
+net.remove_fd -> sockfd, fd_id | VOID
+Removes a socket file descriptor from the specified fd_set.
+
+net.resolve -> hostname | STRING
+Resolves a domain name (hostname string) into an IPv4 address string.
+
+net.set_nonblocking -> sockfd | VOID
+Sets the specified socket to non-blocking mode.
+
+net.setsockopt -> sockfd, level, optname, optval | BOOLEAN
+Sets options on the specified socket. Returns true on success.
+
+net.send -> sockfd, data, [flags] | VOID
+Sends a string of data over a connected socket.
+
+net.connect -> sockfd, arg1, arg2, [arg3] | VOID
+Initiates a connection on a socket to a specified address. (See DIFFERENCES for overloads).
+
+net.close -> sockfd | VOID
+Closes the specified socket file descriptor.
+
+-- USAGE OF ALL FUNCTIONS --
+use("net")
+
+# Resolve hostname
+var ip = net.resolve("example.com")
+
+# Create a socket using integer constants
+var server_sock = net.new_socket($AF_INET, $SOCK_STREAM, $IPPROTO_IP)
+
+# Set socket options and non-blocking mode
+net.setsockopt($server_sock, $SOL_SOCKET, $SO_REUSEADDR, 1)
+net.set_nonblocking($server_sock)
+
+# Bind and Listen (Basic Mode)
+net.bind($server_sock, "127.0.0.1", 8080)
+net.listen($server_sock, $SOMAXCONN)
+
+# File descriptor sets for multiplexing
+var read_fd = net.new_fd()
+var write_fd = net.new_fd()
+var except_fd = net.new_fd()
+
+# Manage FD sets
+net.zero_fd($read_fd)
+net.add_fd($server_sock, $read_fd)
+
+# Check and remove FD from a set
+var is_set = net.check_fd($server_sock, $read_fd)
+net.remove_fd($server_sock, $read_fd)
+net.add_fd($server_sock, $read_fd) # Adding back for select
+
+# Select operation (Wait up to 5000ms)
+var active = net.select($server_sock + 1, $read_fd, $write_fd, $except_fd, 5000)
+
+# Accept client connection
+var client_sock = net.accept($server_sock)
+
+# Receive data from client
+var data = net.recv($client_sock, 1024, 0)
+
+# Send data back to client
+net.send($client_sock, "HTTP/1.1 200 OK\r\n\r\n", 0)
+
+# Connect as a client (Basic Mode)
+var out_sock = net.new_socket($AF_INET, $SOCK_STREAM, $IPPROTO_TCP)
+net.connect($out_sock, $ip, 80)
+
+# Clean up resources
+net.close($client_sock)
+net.close($server_sock)
+net.close($out_sock)
+
+-- DIFFERENCES --
+Differences in basic and complex modes for net.connect and net.bind:
+Both functions support argument-based overloading depending on the total arguments provided (3 vs 4).
+
+* Basic Mode (3 arguments):
+  + Usage: net.bind(sockfd, ip_string, port_integer)
+  + Usage: net.connect(sockfd, ip_string, port_integer)
+  + Description: Takes a string representation of an IP address and an integer port. The address family is automatically set to AF_INET internally.
+
+* Complex Mode (4 arguments):
+  + Usage: net.bind(sockfd, family_integer, addr_integer, port_integer)
+  + Usage: net.connect(sockfd, family_integer, addr_integer, port_integer)
+  + Description: Takes integers for the address family, raw address bytes (s_addr), and the port. Required for advanced socket configurations.
+
+++ NOTES
+WinAPI and POSIX API are implemented as the exact same API in this language. There is absolutely no usage difference in the language scope between operating systems.
+
+This is a low-level socket API. It provides the most fundamental network access required by the operating system. It is NOT an HTTP, HTTPS, or high-level networking library implementation.
+
+++ FIXEDS - INTEGER
+$AF_UNSPEC
+$AF_UNIX
+$AF_INET
+$AF_AX25
+$AF_IPX
+$AF_APPLETALK
+$AF_NETROM
+$AF_BRIDGE
+$AF_ATMPVC
+$AF_X25
+$AF_INET6
+$AF_ROSE
+$AF_DECnet
+$AF_NETBEUI
+$AF_SECURITY
+$AF_KEY
+$AF_NETLINK
+$AF_ROUTE
+$AF_PACKET
+$AF_CAN
+$AF_BLUETOOTH
+$AF_ALG
+$AF_VSOCK
+$AF_RDS
+$AF_PPPOX
+$AF_LLC
+$AF_IB
+$AF_MPLS
+$AF_NFC
+$AF_TIPC
+$AF_RXRPC
+$AF_ISDN
+$AF_PHONET
+$AF_IEEE802154
+$AF_CAIF
+$AF_NATIONAL
+$AF_SNA
+$AF_IRDA
+$AF_BTH
+$SOCK_STREAM
+$SOCK_DGRAM
+$SOCK_RAW
+$SOCK_RDM
+$SOCK_SEQPACKET
+$SOCK_NONBLOCK
+$SOCK_CLOEXEC
+$IPPROTO_IP
+$IPPROTO_ICMP
+$IPPROTO_IGMP
+$IPPROTO_GGP
+$IPPROTO_TCP
+$IPPROTO_EGP
+$IPPROTO_PUP
+$IPPROTO_UDP
+$IPPROTO_IDP
+$IPPROTO_TP
+$IPPROTO_DCCP
+$IPPROTO_IPV6
+$IPPROTO_RSVP
+$IPPROTO_GRE
+$IPPROTO_ESP
+$IPPROTO_AH
+$IPPROTO_ICMPV6
+$IPPROTO_NONE
+$IPPROTO_RAW
+$INADDR_ANY
+$INADDR_LOOPBACK
+$INADDR_BROADCAST
+$INADDR_NONE
+$SOMAXCONN
+$SOL_SOCKET
+$SO_DEBUG
+$SO_ACCEPTCONN
+$SO_REUSEADDR
+$SO_REUSEPORT
+$SO_REUSE_UNICASTPORT
+$SO_EXCLUSIVEADDRUSE
+$SO_KEEPALIVE
+$SO_DONTROUTE
+$SO_BROADCAST
+$SO_LINGER
+$SO_DONTLINGER
+$SO_OOBINLINE
+$SO_SNDBUF
+$SO_RCVBUF
+$SO_SNDLOWAT
+$SO_RCVLOWAT
+$SO_SNDTIMEO
+$SO_RCVTIMEO
+$SO_ERROR
+$SO_TYPE
+$SO_MAX_MSG_SIZE
+$SO_MAXDG
+$SO_MAXPATHDG
+$SO_OPENTYPE
+$SO_PROTOCOL_INFOW
+$SO_GROUP_ID
+$SO_GROUP_PRIORITY
+$SO_RANDOMIZE_PORT
+$IP_OPTIONS
+$IP_HDRINCL
+$IP_TOS
+$IP_TTL
+$IP_MULTICAST_IF
+$IP_MULTICAST_TTL
+$IP_MULTICAST_LOOP
+$IP_ADD_MEMBERSHIP
+$IP_DROP_MEMBERSHIP
+$IP_ADD_SOURCE_MEMBERSHIP
+$IP_DROP_SOURCE_MEMBERSHIP
+$IP_BLOCK_SOURCE
+$IP_UNBLOCK_SOURCE
+$IP_DONTFRAGMENT
+$IP_PKTINFO
+$IP_RECEIVE_BROADCAST
+$IP_RECVIF
+$IP_RECVTTL
+$IP_UNICAST_IF
+$IP_MTU
+$IP_MTU_DISCOVER
+$IP_IFLIST
+$IP_ADD_IFLIST
+$IP_DEL_IFLIST
+$IP_GET_IFLIST
+$IP_ORIGINAL_ARRIVAL_IF
+$IP_USER_MTU
+$IP_WFP_REDIRECT_CONTEXT
+$IP_WFP_REDIRECT_RECORDS
+$IPV6_V6ONLY
+$IPV6_UNICAST_HOPS
+$IPV6_UNICAST_IF
+$IPV6_MULTICAST_IF
+$IPV6_MULTICAST_HOPS
+$IPV6_MULTICAST_LOOP
+$IPV6_ADD_MEMBERSHIP
+$IPV6_DROP_MEMBERSHIP
+$IPV6_JOIN_GROUP
+$IPV6_LEAVE_GROUP
+$IPV6_PKTINFO
+$IPV6_HOPLIMIT
+$IPV6_RECVIF
+$IPV6_HDRINCL
+$IPV6_MTU
+$IPV6_MTU_DISCOVER
+$IPV6_PROTECTION_LEVEL
+$IPV6_IFLIST
+$IPV6_ADD_IFLIST
+$IPV6_DEL_IFLIST
+$IPV6_GET_IFLIST
+$IPV6_ORIGINAL_ARRIVAL_IF
+$IPV6_USER_MTU
+$TCP_NODELAY
+$TCP_MAXSEG
+$TCP_KEEPALIVE
+$TCP_KEEPIDLE
+$TCP_KEEPINTVL
+$TCP_KEEPCNT
+$TCP_FASTOPEN
+$TCP_MAXRT
+$TCP_TIMESTAMPS
+$TCP_BSDURGENT
+$TCP_EXPEDITED_1122
+$MSG_OOB
+$MSG_PEEK
+$MSG_DONTROUTE
+$MSG_DONTWAIT
+$MSG_WAITALL
+$MSG_EOR
+$MSG_TRUNC
+$MSG_CTRUNC
+$MSG_ERRQUEUE
+$MSG_NOSIGNAL
+$MSG_MORE
+$MSG_PARTIAL
+: : : NET : : : : : : : -
+-------------------------------------------------------
+: ::::::: : : 
+: CONSOLE : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("console")
+
+-- FUNCTIONS --
+console.clear -> NONE | BOOLEAN
+Clears the console screen buffer.
+
+console.foreground_color -> color | BOOLEAN
+Sets the text foreground color using a fixed color constant.
+
+console.background_color -> color | BOOLEAN
+Sets the text background color using a fixed color constant.
+
+console.reset_color -> NONE | BOOLEAN
+Resets text foreground and background colors to default.
+
+console.cursor_position -> x, y | BOOLEAN
+Moves the cursor to the specified 0-indexed column (x) and row (y) coordinates.
+
+console.cursor_visibility -> visible | BOOLEAN
+Shows or hides the console cursor.
+
+console.raw_mode -> enable | BOOLEAN
+Enables or disables console raw input mode.
+
+console.get_event -> NONE | INTEGER
+Reads the next input event and returns its event type constant.
+
+console.key_event.is_pressed -> NONE | BOOLEAN
+Checks if the current key event represents a key press.
+
+console.key_event.get_key -> NONE | CHAR / INTEGER
+Returns the character or key code for the current key event.
+
+console.key_event.get_mod -> NONE | INTEGER
+Returns the modifier key flags (SHIFT, CTRL, ALT) for the current key event.
+
+console.mouse_event.get_type -> NONE | INTEGER
+Returns the mouse action type constant for the current mouse event.
+
+console.mouse_event.get_x -> NONE | INTEGER
+Returns the X coordinate (column) of the current mouse event.
+
+console.mouse_event.get_y -> NONE | INTEGER
+Returns the Y coordinate (row) of the current mouse event.
+
+console.get_width -> NONE | INTEGER
+Returns the current width of the console buffer in columns.
+
+console.get_height -> NONE | INTEGER
+Returns the current height of the console buffer in rows.
+
+console.enter_alt_screen -> NONE | BOOLEAN
+Switches the terminal display to the alternate screen buffer.
+
+console.leave_alt_screen -> NONE | BOOLEAN
+Exits the alternate screen buffer and restores the primary buffer.
+
+console.clear_line -> [mode] | BOOLEAN
+Clears the current line or a portion of the line based on the mode constant.
+
+console.begin_update -> NONE | BOOLEAN
+Begins synchronized rendering update to prevent screen tearing.
+
+console.end_update -> NONE | BOOLEAN
+Flushes and ends synchronized rendering update.
+
+console.autowrap -> enable | BOOLEAN
+Enables or disables automatic text wrapping at the edge of the terminal.
+
+console.write_at -> x, y, text | BOOLEAN
+Writes a string at the specified 0-indexed x and y coordinates.
+
+console.fill_rect -> x, y, width, height, char | BOOLEAN
+Fills a rectangular region with a specific character starting at x, y.
+
+console.scroll_area -> top, bottom | BOOLEAN
+Sets the vertical scrolling region boundaries between top and bottom lines.
+
+console.scroll_area_reset -> NONE | BOOLEAN
+Resets the vertical scrolling region to the full terminal window.
+
+console.scroll_up -> lines | BOOLEAN
+Scrolls the content within the scroll area up by specified lines.
+
+console.scroll_down -> lines | BOOLEAN
+Scrolls the content within the scroll area down by specified lines.
+
+console.line_up -> NONE | BOOLEAN
+Moves the cursor up by one line.
+
+console.line_down -> NONE | BOOLEAN
+Moves the cursor down by one line.
+
+console.insert_line -> lines | BOOLEAN
+Inserts blank lines at the current cursor position.
+
+console.delete_line -> lines | BOOLEAN
+Deletes lines at the current cursor position.
+
+console.rgb_foreground -> r, g, b | BOOLEAN
+Sets the text foreground color using 24-bit RGB values.
+
+console.rgb_background -> r, g, b | BOOLEAN
+Sets the text background color using 24-bit RGB values.
+
+console.insert_char -> count | BOOLEAN
+Inserts blank characters at the current cursor position.
+
+console.set_title -> title | BOOLEAN
+Sets the terminal window title bar text.
+
+console.delete_char -> count | BOOLEAN
+Deletes characters at the current cursor position.
+
+console.erase_char -> count | BOOLEAN
+Erases characters at the current cursor position without moving the cursor.
+
+console.save_cursor -> NONE | BOOLEAN
+Saves the current cursor position and attributes.
+
+console.load_cursor -> NONE | BOOLEAN
+Restores the previously saved cursor position and attributes.
+
+console.set_style -> ...styles | BOOLEAN
+Applies one or more text formatting style constants.
+
+console.reset_style -> ...styles | BOOLEAN
+Resets one or more specific text formatting styles.
+
+console.underline_color -> [color] | BOOLEAN
+Sets the text underline color using a fixed color constant.
+
+console.rgb_underline_color -> r, g, b | BOOLEAN
+Sets the text underline color using 24-bit RGB values.
+
+console.set_clipboard -> text | BOOLEAN
+Copies a string to the system clipboard using OSC 52 sequence.
+
+-- USAGE OF ALL FUNCTIONS --
+use("console")
+
+# Set window title and enter alternate screen
+console.set_title("Console Demo")
+console.enter_alt_screen()
+
+# Configure cursor and wrap mode
+console.cursor_visibility(false)
+console.autowrap(false)
+
+# Get dimensions
+var width = console.get_width()
+var height = console.get_height()
+
+# Synchronized update rendering
+console.begin_update()
+
+# Clear and fill rect
+console.clear()
+console.fill_rect(0, 0, width, height, " ")
+
+# Styling and standard colors
+console.foreground_color($COLOR_CYAN)
+console.background_color($COLOR_BLACK)
+console.set_style($STYLE_BOLD, $STYLE_UNDERLINE)
+console.underline_color($COLOR_YELLOW)
+console.write_at(2, 2, "Welcome to Console API!")
+console.reset_style($STYLE_BOLD, $STYLE_UNDERLINE)
+
+# RGB colors
+console.rgb_foreground(255, 128, 0)
+console.rgb_background(20, 20, 20)
+console.rgb_underline_color(0, 255, 128)
+console.write_at(2, 4, "RGB Colored Text")
+console.reset_color()
+
+# Cursor position saving and loading
+console.cursor_position(2, 6)
+console.save_cursor()
+console.write_at(2, 6, "Saved position here")
+console.load_cursor()
+
+# Line and character manipulation
+console.cursor_position(2, 8)
+console.insert_char(3)
+console.delete_char(1)
+console.erase_char(2)
+console.insert_line(1)
+console.delete_line(1)
+console.line_up()
+console.line_down()
+
+# Scroll area controls
+console.scroll_area(10, 20)
+console.scroll_up(1)
+console.scroll_down(1)
+console.scroll_area_reset()
+
+# Clear line modes
+console.cursor_position(2, 10)
+console.clear_line($CLEAR_LINE_AFTER_CURSOR)
+
+# Clipboard operation
+console.set_clipboard("Hello from clipboard!")
+
+console.end_update()
+
+# Enable raw mode and process events
+console.raw_mode(true)
+
+var event = console.get_event()
+while true then 
+  if $event equ $KEY_EVENT then
+      var is_pressed = console.key_event.is_pressed()
+      var key = console.key_event.get_key()
+      var mod = console.key_event.get_mod()
+  elif $event equ $MOUSE_EVENT then
+      var mouse_type = console.mouse_event.get_type()
+      var mouse_x = console.mouse_event.get_x()
+      var mouse_y = console.mouse_event.get_y()
+  end
+end
+
+# Clean up resources and exit alternate screen
+console.raw_mode(false)
+console.cursor_visibility(true)
+console.leave_alt_screen()
+
+-- DIFFERENCES --
+WinAPI and POSIX API are implemented as the exact same API in this language. There is absolutely no usage difference in the language scope between operating systems.
+
+The Console Module uses XTERM ANSI standards.
+
+++ FIXEDS - INTEGER
+$CLEAR_LINE_BEFORE_CURSOR
+$CLEAR_LINE_AFTER_CURSOR
+$CLEAR_FROM_CURSOR_TO_SCREEN_END
+$UNDEFINED_EVENT
+$KEY_EVENT
+$MOUSE_EVENT
+$WINDOW_RESIZE
+$KEY_UNKNOWN
+$KEY_CHAR
+$STYLE_BOLD
+$STYLE_DIM
+$STYLE_ITALIC
+$STYLE_UNDERLINE
+$STYLE_BLINK
+$STYLE_RAPID_BLINK
+$STYLE_REVERSE
+$STYLE_HIDDEN
+$STYLE_STRIKETHROUGH
+$STYLE_DOUBLY_UNDERLINE
+$STYLE_FRAMED
+$STYLE_ENCIRCLED
+$STYLE_OVERLINED
+$KEY_ENTER
+$KEY_ESCAPE
+$KEY_BACKSPACE
+$KEY_TAB
+$MOUSE_NONE
+$MOUSE_LEFT_PRESSED
+$MOUSE_RIGHT_PRESSED
+$MOUSE_MIDDLE_PRESSED
+$MOUSE_MOVED
+$MOUSE_DOUBLE_CLICK
+$MOUSE_WHEEL_UP
+$MOUSE_WHEEL_DOWN
+$KEY_UP
+$KEY_DOWN
+$KEY_LEFT
+$KEY_RIGHT
+$KEY_HOME
+$KEY_END
+$KEY_INSERT
+$KEY_DELETE
+$KEY_PAGE_UP
+$KEY_PAGE_DOWN
+$KEY_F1
+$KEY_F2
+$KEY_F3
+$KEY_F4
+$KEY_F5
+$KEY_F6
+$KEY_F7
+$KEY_F8
+$KEY_F9
+$KEY_F10
+$KEY_F11
+$KEY_F12
+$MOD_NONE
+$MOD_SHIFT
+$MOD_CTRL
+$MOD_ALT
+$MOD_SUPER
+$COLOR_DEFAULT
+$COLOR_BLACK
+$COLOR_RED
+$COLOR_GREEN
+$COLOR_YELLOW
+$COLOR_BLUE
+$COLOR_MAGENTA
+$COLOR_CYAN
+$COLOR_WHITE
+$COLOR_BRIGHT_BLACK
+$COLOR_BRIGHT_RED
+$COLOR_BRIGHT_GREEN
+$COLOR_BRIGHT_YELLOW
+$COLOR_BRIGHT_BLUE
+$COLOR_BRIGHT_MAGENTA
+$COLOR_BRIGHT_CYAN
+$COLOR_BRIGHT_WHITE
+: : : CONSOLE : : : : : : : -
+-------------------------------------------------------
+: :::: : : 
+: MATH : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("math")
+
+-- FUNCTIONS --
+math.pow -> base, exp | DOUBLE
+Raises base to the power of exp.
+
+math.sqrt -> value | DOUBLE
+Returns the square root of the specified value.
+
+math.abs -> value | INTEGER / DOUBLE
+Returns the absolute value of an integer or double.
+
+math.floor -> value | DOUBLE
+Returns the largest integer less than or equal to the specified value.
+
+math.ceil -> value | DOUBLE
+Returns the smallest integer greater than or equal to the specified value.
+
+math.round -> value | DOUBLE
+Rounds the specified value to the nearest integer.
+
+math.sin -> value | DOUBLE
+Returns the sine of the specified angle in radians.
+
+math.cos -> value | DOUBLE
+Returns the cosine of the specified angle in radians.
+
+math.tan -> value | DOUBLE
+Returns the tangent of the specified angle in radians.
+
+math.log -> value | DOUBLE
+Returns the natural logarithm of the specified value.
+
+math.log10 -> value | DOUBLE
+Returns the base-10 logarithm of the specified value.
+
+math.min -> a, b | DOUBLE
+Returns the smaller of two numeric values.
+
+math.max -> a, b | DOUBLE
+Returns the larger of two numeric values.
+
+-- USAGE OF ALL FUNCTIONS --
+use("math")
+
+var p = math.pow(2, 3)
+var s = math.sqrt(25)
+var abs_val = math.abs(-10)
+var f = math.floor(4.7)
+var cl = math.ceil(4.2)
+var rnd = math.round(4.5)
+var sn = math.sin(0)
+var cs = math.cos(0)
+var tn = math.tan(0)
+var lg = math.log(2.71828)
+var lg10 = math.log10(100)
+var mn = math.min(3, 7)
+var mx = math.max(3, 7)
+: : : MATH : : : : : : : -
+-------------------------------------------------------
+: :::: : : 
+: TIME : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("time")
+
+-- FUNCTIONS --
+time.now -> NONE | INTEGER
+Returns current Unix timestamp in seconds.
+
+time.string -> [format] | STRING (or ERROR)
+Returns current formatted time string. Default format is "%Y-%m-%d %H:%M:%S".
+
+time.clock -> NONE | DOUBLE
+Returns total CPU time consumed by the program in seconds.
+
+time.sleep -> ms | BOOLEAN (or ERROR)
+Pauses program execution for specified milliseconds. Returns true on success.
+
+time.hour -> NONE | INTEGER
+Returns current local hour (0 to 23).
+
+time.minute -> NONE | INTEGER
+Returns current local minute (0 to 59).
+
+time.second -> NONE | INTEGER
+Returns current local second (0 to 59).
+
+time.diff -> t1, t2 | DOUBLE (or ERROR)
+Calculates difference in seconds between two timestamps (t1 - t2).
+
+time.parse -> date_str | INTEGER (or ERROR)
+Parses date string formatted as 'YYYY-MM-DD HH:MM:SS' into a Unix timestamp integer.
+
+-- USAGE OF ALL FUNCTIONS --
+use("time")
+
+# Current time and formatting
+var ts = time.now()
+var fmt_time = time.string("%H:%M:%S")
+
+# Sleep and CPU clock
+time.sleep(500)
+var cpu_sec = time.clock()
+
+# Individual time parts
+var h = time.hour()
+var m = time.minute()
+var s = time.second()
+
+# Time parsing and difference calculation
+var past_ts = time.parse("2026-01-01 00:00:00")
+var elapsed = time.diff($ts, $past_ts)
+: : : TIME : : : : : : : -
+-------------------------------------------------------
+: ::: : : 
+: DYN : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("dyn")
+
+-- FUNCTIONS --
+dyn.open_lib -> path | POINTER (or ERROR)
+Loads a dynamic native shared library.
+
+dyn.find_symbol -> lib_handle, symbol_name | POINTER (or ERROR)
+Finds and returns memory pointer address of exported symbol or function.
+
+dyn.call -> symbol_ptr, stack_size, return_type, [args...] | VAR
+Calls C dynamic symbol with defined stack size, return type, and variadic arguments.
+
+dyn.free -> lib_handle | BOOLEAN (or ERROR)
+Unloads and releases loaded dynamic library handle.
+
+dyn.create_struct -> total_size, field_count, mode, [type, offset, array_len, ...] | POINTER (or ERROR)
+Allocates dynamic struct definition and memory buffer. Modes: $DYN_STRUCT_VAL, $DYN_STRUCT_PTR, $DYN_STRUCT_REF.
+
+dyn.set_field -> struct_ptr, offset, [type], value | BOOLEAN (or ERROR)
+Sets field value at specified byte offset in struct buffer. Accepts optional explicit casting type.
+
+dyn.get_field -> struct_ptr, offset, type | VAR (or ERROR)
+Reads field value from struct buffer at specified byte offset with expected type constant.
+
+dyn.free_struct -> struct_ptr | BOOLEAN (or ERROR)
+Frees allocated dynamic struct buffer and descriptor metadata.
+
+dyn.ptr -> val | POINTER (or ERROR)
+Converts variable (string, char, int, bool, long) into raw C POINTER address.
+
+-- USAGE OF ALL FUNCTIONS --
+use("dyn")
+
+# Open library and call symbol
+var libc = dyn.open_lib("libc.so.6")
+var printf = dyn.find_symbol($libc, "printf")
+
+dyn.call($printf, 4096, $DYN_INTEGER, "Hello %s!\n", "World")
+
+# Struct allocation and field access
+var struct = dyn.create_struct(
+    $DYN_SIZEOF_INT * 2,
+    2,
+    $DYN_STRUCT_VAL,
+    $DYN_TYPE_INT, $DYN_SIZEOF_INT * 0, 1,
+    $DYN_TYPE_INT, $DYN_SIZEOF_INT * 1, 1
+)
+
+dyn.set_field($struct, $DYN_SIZEOF_INT * 0, 10)
+dyn.set_field($struct, $DYN_SIZEOF_INT * 1, $DYN_TYPE_INT, 20.5)
+
+var fval = dyn.get_field($struct, 0, $DYN_TYPE_INT)
+
+# Convert string or number to pointer
+var raw_ptr = dyn.ptr("text pointer")
+
+# Cleanup
+dyn.free_struct($struct)
+dyn.free($libc)
+
+-- DIFFERENCES --
+Overloading in dyn.set_field based on argument count:
+
+* Standard Mode (3 arguments):
+  + Usage: dyn.set_field(struct_ptr, offset, value)
+  + Description: Writes the value directly into memory using its inferred native type.
+
+* Explicit Type Mode (4 arguments):
+  + Usage: dyn.set_field(struct_ptr, offset, type, value)
+  + Description: Takes an explicit type constant (e.g., $DYN_TYPE_INT) to cast the value before writing it to the struct buffer.
+
+++ FIXEDS - INTEGER
+$DYN_NORETURN
+$DYN_INTEGER
+$DYN_DOUBLE
+$DYN_BOOLEAN
+$DYN_CHAR
+$DYN_STRING
+$DYN_LONG
+$DYN_POINTER
+$DYN_BYTES
+$DYN_TYPE_VOID
+$DYN_TYPE_BOOL
+$DYN_TYPE_CHAR
+$DYN_TYPE_UCHAR
+$DYN_TYPE_SHORT
+$DYN_TYPE_USHORT
+$DYN_TYPE_INT
+$DYN_TYPE_UINT
+$DYN_TYPE_LONG
+$DYN_TYPE_ULONG
+$DYN_TYPE_LONGLONG
+$DYN_TYPE_ULONGLONG
+$DYN_TYPE_FLOAT
+$DYN_TYPE_DOUBLE
+$DYN_TYPE_POINTER
+$DYN_TYPE_STRING
+$DYN_TYPE_AGGREGATE
+$DYN_TYPE_ENDARG
+$DYN_STRUCT_REF
+$DYN_STRUCT_VAL
+$DYN_STRUCT_PTR
+$DYN_SIZEOF_CHAR
+$DYN_SIZEOF_UCHAR
+$DYN_SIZEOF_SHORT
+$DYN_SIZEOF_USHORT
+$DYN_SIZEOF_INT
+$DYN_SIZEOF_UINT
+$DYN_SIZEOF_LONG
+$DYN_SIZEOF_ULONG
+$DYN_SIZEOF_LONGLONG
+$DYN_SIZEOF_ULONGLONG
+$DYN_SIZEOF_FLOAT
+$DYN_SIZEOF_DOUBLE
+$DYN_SIZEOF_POINTER
+
+++ FIXEDS - BOOLEAN
+$SYSTEM_WIN
+$SYSTEM_CYGWIN
+$SYSTEM_MSYS
+$SYSTEM_LINUX
+$SYSTEM_MACOS
+$SYSTEM_IOS
+$SYSTEM_ANDROID
+$SYSTEM_FREEBSD
+$SYSTEM_OPENBSD
+$SYSTEM_NETBSD
+$SYSTEM_DRAGONFLY
+$SYSTEM_SOLARIS
+$SYSTEM_AIX
+$SYSTEM_HPUX
+$SYSTEM_HAIKU
+: : : DYN : : : : : : : -
+-------------------------------------------------------
+: :: : : 
+: DB : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("db")
+
+-- FUNCTIONS --
+db.to_lists -> db_str | LIST (or ERROR)
+Parses structured database text into lists.
+
+db.from_lists -> list1, list2, ... | STRING (or ERROR)
+Serializes multiple lists into database string format.
+
+-- USAGE OF ALL FUNCTIONS --
+use("db")
+# use("list")
+
+var tasks = List.new()
+var status = List.new()
+
+List.push($tasks, "Task 1", "Task 2")
+List.push($status, "Done", "Pending")
+
+var db_text = db.from_lists($tasks, $status)
+var parsed_data = db.to_lists($db_text)
+: : : DB : : : : : : : -
+-------------------------------------------------------
+: ::::::::::: : : 
+: COLLECTIONS : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("collections")
+
+-- FUNCTIONS --
+Collections.create_collection -> name, [field/method_specs...] | VOID
+Registers a custom collection (object-like system) with defined attributes and methods. 
+Automatically creates a constructor function named "<CollectionName>:new".
+
+Collections.get_attr -> instance, attr_name | VAR
+Retrieves value of internal attribute from collection instance.
+
+Collections.set_attr -> instance, attr_name, val | VOID
+Sets value of internal attribute in collection instance.
+
+-- USAGE OF ALL FUNCTIONS --
+use("collections")
+# use("list")
+
+# Define method for collection
+def Custom_add -> key then
+    var key_list = Collections.get_attr($self, "keys")
+    List.push($key_list, $key)
+end
+
+# Create collection definition
+Collections.create_collection("Custom",
+    "v:keys",
+    "f:Custom_add:add"
+)
+
+# Instantiate new object via constructor
+var mymap = Custom:new()
+# Get/Set attr
+$mymap.keys = List.new()
+# Call method on collection
+mymap:add("hello")
+
+++ NOTES
+- Attributes are registered with the prefix "v:" (e.g. "v:keys").
+- Methods/Functions are registered with the prefix "f:" formatted as "f:orig_func_name:method_name" (e.g. "f:Custom_add:add").
+- Calling Collections.create_collection automatically generates a constructor function named "<CollectionName>:new" (e.g. "Custom:new").
+- When an instance is created, attributes are stored in memory as "instance.attr_name" and methods as "instance:method_name".
+- Inside collection methods, the variable "self" automatically refers to the instance name.
+: : : COLLECTIONS : : : : : : : -
+-------------------------------------------------------
+: ::::: : : 
+: ENUMS : : 
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("enums")
+
+-- FUNCTIONS --
+enums.create_enum -> key1, key2, ... | VOID
+Registers enum items as global variables in scope.
+
+-- USAGE OF ALL FUNCTIONS --
+use("enums")
+
+enums.create_enum("STATE_IDLE", "STATE_RUNNING", "STATE_STOPPED")
+
+io.print($STATE_IDLE;)
+
+++ NOTES
+enums.create_enum assigns RANDOM INTEGER values (rand()) to each enum variable, NOT sequential or fixed index values (0, 1, 2...).
+Enum variables are formatted as $ENUM_VARIABLE; where the trailing ';' indicates it is an enum.
+: : : ENUMS : : : : : : : -
+-------------------------------------------------------
+: ::::: : :
+: EXTRA : :
+: : : : : : : : : : : : : : -
+-- INCLUDING --
+use("extra")
+
+-- FUNCTIONS --
+rand.random -> [min, max] | INTEGER / DOUBLE
+Generates a random number. If min and max are provided, returns a random number within the range [min, max].
+
+-- USAGE OF ALL FUNCTIONS --
+use("extra")
+
+# Random number operations
+var random_num = rand.random(1, 100)
+: : : EXTRA : : : : : : : -

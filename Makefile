@@ -42,7 +42,7 @@ OBJECTS_NONET = $(C_SOURCES:.c=.nonet.o) $(ASM_SOURCES:.S=.nonet.o)
 
 DIST_DIR ?= package
 DIST_NAME ?= sl-release
-DIST_FILES = README.md LICENSE.md examples
+DIST_FILES = README.md LICENSE.md examples docs
 
 ifeq ($(OS),Windows_NT)
 	LDFLAGS += -lws2_32
