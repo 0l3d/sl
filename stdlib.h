@@ -797,13 +797,13 @@ struct SL_Variable dyn_set_field_fn(struct SL_Code *code,
   void *dst = (char *)s->data + offset;
 
   if (specific_typed == 1) {
-    if (value.type != CHAR) {
+    if (value.type != INTEGER) {
       return_var.type = ERROR;
-      return_var.vals = "Expected CHAR as type argument to dyn.set_field.";
+      return_var.vals = "Expected INTEGER as type argument to dyn.set_field.";
       return return_var;
     }
     struct SL_Variable value_next = sl_get_argument(*code, func, 3);
-    char type_char = value.valc;
+    DCsigchar type_char = (DCsigchar)value.vali;
     switch (type_char) {
     case DC_SIGCHAR_INT: {
       int v = (int)value_next.vali;
@@ -5596,7 +5596,7 @@ struct SL_Variable enums_create_enum_fn(struct SL_Code *code,
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals =
-        "Error usage at Collections.create_collection! Not enough arguments.";
+        "Error usage at Enums.create_enum! Not enough arguments.";
     return return_var;
   }
   int scope = sl_get_scope(code);
