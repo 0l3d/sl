@@ -7,6 +7,7 @@
  */
 
 #include "libs/dyncall/dyncall/dyncall.h"
+#include "libs/dyncall/dyncallback/dyncall_callback.h"
 #include "libs/dyncall/dynload/dynload.h"
 
 /*
@@ -14,23 +15,23 @@
  */
 #include "sl.h"
 #include <ctype.h>
+#include <errno.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <time.h>
-#include <errno.h>
 
 #if INTMAX_MAX == LLONG_MAX
-    #define dcArgIntMax(vm, v) dcArgLongLong(vm, (long long)(v))
-    #define dcCallIntMax(vm, f) ((intmax_t)dcCallLongLong(vm, f))
+#define dcArgIntMax(vm, v) dcArgLongLong(vm, (long long)(v))
+#define dcCallIntMax(vm, f) ((intmax_t)dcCallLongLong(vm, f))
 #elif INTMAX_MAX == LONG_MAX
-    #define dcArgIntMax(vm, v) dcArgLong(vm, (long)(v))
-    #define dcCallIntMax(vm, f) ((intmax_t)dcCallLong(vm, f))
+#define dcArgIntMax(vm, v) dcArgLong(vm, (long)(v))
+#define dcCallIntMax(vm, f) ((intmax_t)dcCallLong(vm, f))
 #else
-    #error "Unsupported intmax_t mapping"
+#error "Unsupported intmax_t mapping"
 #endif
 
 #ifdef _WIN32
@@ -97,56 +98,54 @@
 #define SL_MOUSE_EVENT 1
 #define SL_WINDOW_RESIZE_EVENT 1
 
-#define SL_KEY_UNKNOWN      256
-#define SL_KEY_CHAR         257
+#define SL_KEY_UNKNOWN 256
+#define SL_KEY_CHAR 257
 
-#define SL_KEY_ENTER        258
-#define SL_KEY_ESCAPE       259
-#define SL_KEY_BACKSPACE    260
-#define SL_KEY_TAB          261
+#define SL_KEY_ENTER 258
+#define SL_KEY_ESCAPE 259
+#define SL_KEY_BACKSPACE 260
+#define SL_KEY_TAB 261
 
-#define SL_KEY_UP           262
-#define SL_KEY_DOWN         263
-#define SL_KEY_LEFT         264
-#define SL_KEY_RIGHT        265
+#define SL_KEY_UP 262
+#define SL_KEY_DOWN 263
+#define SL_KEY_LEFT 264
+#define SL_KEY_RIGHT 265
 
-#define SL_KEY_HOME         266
-#define SL_KEY_END          267
-#define SL_KEY_INSERT       268
-#define SL_KEY_DELETE       269
+#define SL_KEY_HOME 266
+#define SL_KEY_END 267
+#define SL_KEY_INSERT 268
+#define SL_KEY_DELETE 269
 
-#define SL_KEY_PAGE_UP      270
-#define SL_KEY_PAGE_DOWN    271
+#define SL_KEY_PAGE_UP 270
+#define SL_KEY_PAGE_DOWN 271
 
-#define SL_KEY_F1           272
-#define SL_KEY_F2           273
-#define SL_KEY_F3           274
-#define SL_KEY_F4           275
-#define SL_KEY_F5           276
-#define SL_KEY_F6           277
-#define SL_KEY_F7           278
-#define SL_KEY_F8           279
-#define SL_KEY_F9           280
-#define SL_KEY_F10          281
-#define SL_KEY_F11          282
-#define SL_KEY_F12          283
+#define SL_KEY_F1 272
+#define SL_KEY_F2 273
+#define SL_KEY_F3 274
+#define SL_KEY_F4 275
+#define SL_KEY_F5 276
+#define SL_KEY_F6 277
+#define SL_KEY_F7 278
+#define SL_KEY_F8 279
+#define SL_KEY_F9 280
+#define SL_KEY_F10 281
+#define SL_KEY_F11 282
+#define SL_KEY_F12 283
 
+#define SL_MOUSE_NONE 512
+#define SL_MOUSE_LEFT_PRESSED 513
+#define SL_MOUSE_RIGHT_PRESSED 514
+#define SL_MOUSE_MIDDLE_PRESSED 515
+#define SL_MOUSE_MOVED 516
+#define SL_MOUSE_DOUBLE_CLICK 517
+#define SL_MOUSE_WHEEL_UP 518
+#define SL_MOUSE_WHEEL_DOWN 519
 
-#define SL_MOUSE_NONE            512
-#define SL_MOUSE_LEFT_PRESSED    513
-#define SL_MOUSE_RIGHT_PRESSED   514
-#define SL_MOUSE_MIDDLE_PRESSED  515
-#define SL_MOUSE_MOVED           516
-#define SL_MOUSE_DOUBLE_CLICK    517
-#define SL_MOUSE_WHEEL_UP        518
-#define SL_MOUSE_WHEEL_DOWN      519
-
-
-#define SL_MOD_NONE          0
-#define SL_MOD_SHIFT         (1 << 0)
-#define SL_MOD_CTRL          (1 << 1)
-#define SL_MOD_ALT           (1 << 2)
-#define SL_MOD_SUPER         (1 << 3)
+#define SL_MOD_NONE 0
+#define SL_MOD_SHIFT (1 << 0)
+#define SL_MOD_CTRL (1 << 1)
+#define SL_MOD_ALT (1 << 2)
+#define SL_MOD_SUPER (1 << 3)
 
 #define SL_COLOR_DEFAULT 0
 #define SL_COLOR_BLACK 1
@@ -535,10 +534,300 @@ struct SL_DynStruct {
   int mode;
 };
 
+struct SL_DynCallback_Ctx {
+  struct SL_Code *code;
+  char *func_name;
+  char *signature;
+};
+
+struct SL_Variable sl_run_callback_function(struct SL_Code *code,
+                                            const char *name,
+                                            struct SL_Variable *args,
+                                            int arg_count) {
+  int function_number = -1;
+  struct SL_Variable return_val = {0};
+  unsigned long hash = sl_hash_string(name);
+
+  for (int i = 0; i < code->total_funcs; i++) {
+    if (code->funcs[i].hash == hash) {
+      if (strcmp(code->funcs[i].name, name) == 0) {
+        function_number = i;
+        break;
+      }
+    }
+  }
+
+  if (function_number == -1) {
+    return_val.type = ERROR;
+    return_val.vali = 0;
+    return return_val;
+  }
+
+  int start_var_index = code->total_vars;
+  int start_func_index = code->total_funcs;
+  struct SL_Function function = code->funcs[function_number];
+  struct SL_L_Function lfunc = {0};
+
+  int safe_alloc_count = (arg_count > 0) ? arg_count : 1;
+  lfunc.argument_indexes = scalloc(safe_alloc_count, sizeof(int));
+  lfunc.starting_index = code->total_vars;
+
+  for (int i = 0; i < arg_count; i++) {
+    if (code->total_vars >= code->total_size_v) {
+      return_val.type = ERROR;
+      return_val.vali = 5;
+      free(lfunc.argument_indexes);
+      return return_val;
+    }
+
+    code->vars[code->total_vars] = args[i];
+
+    if (function.linked_function == 1) {
+      lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
+      code->vars[code->total_vars].name = NULL;
+      if (args[i].name != NULL) {
+        code->vars[code->total_vars].name = strdup(args[i].name);
+      }
+      lfunc.total_arguments++;
+    } else {
+      if (function.total_arguments <= i && function.vaargs == 1) {
+        char function_name[256];
+        snprintf(function_name, sizeof(function_name), "%s_VA_ARGUMENT_%d",
+                 function.name, i);
+        code->vars[code->total_vars].name = strdup(function_name);
+        code->vars[code->total_vars].hash = sl_hash_string(function_name);
+      } else if (i < function.total_arguments) {
+        if (function.arguments[i].name != NULL) {
+          code->vars[code->total_vars].name =
+              strdup(function.arguments[i].name);
+        } else {
+          code->vars[code->total_vars].name = NULL;
+        }
+        code->vars[code->total_vars].hash = function.arguments[i].hash;
+      }
+    }
+    code->total_vars++;
+  }
+
+  if (function.linked_function == 1) {
+    return_val = function.funcr(code, lfunc, function);
+  } else {
+    struct SL_Code code_def = *code;
+    code_def.code = function.code_tokens;
+    code_def.types = function.types;
+    code_def.fixed_values = function.fixed_values;
+    code_def.token_count = function.code_len;
+    code_def.scope_depth = code->scope_depth + 1;
+
+    return_val = sl_init_sl_parser(&code_def);
+
+    code->vars = code_def.vars;
+    code->total_size_v = code_def.total_size_v;
+    code->total_vars = code_def.total_vars;
+    code->funcs = code_def.funcs;
+    code->total_size_f = code_def.total_size_f;
+    code->total_funcs = code_def.total_funcs;
+  }
+
+  sl_clean_local_scope(code, start_var_index, start_func_index);
+
+  if (lfunc.argument_indexes != NULL) {
+    free(lfunc.argument_indexes);
+  }
+
+  return return_val;
+}
+
+static char sl_universal_callback_handler(DCCallback *cb, DCArgs *args,
+                                          DCValue *result, void *userdata) {
+  struct SL_DynCallback_Ctx *ctx = (struct SL_DynCallback_Ctx *)userdata;
+  const char *sig = ctx->signature;
+
+  int arg_count = 0;
+  while (sig[arg_count] && sig[arg_count] != ')') {
+    arg_count++;
+  }
+
+  if (sig[arg_count] != ')') {
+    return DC_SIGCHAR_VOID;
+  }
+
+  struct SL_Variable *script_args =
+      smalloc(sizeof(struct SL_Variable) * (arg_count > 0 ? arg_count : 1));
+
+  for (int i = 0; i < arg_count; i++) {
+    memset(&script_args[i], 0, sizeof(struct SL_Variable));
+    switch (sig[i]) {
+    case DC_SIGCHAR_INT:
+      script_args[i].type = INTEGER;
+      script_args[i].vali = dcbArgInt(args);
+      break;
+    case DC_SIGCHAR_DOUBLE:
+      script_args[i].type = DOUBLE;
+      script_args[i].valf = dcbArgDouble(args);
+      break;
+    case DC_SIGCHAR_FLOAT:
+      script_args[i].type = DOUBLE;
+      script_args[i].valf = (double)dcbArgFloat(args);
+      break;
+    case DC_SIGCHAR_POINTER:
+      script_args[i].type = POINTER;
+      script_args[i].valp = dcbArgPointer(args);
+      break;
+    case DC_SIGCHAR_STRING: {
+      char *c_str = (char *)dcbArgPointer(args);
+      script_args[i].type = STRING;
+      script_args[i].vals = c_str ? sl_quote_string(c_str) : NULL;
+      break;
+    }
+    case DC_SIGCHAR_BOOL:
+      script_args[i].type = BOOLEAN;
+      script_args[i].valb = dcbArgBool(args);
+      break;
+    case DC_SIGCHAR_CHAR:
+      script_args[i].type = CHAR;
+      script_args[i].valc = dcbArgChar(args);
+      break;
+    case DC_SIGCHAR_LONG:
+    case DC_SIGCHAR_LONGLONG:
+      script_args[i].type = LONG;
+      script_args[i].valh = dcbArgLongLong(args);
+      break;
+    default:
+      script_args[i].type = INTEGER;
+      script_args[i].vali = 0;
+      break;
+    }
+  }
+
+  struct SL_Variable script_result = sl_run_callback_function(
+      ctx->code, ctx->func_name, script_args, arg_count);
+
+  free(script_args);
+
+  char return_sig = sig[arg_count + 1];
+
+  switch (return_sig) {
+  case DC_SIGCHAR_INT:
+    result->i = script_result.vali;
+    break;
+  case DC_SIGCHAR_DOUBLE:
+    result->d = script_result.valf;
+    break;
+  case DC_SIGCHAR_FLOAT:
+    result->f = (float)script_result.valf;
+    break;
+  case DC_SIGCHAR_POINTER:
+    result->p = script_result.valp;
+    break;
+  case DC_SIGCHAR_STRING:
+    result->p = script_result.vals;
+    break;
+  case DC_SIGCHAR_BOOL:
+    result->B = script_result.valb;
+    break;
+  case DC_SIGCHAR_CHAR:
+    result->c = script_result.valc;
+    break;
+  case DC_SIGCHAR_LONG:
+  case DC_SIGCHAR_LONGLONG:
+    result->l = script_result.valh;
+    break;
+  case DC_SIGCHAR_VOID:
+    break;
+  }
+
+  return return_sig;
+}
+
+struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
+                                          struct SL_L_Function func,
+                                          struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 2) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.create_callback";
+    return return_var;
+  }
+
+  struct SL_Variable sig_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable target_func = sl_get_argument(*code, func, 1);
+
+  if (sig_arg.type != STRING || target_func.type != STRING) {
+    return_var.type = ERROR;
+    return_var.vals = "Expected STRING signature and STRING function name";
+    return return_var;
+  }
+
+  struct SL_DynCallback_Ctx *ctx = smalloc(sizeof(struct SL_DynCallback_Ctx));
+
+  ctx->code = code;
+
+  char *raw_sig = sl_string_getter(sig_arg.vals);
+  ctx->signature = strdup(raw_sig);
+  free(raw_sig);
+
+  char *raw_func_name = sl_string_getter(target_func.vals);
+  ctx->func_name = strdup(raw_func_name);
+  free(raw_func_name);
+
+  DCCallback *cb =
+      dcbNewCallback(ctx->signature, sl_universal_callback_handler, ctx);
+
+  if (!cb) {
+    free(ctx->signature);
+    free(ctx->func_name);
+    free(ctx);
+    return_var.type = ERROR;
+    return_var.vals = "dcbNewCallback failed";
+    return return_var;
+  }
+  return_var.type = POINTER;
+  return_var.valp = cb;
+  return_var.info = 100;
+
+  return return_var;
+}
+
+struct SL_Variable dyn_free_callback_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 1) {
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at dyn.free_callback";
+    return return_var;
+  }
+
+  struct SL_Variable cb_arg = sl_get_argument(*code, func, 0);
+
+  if (cb_arg.type != POINTER || !cb_arg.valp) {
+    return_var.type = ERROR;
+    return_var.vals = "Invalid callback pointer";
+    return return_var;
+  }
+
+  DCCallback *cb = (DCCallback *)cb_arg.valp;
+  struct SL_DynCallback_Ctx *ctx =
+      (struct SL_DynCallback_Ctx *)dcbGetUserData(cb);
+
+  if (ctx) {
+    free(ctx->signature);
+    free(ctx->func_name);
+    free(ctx);
+  }
+
+  dcbFreeCallback(cb);
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
 static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
   struct SL_DynStruct *s = smalloc(sizeof(*s));
-  if (!s)
-    return NULL;
 
   s->aggr = NULL;
   s->data = NULL;
@@ -547,20 +836,11 @@ static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
 
   if (mode == SL_DYN_STRUCT_PTR) {
     s->data = smalloc(sizeof(void *));
-    if (!s->data) {
-      free(s);
-      return NULL;
-    }
 
     *(void **)s->data = NULL;
 
   } else if (mode == SL_DYN_STRUCT_REF) {
     s->data = smalloc(size);
-    if (!s->data) {
-      free(s);
-      return NULL;
-    }
-
     memset(s->data, 0, size);
   }
 
@@ -580,8 +860,6 @@ static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
   if (s->size == 0)
     return 0;
   s->data = smalloc(s->size);
-  if (!s->data)
-    return 0;
   memset(s->data, 0, s->size);
   return 1;
 }
@@ -643,7 +921,6 @@ struct SL_Variable dyn_create_struct_fn(struct SL_Code *code,
   struct SL_Variable total_size_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable field_count_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable mode_arg = sl_get_argument(*code, func, 2);
-
   if (total_size_arg.type != INTEGER || field_count_arg.type != INTEGER ||
       mode_arg.type != INTEGER) {
     return_var.type = ERROR;
@@ -1262,7 +1539,6 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
 
   dcMode(vm, DC_CALL_C_DEFAULT);
   dcReset(vm);
-
   int arg_count = func.total_arguments - 3;
   int alloc_capacity = arg_count > 0 ? arg_count : 4;
   char **allocated_strings = smalloc(alloc_capacity * sizeof(char *));
@@ -1270,7 +1546,6 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
 
   for (int i = 3; i < func.total_arguments; i++) {
     struct SL_Variable arg = sl_get_argument(*code, func, i);
-
     switch (arg.type) {
     case INTEGER:
       dcArgInt(vm, arg.vali);
@@ -1536,8 +1811,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
             sl_console_write(&list.vars[j].valc, 1);
             break;
           case LONG:
-            length = snprintf(buffer, sizeof(buffer), "%jd",
-                              list.vars[j].valh);
+            length = snprintf(buffer, sizeof(buffer), "%jd", list.vars[j].valh);
             if (length > 0)
               sl_console_write(buffer, (size_t)length);
             break;
@@ -2561,8 +2835,7 @@ struct SL_Variable str_to_long_fn(struct SL_Code *code,
 
   if (func.total_arguments < 1) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at types.str_to_long! Not enough arguments.";
+    return_var.vals = "Error usage at types.str_to_long! Not enough arguments.";
     return return_var;
   }
 
@@ -2604,8 +2877,7 @@ struct SL_Variable long_to_str_fn(struct SL_Code *code,
 
   if (func.total_arguments < 1) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at types.long_to_str! Not enough arguments.";
+    return_var.vals = "Error usage at types.long_to_str! Not enough arguments.";
     return return_var;
   }
 
@@ -2630,7 +2902,6 @@ struct SL_Variable long_to_str_fn(struct SL_Code *code,
   return_var.type = STRING;
   return return_var;
 }
-
 
 struct SL_Variable typeof_fn(struct SL_Code *code, struct SL_L_Function func,
                              struct SL_Function rfunc) {
@@ -4288,7 +4559,7 @@ struct SL_Variable sys_get_env_fn(struct SL_Code *code,
     return_var.type = ERROR;
     return_var.vals = "Error usage at sys.get_env! Not enough arguments.";
     return return_var;
-  }					  
+  }
   struct SL_Variable return_var = {0};
   struct SL_Variable arg = sl_get_argument(*code, func, 0);
 
@@ -4316,12 +4587,12 @@ struct SL_Variable sys_get_env_fn(struct SL_Code *code,
 struct SL_Variable sys_set_env_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
-   if (func.total_arguments < 2) {
+  if (func.total_arguments < 2) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at sys.set_env! Not enough arguments.";
     return return_var;
-  }			
+  }
   struct SL_Variable return_var = {0};
   struct SL_Variable name_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable value_arg = sl_get_argument(*code, func, 1);
@@ -4357,14 +4628,14 @@ struct SL_Variable sys_set_env_fn(struct SL_Code *code,
 }
 
 struct SL_Variable sys_system_fn(struct SL_Code *code,
-                                  struct SL_L_Function func,
-                                  struct SL_Function rfunc) {
-   if (func.total_arguments < 1) {
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at sys.system! Not enough arguments.";
     return return_var;
-  }			
+  }
   struct SL_Variable return_var = {0};
   struct SL_Variable comm = sl_get_argument(*code, func, 0);
 
@@ -4379,14 +4650,13 @@ struct SL_Variable sys_system_fn(struct SL_Code *code,
   free(command);
 
   if (out != 0) {
-  	return_var.vals = "Failed to run command on sys.system.";
-	return_var.type = ERROR;
-	return return_var;
+    return_var.vals = "Failed to run command on sys.system.";
+    return_var.type = ERROR;
+    return return_var;
   }
 
   return return_var;
 }
-
 
 struct SL_Variable sys_popen_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
@@ -5224,7 +5494,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
         snprintf(item_str, sizeof(item_str), "%c", item.valc);
         break;
       case LONG:
-        snprintf(item_str, sizeof(item_str), "%jd" , item.valh);
+        snprintf(item_str, sizeof(item_str), "%jd", item.valh);
         break;
       default:
         break;
@@ -5539,6 +5809,12 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
         link_name = actual_name;
 
       struct SL_Function *link_func_p = sl_get_func(code, actual_name);
+      if (link_func_p == NULL) {
+        fprintf(stderr,
+                "Collections.create_collection: Function not found, name: %s\n",
+                actual_name);
+        exit(EXIT_FAILURE);
+      }
       struct SL_Function link_func = sl_copy_function(*link_func_p);
       /* [var] [self] [=] ["attr_name"] 4 more tokens */
       int old_len = link_func.code_len;
@@ -5595,8 +5871,7 @@ struct SL_Variable enums_create_enum_fn(struct SL_Code *code,
   if (func.total_arguments < 0) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at Enums.create_enum! Not enough arguments.";
+    return_var.vals = "Error usage at Enums.create_enum! Not enough arguments.";
     return return_var;
   }
   int scope = sl_get_scope(code);
@@ -9825,8 +10100,10 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_fixed_int(code, "DYN_SIZEOF_FLOAT", sizeof(float));
       sl_add_fixed_int(code, "DYN_SIZEOF_DOUBLE", sizeof(double));
       sl_add_fixed_int(code, "DYN_SIZEOF_POINTER", sizeof(void *));
-      sl_add_func(code, "dyn.open_lib", dyn_open_lib_fn);
+      sl_add_func(code, "dyn.create_callback", dyn_create_callback_fn);
+      sl_add_func(code, "dyn.free_callback", dyn_free_callback_fn);
       sl_add_func(code, "dyn.create_struct", dyn_create_struct_fn);
+      sl_add_func(code, "dyn.open_lib", dyn_open_lib_fn);
       sl_add_func(code, "dyn.set_field", dyn_set_field_fn);
       sl_add_func(code, "dyn.get_field", dyn_get_field_fn);
       sl_add_func(code, "dyn.ptr", dyn_ptr_fn);
@@ -9880,10 +10157,10 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.char_to_int", char_to_int_fn);
       sl_add_func(code, "types.char_to_str", char_to_str_fn);
       sl_add_func(code, "types.int_to_str", int_to_str_fn);
-	  sl_add_func(code, "types.str_to_long", str_to_long_fn);
-	  sl_add_func(code, "types.long_to_str", long_to_str_fn);
-	  sl_add_func(code, "types.int_to_long", int_to_long_fn);
-	  sl_add_func(code, "types.long_to_int", long_to_int_fn);
+      sl_add_func(code, "types.str_to_long", str_to_long_fn);
+      sl_add_func(code, "types.long_to_str", long_to_str_fn);
+      sl_add_func(code, "types.int_to_long", int_to_long_fn);
+      sl_add_func(code, "types.long_to_int", long_to_int_fn);
 
       /* TYPE CHECK */
       sl_add_func(code, "types.is_int", is_int_fn);
@@ -9919,7 +10196,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "sys.get_arg", sys_get_arg_fn);
       sl_add_func(code, "sys.exit", sys_exit_fn);
       sl_add_func(code, "sys.get_env", sys_get_env_fn);
-	  sl_add_func(code, "sys.set_env", sys_set_env_fn);
+      sl_add_func(code, "sys.set_env", sys_set_env_fn);
       sl_add_func(code, "sys.popen", sys_popen_fn);
       sl_add_func(code, "sys.system", sys_system_fn);
     } else if (strcmp(libstr, "errors") == 0) {

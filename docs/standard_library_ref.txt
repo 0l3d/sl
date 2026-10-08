@@ -1260,6 +1260,12 @@ Calls C dynamic symbol with defined stack size, return type, and variadic argume
 dyn.free -> lib_handle | BOOLEAN (or ERROR)
 Unloads and releases loaded dynamic library handle.
 
+dyn.create_callback -> signature, func_name | POINTER (or ERROR)
+Creates a dynamic C callback pointer that routes to a defined script function based on a signature string.
+
+dyn.free_callback -> callback_ptr | BOOLEAN (or ERROR)
+Frees a previously allocated dynamic callback pointer and its internal context.
+
 dyn.create_struct -> total_size, field_count, mode, [type, offset, array_len, ...] | POINTER (or ERROR)
 Allocates dynamic struct definition and memory buffer. Modes: $DYN_STRUCT_VAL, $DYN_STRUCT_PTR, $DYN_STRUCT_REF.
 
@@ -1304,6 +1310,12 @@ var raw_ptr = dyn.ptr("text pointer")
 # Cleanup
 dyn.free_struct($struct)
 dyn.free($libc)
+
+++ NOTES
+For callback signatures in dyn.create_callback (like "idp)s" or "idZ)i"), refer to dyncall's DC_SIGCHAR formatting standards. 
+You can check the "PROJECT_TREE\libs\dyncall\dyncall\dyncall_signature.h" file or documentation for the exact character mapping of native C types.
+
+For more usage examples, check the examples folder.
 
 -- DIFFERENCES --
 Overloading in dyn.set_field based on argument count:
