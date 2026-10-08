@@ -1294,6 +1294,398 @@ set_oob:
   return return_var;
 }
 
+struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at dyn.set_ptr_field! Not enough arguments.";
+    return return_var;
+  }
+
+  int specific_typed = 0;
+
+  if (func.total_arguments == 4) {
+    specific_typed = 1;
+  }
+
+  struct SL_Variable ptr_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable value = sl_get_argument(*code, func, 2);
+
+  if (ptr_arg.type != POINTER || offset_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected POINTER and INTEGER as first and second argument "
+        "to dyn.set_ptr_field.";
+    return return_var;
+  }
+
+  if (!ptr_arg.valp) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Null pointer on dyn.set_ptr_field.";
+    return return_var;
+  }
+
+  int offset = offset_arg.vali;
+
+  if (offset < 0) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Negative offset on dyn.set_ptr_field.";
+    return return_var;
+  }
+
+  void *dst = (unsigned char *)ptr_arg.valp + offset;
+
+  if (specific_typed == 1) {
+    if (value.type != INTEGER) {
+      return_var.type = ERROR;
+      return_var.vals =
+          "Expected INTEGER as type argument to dyn.set_ptr_field.";
+      return return_var;
+    }
+
+    struct SL_Variable value_next =
+        sl_get_argument(*code, func, 3);
+
+    DCsigchar type_char = (DCsigchar)value.vali;
+
+    switch (type_char) {
+
+    case DC_SIGCHAR_INT: {
+      int v = (int)value_next.vali;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_UINT: {
+      unsigned int v = (unsigned int)value_next.vali;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_DOUBLE: {
+      double v = value_next.valf;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_FLOAT: {
+      float v = (float)value_next.valf;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_BOOL: {
+      int v = (int)value_next.valb;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_CHAR: {
+      char v = (char)value_next.valc;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_LONG: {
+      intmax_t v = value_next.valh;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_ULONG: {
+      uintmax_t v = (uintmax_t)value_next.valh;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_LONGLONG: {
+      long long v = (long long)value_next.valh;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_ULONGLONG: {
+      unsigned long long v =
+          (unsigned long long)value_next.valh;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_POINTER: {
+      void *v = value_next.valp;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DC_SIGCHAR_STRING: {
+      char *v = value_next.vals;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    default:
+      return_var.type = ERROR;
+      return_var.vals =
+          "Unsupported type requested on dyn.set_ptr_field.";
+      return return_var;
+    }
+
+  } else {
+
+    switch (value.type) {
+
+    case INTEGER: {
+      int v = value.vali;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case DOUBLE: {
+      double v = value.valf;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case BOOLEAN: {
+      int v = value.valb;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case CHAR: {
+      char v = value.valc;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case LONG: {
+      intptr_t v = (intptr_t)value.valh;
+      memcpy(dst, &v, sizeof(v));
+      break;
+    }
+
+    case POINTER: {
+      void *ptr_to_store = value.valp;
+
+      if (value.info == SL_DYN_STRUCT_PTR ||
+          value.info == SL_DYN_STRUCT_VAL ||
+          value.info == SL_DYN_STRUCT_REF) {
+
+        struct SL_DynStruct *maybe =
+            (struct SL_DynStruct *)value.valp;
+
+        if (!maybe || !maybe->aggr) {
+          return_var.type = ERROR;
+          return_var.vals =
+              "Invalid dyn struct pointer on dyn.set_ptr_field.";
+          return return_var;
+        }
+
+        if (maybe->mode == SL_DYN_STRUCT_PTR) {
+
+          if (!maybe->data) {
+            return_var.type = ERROR;
+            return_var.vals =
+                "Invalid PTR-mode dyn struct data.";
+            return return_var;
+          }
+
+          ptr_to_store = *(void **)maybe->data;
+
+        } else {
+
+          if (!sl_dynstruct_ensure_buffer(maybe)) {
+            return_var.type = ERROR;
+            return_var.vals =
+                "Nested dyn struct has no instance buffer "
+                "on dyn.set_ptr_field.";
+            return return_var;
+          }
+
+          ptr_to_store = maybe->data;
+        }
+      }
+
+      memcpy(dst, &ptr_to_store, sizeof(void *));
+      break;
+    }
+
+    case STRING: {
+      char *v = value.vals ? strdup(value.vals) : NULL;
+      memcpy(dst, &v, sizeof(char *));
+      break;
+    }
+
+    case BYTES: {
+      if (value.vals == NULL || value.length == 0)
+        break;
+
+      memcpy(dst, value.vals, value.length);
+      break;
+    }
+
+    default:
+      return_var.type = ERROR;
+      return_var.vals =
+          "Unsupported value type on dyn.set_ptr_field.";
+      return return_var;
+    }
+  }
+
+  return_var.type = BOOLEAN;
+  return_var.valb = 1;
+  return return_var;
+}
+
+struct SL_Variable dyn_get_ptr_field_fn(struct SL_Code *code,
+                                        struct SL_L_Function func,
+                                        struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
+  if (func.total_arguments < 3) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Error usage at dyn.get_ptr_field! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable ptr_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
+  struct SL_Variable type_arg = sl_get_argument(*code, func, 2);
+
+  if (ptr_arg.type != POINTER ||
+      offset_arg.type != INTEGER ||
+      type_arg.type != INTEGER) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected POINTER, INTEGER and INTEGER as first, second, "
+        "third arguments to dyn.get_ptr_field.";
+    return return_var;
+  }
+
+  if (!ptr_arg.valp) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Null pointer on dyn.get_ptr_field.";
+    return return_var;
+  }
+
+  int offset = offset_arg.vali;
+
+  if (offset < 0) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Negative offset on dyn.get_ptr_field.";
+    return return_var;
+  }
+
+  unsigned char *base = (unsigned char *)ptr_arg.valp;
+  void *src = base + offset;
+
+  DCsigchar type_char = (DCsigchar)type_arg.vali;
+
+  switch (type_char) {
+
+  case DC_SIGCHAR_INT:
+  case DC_SIGCHAR_UINT: {
+    int v = 0;
+    memcpy(&v, src, sizeof(int));
+
+    return_var.type = INTEGER;
+    return_var.vali = v;
+    break;
+  }
+
+  case DC_SIGCHAR_DOUBLE: {
+    double v = 0.0;
+    memcpy(&v, src, sizeof(double));
+
+    return_var.type = DOUBLE;
+    return_var.valf = v;
+    break;
+  }
+
+  case DC_SIGCHAR_BOOL: {
+    int v = 0;
+    memcpy(&v, src, sizeof(int));
+
+    return_var.type = BOOLEAN;
+    return_var.valb = v;
+    break;
+  }
+
+  case DC_SIGCHAR_CHAR: {
+    char v = 0;
+    memcpy(&v, src, sizeof(char));
+
+    return_var.type = CHAR;
+    return_var.valc = v;
+    break;
+  }
+
+  case DC_SIGCHAR_LONG:
+  case DC_SIGCHAR_ULONG: {
+    intptr_t v = 0;
+    memcpy(&v, src, sizeof(intptr_t));
+
+    return_var.type = LONG;
+    return_var.valh = v;
+    break;
+  }
+
+  case DC_SIGCHAR_POINTER:
+  case DC_SIGCHAR_STRING: {
+    void *v = NULL;
+    memcpy(&v, src, sizeof(void *));
+
+    return_var.type = POINTER;
+    return_var.valp = v;
+    break;
+  }
+
+  case DC_SIGCHAR_FLOAT: {
+    float v = 0.0f;
+    memcpy(&v, src, sizeof(float));
+
+    return_var.type = DOUBLE;
+    return_var.valf = (double)v;
+    break;
+  }
+
+  case DC_SIGCHAR_LONGLONG:
+  case DC_SIGCHAR_ULONGLONG: {
+    long long v = 0;
+    memcpy(&v, src, sizeof(long long));
+
+    return_var.type = LONG;
+    return_var.valh = v;
+    break;
+  }
+
+  case DC_SIGCHAR_AGGREGATE: {
+    return_var.type = POINTER;
+    return_var.valp = src;
+    break;
+  }
+
+  default: {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Unsupported type requested on dyn.get_ptr_field!";
+    break;
+  }
+  }
+
+  return return_var;
+}
+
 struct SL_Variable dyn_get_field_fn(struct SL_Code *code,
                                     struct SL_L_Function func,
                                     struct SL_Function rfunc) {
@@ -10108,6 +10500,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "dyn.create_struct", dyn_create_struct_fn);
       sl_add_func(code, "dyn.open_lib", dyn_open_lib_fn);
       sl_add_func(code, "dyn.set_field", dyn_set_field_fn);
+      sl_add_func(code, "dyn.get_ptr_field", dyn_get_ptr_field_fn);
       sl_add_func(code, "dyn.get_field", dyn_get_field_fn);
       sl_add_func(code, "dyn.ptr", dyn_ptr_fn);
       sl_add_func(code, "dyn.free_struct", dyn_free_struct_fn);

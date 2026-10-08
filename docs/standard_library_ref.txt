@@ -1275,6 +1275,12 @@ Sets field value at specified byte offset in struct buffer. Accepts optional exp
 dyn.get_field -> struct_ptr, offset, type | VAR (or ERROR)
 Reads field value from struct buffer at specified byte offset with expected type constant.
 
+dyn.set_ptr_field -> ptr, offset, [type], value | BOOLEAN (or ERROR)
+Writes a value at the specified byte offset in memory referenced by a raw pointer. Accepts optional explicit casting type.
+
+dyn.get_ptr_field -> ptr, offset, type | VAR (or ERROR)
+Reads a value from memory referenced by a raw pointer at the specified byte offset using the expected type constant.
+
 dyn.free_struct -> struct_ptr | BOOLEAN (or ERROR)
 Frees allocated dynamic struct buffer and descriptor metadata.
 
@@ -1327,6 +1333,16 @@ Overloading in dyn.set_field based on argument count:
 * Explicit Type Mode (4 arguments):
   + Usage: dyn.set_field(struct_ptr, offset, type, value)
   + Description: Takes an explicit type constant (e.g., $DYN_TYPE_INT) to cast the value before writing it to the struct buffer.
+
+Overloading in dyn.set_ptr_field based on argument count:
+
+* Standard Mode (3 arguments):
+  + Usage: dyn.set_ptr_field(ptr, offset, value)
+  + Description: Writes the value directly into memory using its inferred native type.
+
+* Explicit Type Mode (4 arguments):
+  + Usage: dyn.set_ptr_field(ptr, offset, type, value)
+  + Description: Takes an explicit type constant (e.g., $DYN_TYPE_INT) to cast the value before writing it to the memory referenced by the pointer.
 
 ++ FIXEDS - INTEGER
 $DYN_NORETURN
