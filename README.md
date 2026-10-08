@@ -38,7 +38,7 @@ However, `stdlib.h` may change in the future, but I aim to implement it for as m
   
 The Console API and Network API are supported on both posix and windows.
 
-### Dynamic Loading (standart library dyn api)
+### Dynamic Loading (standard library dyn api)
   
 Huge thanks to everyone who worked on dyncall and made such a great library.  
   

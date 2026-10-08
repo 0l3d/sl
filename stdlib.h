@@ -526,6 +526,7 @@ int list_remove(struct SL_List *list, int index) {
 #define SL_DYN_STRUCT_PTR -3
 #define SL_DYN_STRUCT_VAL -4
 #define SL_DYN_STRUCT_REF -5
+#define SL_DYN_CALLBACK -6
 
 struct SL_DynStruct {
   DCaggr *aggr;
@@ -747,7 +748,8 @@ struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
 
   if (func.total_arguments < 2) {
     return_var.type = ERROR;
-    return_var.vals = "Error usage at dyn.create_callback";
+    return_var.vals =
+        "Error usage at dyn.create_callback! Not enough arguments.";
     return return_var;
   }
 
@@ -756,7 +758,8 @@ struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
 
   if (sig_arg.type != STRING || target_func.type != STRING) {
     return_var.type = ERROR;
-    return_var.vals = "Expected STRING signature and STRING function name";
+    return_var.vals = "Expected STRING signature and STRING function name on "
+                      "dyn.create_callback";
     return return_var;
   }
 
@@ -780,12 +783,12 @@ struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
     free(ctx->func_name);
     free(ctx);
     return_var.type = ERROR;
-    return_var.vals = "dcbNewCallback failed";
+    return_var.vals = "dcbNewCallback failed on dyn.create_callback";
     return return_var;
   }
   return_var.type = POINTER;
   return_var.valp = cb;
-  return_var.info = 100;
+  return_var.info = SL_DYN_CALLBACK;
 
   return return_var;
 }
@@ -797,7 +800,7 @@ struct SL_Variable dyn_free_callback_fn(struct SL_Code *code,
 
   if (func.total_arguments < 1) {
     return_var.type = ERROR;
-    return_var.vals = "Error usage at dyn.free_callback";
+    return_var.vals = "Error usage at dyn.free_callback! Not enough arguments.";
     return return_var;
   }
 
@@ -805,7 +808,7 @@ struct SL_Variable dyn_free_callback_fn(struct SL_Code *code,
 
   if (cb_arg.type != POINTER || !cb_arg.valp) {
     return_var.type = ERROR;
-    return_var.vals = "Invalid callback pointer";
+    return_var.vals = "Invalid callback pointer on dyn.free_callback";
     return return_var;
   }
 
