@@ -505,11 +505,22 @@ sl_run_vm(&sl_code);
 sl_close_sl_process(&sl_code);
 -----
 Both return 0 when it works. C functions you linked (`sl_add_func`, stdlib) must be registered before `sl_load_slx`, otherwise it fails with a "not registered" error.
-The `sl` binary does the same from the command line. `/c` and `/r` work too, for windows people.
+The `sl` binary does the same from the command line. `/c`, `/r` and `/s` work too, for windows people.
 -------
 ./sl script.sl
 ./sl -c script.sl script.slx
 ./sl -r script.slx
+./sl -s script.slx 
+-----
+`-s` loads the .slx file and prints its disassembly (the bytecode as readable opcodes) instead of running it.  
+  
+++ Disassembler
+Your own implementation can print the bytecode instead of running it. Set `disassemble` to 1 before calling `sl_run_vm`, the vm then prints the instructions and returns without running anything.
+-------
+sl_code.disassemble = 1;
+sl_load_slx(&sl_code, "file.slx");
+sl_run_vm(&sl_code);
+sl_close_sl_process(&sl_code);
 -----
 
 + Example SL Code 
