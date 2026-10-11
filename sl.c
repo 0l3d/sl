@@ -7,36 +7,44 @@
 #include <string.h>
 
 void push(struct SL_Code *code, struct SL_Variable val) {
-    if (code->obj.stack_size >= code->obj.stack_capacity) {
-        code->obj.stack_capacity = (code->obj.stack_capacity == 0) ? SL_INIT : code->obj.stack_capacity * 2;
-        code->obj.stack = srealloc(code->obj.stack, code->obj.stack_capacity * sizeof(struct SL_Variable));
-    }
-    code->obj.stack[code->obj.stack_size++] = val;
+  if (code->obj.stack_size >= code->obj.stack_capacity) {
+    code->obj.stack_capacity = (code->obj.stack_capacity == 0)
+                                   ? SL_INIT
+                                   : code->obj.stack_capacity * 2;
+    code->obj.stack = srealloc(code->obj.stack, code->obj.stack_capacity *
+                                                    sizeof(struct SL_Variable));
+  }
+  code->obj.stack[code->obj.stack_size++] = val;
 }
 
 struct SL_Variable pop(struct SL_Code *code) {
-    if (code->obj.stack_size == 0) {
-        fprintf(stderr, "[VM ERROR] Stack underflow!\n");
-        exit(-1);
-    }
-    return code->obj.stack[--code->obj.stack_size];
+  if (code->obj.stack_size == 0) {
+    fprintf(stderr, "[VM ERROR] Stack underflow!\n");
+    exit(-1);
+  }
+  return code->obj.stack[--code->obj.stack_size];
 }
 
 void emit(struct SL_Code *code, uint32_t value) {
-    if (code->bytecode_len >= code->bytecode_capacity) {
-        code->bytecode_capacity += SL_REALLOC_DEFAULT;
-        code->bytecode = srealloc(code->bytecode, code->bytecode_capacity * sizeof(uint32_t));
-    }
-    code->bytecode[code->bytecode_len++] = value;
+  if (code->bytecode_len >= code->bytecode_capacity) {
+    code->bytecode_capacity += SL_REALLOC_DEFAULT;
+    code->bytecode =
+        srealloc(code->bytecode, code->bytecode_capacity * sizeof(uint32_t));
+  }
+  code->bytecode[code->bytecode_len++] = value;
 }
 
 static void frame_reserve(struct SL_Code *code, size_t needed) {
   size_t old_cap = (size_t)code->frame.total_vars_capacity;
-  if (needed <= old_cap && code->frame.vars != NULL) return;
+  if (needed <= old_cap && code->frame.vars != NULL)
+    return;
   size_t new_cap = old_cap == 0 ? SL_INIT : old_cap;
-  while (new_cap < needed) new_cap *= 2;
-  code->frame.vars = srealloc(code->frame.vars, new_cap * sizeof(struct SL_Variable));
-  memset(code->frame.vars + old_cap, 0, (new_cap - old_cap) * sizeof(struct SL_Variable));
+  while (new_cap < needed)
+    new_cap *= 2;
+  code->frame.vars =
+      srealloc(code->frame.vars, new_cap * sizeof(struct SL_Variable));
+  memset(code->frame.vars + old_cap, 0,
+         (new_cap - old_cap) * sizeof(struct SL_Variable));
   code->frame.total_vars_capacity = (int)new_cap;
 }
 
@@ -92,7 +100,8 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
   }
 
   if (function.arguments != NULL && function.total_arguments > 0) {
-    copy.arguments = smalloc(function.total_arguments * sizeof(*copy.arguments));
+    copy.arguments =
+        smalloc(function.total_arguments * sizeof(*copy.arguments));
     for (int i = 0; i < function.total_arguments; i++) {
       copy.arguments[i] = sl_copy_variable(function.arguments[i]);
     }
@@ -435,7 +444,8 @@ static int sl_expand_imports(char ***tokens, int token_count,
   char **expanded_tokens = smalloc(expanded_capacity * sizeof(char *));
 
   for (int current_token = 0; current_token < token_count; current_token++) {
-    if (identifier_tokenizer_converter(source_tokens[current_token]) != T_IMPORT) {
+    if (identifier_tokenizer_converter(source_tokens[current_token]) !=
+        T_IMPORT) {
       sl_token_list_append(&expanded_tokens, &total_expanded,
                            &expanded_capacity, source_tokens[current_token]);
       continue;
@@ -733,7 +743,7 @@ int getvar_index_from_sl(struct SL_Code code, const char *name,
 }
 
 int getvar_local_index_from_sl(struct SL_Code code, const char *name,
-                         unsigned long hash) {
+                               unsigned long hash) {
   for (int i = code.frame.total_vars - 1; i >= 0; i--) {
     if (code.frame.vars[i].name == NULL)
       continue;
@@ -876,32 +886,71 @@ struct SL_Function *sl_get_func(struct SL_Code *code, const char *name) {
   return NULL;
 }
 
-void expression_solver(struct SL_Code *code_s, char op, enum TokenTypes op_type, int is_op_type) {
+void expression_solver(struct SL_Code *code_s, char op, enum TokenTypes op_type,
+                       int is_op_type) {
   if (is_op_type != 1) {
     switch (op) {
-      case '+': emit(code_s, OPCODE_ADD); break;
-      case '-': emit(code_s, OPCODE_SUB); break;
-      case '*': emit(code_s, OPCODE_MUL); break;
-      case '/': emit(code_s, OPCODE_DIV); break;
-      case '%': emit(code_s, OPCODE_MOD); break;
-      case '&': emit(code_s, OPCODE_BAND); break;
-      case '|': emit(code_s, OPCODE_BOR); break;
-      case '^': emit(code_s, OPCODE_XOR); break;
-      case '>': emit(code_s, OPCODE_BIGGER); break;
-      case '<': emit(code_s, OPCODE_LESSER); break;
-      default: break;
+    case '+':
+      emit(code_s, OPCODE_ADD);
+      break;
+    case '-':
+      emit(code_s, OPCODE_SUB);
+      break;
+    case '*':
+      emit(code_s, OPCODE_MUL);
+      break;
+    case '/':
+      emit(code_s, OPCODE_DIV);
+      break;
+    case '%':
+      emit(code_s, OPCODE_MOD);
+      break;
+    case '&':
+      emit(code_s, OPCODE_BAND);
+      break;
+    case '|':
+      emit(code_s, OPCODE_BOR);
+      break;
+    case '^':
+      emit(code_s, OPCODE_XOR);
+      break;
+    case '>':
+      emit(code_s, OPCODE_BIGGER);
+      break;
+    case '<':
+      emit(code_s, OPCODE_LESSER);
+      break;
+    default:
+      break;
     }
   } else {
     switch (op_type) {
-      case T_SHRIGHT: emit(code_s, OPCODE_SHR); break;
-      case T_SHLEFT:  emit(code_s, OPCODE_SHL); break;
-      case T_AND:     emit(code_s, OPCODE_LAND); break;
-      case T_OR:      emit(code_s, OPCODE_LOR); break;
-      case T_EQU:     emit(code_s, OPCODE_EQU); break;
-      case T_NEQ:     emit(code_s, OPCODE_NEQ); break;
-      case T_EQG:     emit(code_s, OPCODE_EQG); break;
-      case T_EQL:     emit(code_s, OPCODE_EQL); break;
-      default: break;
+    case T_SHRIGHT:
+      emit(code_s, OPCODE_SHR);
+      break;
+    case T_SHLEFT:
+      emit(code_s, OPCODE_SHL);
+      break;
+    case T_AND:
+      emit(code_s, OPCODE_LAND);
+      break;
+    case T_OR:
+      emit(code_s, OPCODE_LOR);
+      break;
+    case T_EQU:
+      emit(code_s, OPCODE_EQU);
+      break;
+    case T_NEQ:
+      emit(code_s, OPCODE_NEQ);
+      break;
+    case T_EQG:
+      emit(code_s, OPCODE_EQG);
+      break;
+    case T_EQL:
+      emit(code_s, OPCODE_EQL);
+      break;
+    default:
+      break;
     }
   }
 }
@@ -918,12 +967,13 @@ int operator_checker(struct SL_Code *code, char *expressions[],
 
 int is_it_function_or_not(char **tokens, enum TokenTypes *types,
                           int current_token, int max_tokens) {
-  if (tokens[current_token][0] == '(') return -1;
-  
-  if (tokens[current_token + 1] && tokens[current_token + 1][0] == '(' 
-	&& tokens[current_token + 2]
-	&& tokens[current_token + 2][0] == ')') return current_token + 3;
-							  
+  if (tokens[current_token][0] == '(')
+    return -1;
+
+  if (tokens[current_token + 1] && tokens[current_token + 1][0] == '(' &&
+      tokens[current_token + 2] && tokens[current_token + 2][0] == ')')
+    return current_token + 3;
+
   if (current_token < 0 || current_token + 2 > max_tokens)
     return -1;
 
@@ -1232,8 +1282,8 @@ void sl_clean_local_scope(struct SL_Code *code, int starting_var_index,
 }
 
 void compile_sl_function_call(struct SL_Code *code, const char *name,
-                                   char **tokens, enum TokenTypes *types,
-                                   int current_token, int max_tokens) {
+                              char **tokens, enum TokenTypes *types,
+                              int current_token, int max_tokens) {
   int function_number = -1;
   char *rawfunc = get_raw_function_name(name);
   unsigned long hash = sl_hash_string(name);
@@ -1269,65 +1319,63 @@ void compile_sl_function_call(struct SL_Code *code, const char *name,
             sl_where_is_next_comma(tokens, current_token, code->token_count);
         if (function.linked_function == 1) {
           lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
-          sl_expression_solver(
-              code, tokens, types, &current_token, commapos);
+          sl_expression_solver(code, tokens, types, &current_token, commapos);
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
             char *function_name = smalloc(SL_INIT);
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
-            sl_expression_solver(
-                code, tokens, types, &current_token, commapos);
-            code->frame.vars[code->frame.total_vars].name = strdup(function_name);
-            code->frame.vars[code->frame.total_vars].hash = sl_hash_string(function_name);
+            sl_expression_solver(code, tokens, types, &current_token, commapos);
+            code->frame.vars[code->frame.total_vars].name =
+                strdup(function_name);
+            code->frame.vars[code->frame.total_vars].hash =
+                sl_hash_string(function_name);
             free(function_name);
           } else {
-            sl_expression_solver(
-                code, tokens, types, &current_token, commapos);
-				code->frame.vars[code->frame.total_vars].name = NULL;
+            sl_expression_solver(code, tokens, types, &current_token, commapos);
+            code->frame.vars[code->frame.total_vars].name = NULL;
 
             code->frame.vars[code->frame.total_vars].hash =
                 function.arguments[how_much_go].hash;
           }
         }
         current_token = commapos + 1;
-		how_much_go++;
-	
+        how_much_go++;
+
         if (tokens[commapos][0] == ')') {
           break;
         }
       }
-	}
+    }
   } else if (function.total_arguments == 0) {
     while (current_token < max_tokens) {
       if (current_token != max_tokens - 1 &&
           tokens[current_token + 1][0] == '(' &&
           tokens[current_token + 2][0] == ')') {
-          current_token += 2;
-          break;
-	  }
+        current_token += 2;
+        break;
+      }
     }
   }
   if (function.linked_function == 1) {
-	    emit(code, OPCODE_CALL_LINKED_FUNC);
-		emit(code, (uint32_t)function_number); 
-		emit(code, (uint32_t)how_much_go);
+    emit(code, OPCODE_CALL_LINKED_FUNC);
+    emit(code, (uint32_t)function_number);
+    emit(code, (uint32_t)how_much_go);
   } else {
-		emit(code, OPCODE_FUNC_CALL);
-		emit(code, (uint32_t)function_number); 
-		emit(code, (uint32_t)how_much_go); 
+    emit(code, OPCODE_FUNC_CALL);
+    emit(code, (uint32_t)function_number);
+    emit(code, (uint32_t)how_much_go);
   }
-  
+
   free(lfunc.argument_indexes);
 }
 
-static void resolve_variable(struct SL_Code *code_s,
-                             char *expression[],
-                             enum TokenTypes *types,
-                             int *current_token, int max_tokens,
-                             int old_curr) {
-  if (!expression[*current_token]) return;
+static void resolve_variable(struct SL_Code *code_s, char *expression[],
+                             enum TokenTypes *types, int *current_token,
+                             int max_tokens, int old_curr) {
+  if (!expression[*current_token])
+    return;
 
   for (int i = 0; i < code_s->custom_expr_count; i++) {
     if (strcmp(code_s->custom_expr[i], expression[*current_token]) == 0) {
@@ -1349,57 +1397,59 @@ static void resolve_variable(struct SL_Code *code_s,
       emit(code_s, OPCODE_LOAD_LOCAL_VAR);
       emit(code_s, (uint32_t)index);
     } else {
-	  int index = getvar_index_from_sl(*code_s, var.vals + 1, var.hash);
-	  if (index != -1) {
-		emit(code_s, OPCODE_LOAD_VAR);
-		emit(code_s, (uint32_t)index);
-       } else {
+      int index = getvar_index_from_sl(*code_s, var.vals + 1, var.hash);
+      if (index != -1) {
+        emit(code_s, OPCODE_LOAD_VAR);
+        emit(code_s, (uint32_t)index);
+      } else {
         int name_pool_index = sl_add_constant(code_s, sl_copy_variable(var));
         emit(code_s, OPCODE_LOAD_DYNAMIC_ADDED_VAR);
         emit(code_s, (uint32_t)name_pool_index);
-        
+
         *current_token = max_tokens;
         return;
-		   
-	   }
+      }
     }
     return;
   } else {
-	int func_idx = is_has_func(*code_s, expression[*current_token]);
-	if (func_idx != -1) {
-		compile_sl_function_call(code_s, expression[*current_token], expression, types, *current_token, max_tokens);
-		*current_token = max_tokens;
-		return;
-	} else {
-		int token_idx = *current_token;
-        int arg_count = 0;
-        if (expression[token_idx + 1] && expression[token_idx + 1][0] == '(') {
-            token_idx += 2;
-			if (expression[token_idx][0] != ')') {
-				while (token_idx < max_tokens) {
-					int commapos = sl_where_is_next_comma(expression, token_idx, max_tokens);
-					if (commapos == -1) commapos = max_tokens - 1;
-                
-					sl_expression_solver(code_s, expression, types, &token_idx, commapos);
-					arg_count++;
-					
-					token_idx = commapos + 1;
-					if (expression[commapos] && expression[commapos][0] == ')') {
-						break;
-					}
-				}
-			}
+    int func_idx = is_has_func(*code_s, expression[*current_token]);
+    if (func_idx != -1) {
+      compile_sl_function_call(code_s, expression[*current_token], expression,
+                               types, *current_token, max_tokens);
+      *current_token = max_tokens;
+      return;
+    } else {
+      int token_idx = *current_token;
+      int arg_count = 0;
+      if (expression[token_idx + 1] && expression[token_idx + 1][0] == '(') {
+        token_idx += 2;
+        if (expression[token_idx][0] != ')') {
+          while (token_idx < max_tokens) {
+            int commapos =
+                sl_where_is_next_comma(expression, token_idx, max_tokens);
+            if (commapos == -1)
+              commapos = max_tokens - 1;
+
+            sl_expression_solver(code_s, expression, types, &token_idx,
+                                 commapos);
+            arg_count++;
+
+            token_idx = commapos + 1;
+            if (expression[commapos] && expression[commapos][0] == ')') {
+              break;
+            }
+          }
         }
-        
-        int name_pool_index = sl_add_constant(code_s, sl_copy_variable(var));
-        emit(code_s, OPCODE_CALL_DYNAMIC_LINKED_FUNC);
-        emit(code_s, (uint32_t)name_pool_index);
-        emit(code_s, (uint32_t)arg_count);
-        
-        *current_token = max_tokens;
-        return;
-		   
       }
+
+      int name_pool_index = sl_add_constant(code_s, sl_copy_variable(var));
+      emit(code_s, OPCODE_CALL_DYNAMIC_LINKED_FUNC);
+      emit(code_s, (uint32_t)name_pool_index);
+      emit(code_s, (uint32_t)arg_count);
+
+      *current_token = max_tokens;
+      return;
+    }
   }
 }
 
@@ -1446,16 +1496,16 @@ static int try_emit_increment(struct SL_Code *code_s, char *expression[],
   return 1;
 }
 
-void sl_expression_solver(struct SL_Code *code_s,
-                                        char *expression[],
-                                        enum TokenTypes *types,
-                                        int *current_token, int max_tokens) {
+void sl_expression_solver(struct SL_Code *code_s, char *expression[],
+                          enum TokenTypes *types, int *current_token,
+                          int max_tokens) {
   if (!expression[*current_token] || *current_token > max_tokens)
-	  return;
-
+    return;
 
   while (*current_token < max_tokens && expression[*current_token][0] == '(') {
-    if (max_tokens - 1 <= *current_token || expression[max_tokens - 1] == NULL || expression[max_tokens - 1][0] != ')') {
+    if (max_tokens - 1 <= *current_token ||
+        expression[max_tokens - 1] == NULL ||
+        expression[max_tokens - 1][0] != ')') {
       break;
     }
     int depth = 0;
@@ -1466,7 +1516,7 @@ void sl_expression_solver(struct SL_Code *code_s,
       else if (expression[i][0] == ')')
         depth--;
 
-      if (depth == 0) { 
+      if (depth == 0) {
         valid = 0;
         break;
       }
@@ -1480,34 +1530,38 @@ void sl_expression_solver(struct SL_Code *code_s,
   int old_curr = *current_token;
 
   if (max_tokens - *current_token == 1) {
-    resolve_variable(code_s, expression, types, current_token, max_tokens, old_curr);
+    resolve_variable(code_s, expression, types, current_token, max_tokens,
+                     old_curr);
     *current_token = max_tokens;
     return;
   }
-  
+
   if (max_tokens - *current_token == 3) {
-	if (try_emit_increment(code_s, expression, *current_token, max_tokens)) {
-		*current_token = max_tokens;
-		return;
-	}
+    if (try_emit_increment(code_s, expression, *current_token, max_tokens)) {
+      *current_token = max_tokens;
+      return;
+    }
   }
 
   struct SL_Math_Splitter tree = expression_parser_splitter(
       *code_s, expression, types, *current_token, max_tokens, old_curr);
 
   if (tree.op == 0) {
-    resolve_variable(code_s, expression, types, current_token, max_tokens, old_curr);
+    resolve_variable(code_s, expression, types, current_token, max_tokens,
+                     old_curr);
     *current_token = max_tokens;
     return;
   }
 
   int left_pos_start = *current_token;
   int left_pos_end = tree.op_pos;
-  sl_expression_solver(code_s, expression, types, &left_pos_start, left_pos_end);
-  
+  sl_expression_solver(code_s, expression, types, &left_pos_start,
+                       left_pos_end);
+
   int right_pos_start = tree.op_pos + 1;
   int right_pos_end = max_tokens;
-  sl_expression_solver(code_s, expression, types, &right_pos_start, right_pos_end);
+  sl_expression_solver(code_s, expression, types, &right_pos_start,
+                       right_pos_end);
 
   expression_solver(code_s, tree.op, tree.op_type, tree.is_op_type);
 
@@ -1516,20 +1570,25 @@ void sl_expression_solver(struct SL_Code *code_s,
 }
 
 static int sl_looks_like_call(char **code, int i, int max) {
-  if (i < 0 || i + 1 >= max || !code[i] || !code[i + 1]) return 0;
+  if (i < 0 || i + 1 >= max || !code[i] || !code[i + 1])
+    return 0;
   unsigned char c = (unsigned char)code[i][0];
-  if (!(isalpha(c) || c == '_' || c == '$')) return 0;
+  if (!(isalpha(c) || c == '_' || c == '$'))
+    return 0;
   return code[i + 1][0] == '(';
 }
 
 static int sl_skip_call(char **code, int i, int max) {
-  if (i + 1 >= max || !code[i + 1] || code[i + 1][0] != '(') return i;
+  if (i + 1 >= max || !code[i + 1] || code[i + 1][0] != '(')
+    return i;
   int depth = 0;
   for (int j = i + 1; j < max; j++) {
-    if (code[j][0] == '(') depth++;
+    if (code[j][0] == '(')
+      depth++;
     else if (code[j][0] == ')') {
       depth--;
-      if (depth == 0) return j;
+      if (depth == 0)
+        return j;
     }
   }
   return i;
@@ -1552,7 +1611,8 @@ int sl_find_end_of_expr(struct SL_Code *code_s, char **code,
         }
       }
     }
-    if (is_has_func(*code_s, code[i]) != -1 || sl_looks_like_call(code, i, max)) {
+    if (is_has_func(*code_s, code[i]) != -1 ||
+        sl_looks_like_call(code, i, max)) {
       i = sl_skip_call(code, i, max);
     }
 
@@ -1610,23 +1670,23 @@ int sl_find_end_of_expr(struct SL_Code *code_s, char **code,
   return max;
 }
 
-void variable_parser(struct SL_Code *code_s,
-                     enum TokenTypes *types,
-                     char *tokens[], int *current_token,
-                     int max_tokens, int current_line) {
-  
+void variable_parser(struct SL_Code *code_s, enum TokenTypes *types,
+                     char *tokens[], int *current_token, int max_tokens,
+                     int current_line) {
+
   while (current_token != NULL && *current_token < max_tokens) {
     if (strcmp(tokens[*current_token], "=") == 0) {
       char *var_name = tokens[(*current_token) - 1];
-      if (var_name[0] == '$') var_name++;
+      if (var_name[0] == '$')
+        var_name++;
 
       unsigned long hash = sl_hash_string(var_name);
 
       if (code_s->scope_depth > 1) {
         int lidx = getvar_local_index_from_sl(*code_s, var_name, hash);
         int equal_start = *current_token + 1;
-		sl_emit_push_string(code_s, var_name);
-		emit(code_s, OPCODE_SET_ASSIGNMENT);
+        sl_emit_push_string(code_s, var_name);
+        emit(code_s, OPCODE_SET_ASSIGNMENT);
         sl_expression_solver(code_s, tokens, types, &equal_start, max_tokens);
 
         if (lidx == -1) {
@@ -1650,8 +1710,10 @@ void variable_parser(struct SL_Code *code_s,
         index = code_s->total_vars;
 
         if (code_s->total_vars >= code_s->total_size_v) {
-          code_s->total_size_v = (code_s->total_size_v == 0) ? 1024 : code_s->total_size_v * 2;
-          code_s->vars = srealloc(code_s->vars, code_s->total_size_v * sizeof(struct SL_Variable));
+          code_s->total_size_v =
+              (code_s->total_size_v == 0) ? 1024 : code_s->total_size_v * 2;
+          code_s->vars = srealloc(code_s->vars, code_s->total_size_v *
+                                                    sizeof(struct SL_Variable));
         }
 
         memset(&code_s->vars[index], 0, sizeof(struct SL_Variable));
@@ -1661,8 +1723,8 @@ void variable_parser(struct SL_Code *code_s,
       }
 
       int equal_start = *current_token + 1;
-	  sl_emit_push_string(code_s, var_name);
-	  emit(code_s, OPCODE_SET_ASSIGNMENT);
+      sl_emit_push_string(code_s, var_name);
+      emit(code_s, OPCODE_SET_ASSIGNMENT);
       sl_expression_solver(code_s, tokens, types, &equal_start, max_tokens);
 
       emit(code_s, OPCODE_STORE_VAR);
@@ -1674,8 +1736,9 @@ void variable_parser(struct SL_Code *code_s,
   }
 }
 
-int get_last_pos_of_token_for_expressions(struct SL_Code *code_s, char *token, char **tokens,
-                                          int current_token, int max_tokens) {
+int get_last_pos_of_token_for_expressions(struct SL_Code *code_s, char *token,
+                                          char **tokens, int current_token,
+                                          int max_tokens) {
   int last_pos = -1;
   while (current_token < max_tokens) {
     int skipped_to = current_token;
@@ -1701,16 +1764,18 @@ int get_last_pos_of_token_for_expressions(struct SL_Code *code_s, char *token, c
 void assignment_parser(struct SL_Code *code_s, char *tokens[],
                        enum TokenTypes *types, int *current_token,
                        int max_tokens, int current_line) {
-  
+
   while (current_token != NULL && *current_token < max_tokens) {
-    int last_pos = get_last_pos_of_token_for_expressions(code_s, "=", tokens, *current_token, max_tokens);
+    int last_pos = get_last_pos_of_token_for_expressions(
+        code_s, "=", tokens, *current_token, max_tokens);
     if (last_pos == -1) {
       break;
     }
 
     int variable_pos = last_pos - 1;
     char *var_name = tokens[variable_pos];
-    if (var_name[0] == '$') var_name++;
+    if (var_name[0] == '$')
+      var_name++;
 
     unsigned long hashe = sl_hash_string(var_name);
 
@@ -1728,7 +1793,8 @@ void assignment_parser(struct SL_Code *code_s, char *tokens[],
 
     if (index == -1) {
       int dynamic_expr_start = last_pos + 1;
-      sl_expression_solver(code_s, tokens, types, &dynamic_expr_start, max_tokens);
+      sl_expression_solver(code_s, tokens, types, &dynamic_expr_start,
+                           max_tokens);
       sl_emit_push_string(code_s, var_name);
       emit(code_s, OPCODE_STORE_DYNAMIC_ADDED_VAR);
       *current_token = max_tokens;
@@ -1737,7 +1803,7 @@ void assignment_parser(struct SL_Code *code_s, char *tokens[],
 
     int expr_start = last_pos + 1;
     sl_expression_solver(code_s, tokens, types, &expr_start, max_tokens);
-	
+
     emit(code_s, OPCODE_STORE_VAR);
     emit(code_s, (uint32_t)index);
 
@@ -1774,12 +1840,13 @@ int sl_then_finder(char *tokens[], enum TokenTypes *types, int current_token,
 }
 
 void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
-                  char *tokens[], int *current_token,
-                  int max_tokens, int find_then) {
+                  char *tokens[], int *current_token, int max_tokens,
+                  int find_then) {
   int then_pos = find_then;
 
   if (then_pos == -1) {
-    if (sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos) == -1) {
+    if (sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos) ==
+        -1) {
       sl_throw_an_error(*code_s, tokens, (*current_token) - 1, max_tokens,
                         "'then' NOT FOUND ON 'if' usage.",
                         "Expected: if <expression> then <code> end");
@@ -1787,7 +1854,7 @@ void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
   }
   sl_expression_solver(code_s, tokens, types, current_token, then_pos);
   emit(code_s, OPCODE_IF_JUMP_FALSE);
-  size_t patch_location = code_s->bytecode_len; 
+  size_t patch_location = code_s->bytecode_len;
   emit(code_s, 0);
 
   *current_token = then_pos + 1;
@@ -1809,7 +1876,7 @@ void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
 
   code_s->starting_token = old_starting_token;
   code_s->token_count = old_token_count;
-  
+
   size_t exit_jmp_patch = 0;
   if (types[end_pos] == T_ELIF || types[end_pos] == T_ELSE) {
     emit(code_s, OPCODE_JMP);
@@ -1825,14 +1892,14 @@ void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
     (*current_token)++;
     sl_if_parser(code_s, types, tokens, current_token, max_tokens, -1);
   } else if (types[end_pos] == T_ELSE) {
-    (*current_token)++; 
+    (*current_token)++;
     int final_end = sl_find_end(tokens, types, *current_token, max_tokens, 0);
-    
+
     code_s->starting_token = *current_token;
     code_s->token_count = final_end;
-    
+
     sl_init_sl_parser(code_s);
-    
+
     code_s->starting_token = old_starting_token;
     code_s->token_count = old_token_count;
     *current_token = final_end;
@@ -1844,8 +1911,8 @@ void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
 }
 
 typedef struct {
-  uint32_t start_pc;         
-  size_t *break_patches;     
+  uint32_t start_pc;
+  size_t *break_patches;
   int break_count;
   int break_capacity;
 } SL_LoopContext;
@@ -1859,12 +1926,13 @@ typedef struct {
 static SL_LoopStack global_loop_stack = {0};
 
 void sl_while_parser(struct SL_Code *code_s, enum TokenTypes *types,
-                     char *tokens[], int *current_token,
-                     int max_tokens, int find_then) {
+                     char *tokens[], int *current_token, int max_tokens,
+                     int find_then) {
   int then_pos = find_then;
 
   if (then_pos == -1) {
-    if (sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos) == -1) {
+    if (sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos) ==
+        -1) {
       sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
                         "THEN NOT FOUND ON WHILE",
                         "Expected: while <expr> then <code> end");
@@ -1879,7 +1947,7 @@ void sl_while_parser(struct SL_Code *code_s, enum TokenTypes *types,
   size_t exit_jump_patch = code_s->bytecode_len;
   emit(code_s, 0);
 
-  *current_token = then_pos + 1; 
+  *current_token = then_pos + 1;
 
   int end_pos = sl_find_end(tokens, types, *current_token, max_tokens, 0);
   if (end_pos == -1) {
@@ -1960,14 +2028,15 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
         function.arguments = srealloc(
             function.arguments, arg_capacity * sizeof(struct SL_Variable));
       }
-	  size_t len = strlen(tokens[current]);
+      size_t len = strlen(tokens[current]);
       function.arguments[j].name = smalloc(len + 1);
       strncpy(function.arguments[j].name, tokens[current], len);
       function.arguments[j].name[len] = '\0';
       function.arguments[j].hash = sl_hash_string(function.arguments[j].name);
 
       frame_reserve(code_s, (size_t)code_s->frame.total_vars + 2);
-      code_s->frame.vars[code_s->frame.total_vars] = sl_copy_variable(function.arguments[j]);
+      code_s->frame.vars[code_s->frame.total_vars] =
+          sl_copy_variable(function.arguments[j]);
       code_s->frame.vars[code_s->frame.total_vars].scope_lifetime = 0;
       code_s->frame.total_vars++;
 
@@ -1981,7 +2050,7 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   emit(code_s, 0);
 
   function.entry_pc = (int)code_s->bytecode_len;
-  
+
   if (is_has_func(*code_s, function.name) != -1) {
     sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
                       "FUNCTION ALREADY EXISTS",
@@ -1989,8 +2058,8 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   }
   if (code_s->total_funcs >= code_s->total_size_f - 1) {
     code_s->total_size_f *= 2;
-    code_s->funcs = srealloc(code_s->funcs, code_s->total_size_f *
-                                                sizeof(struct SL_Function));
+    code_s->funcs = srealloc(code_s->funcs,
+                             code_s->total_size_f * sizeof(struct SL_Function));
   }
   int func_index = code_s->total_funcs++;
   code_s->funcs[func_index] = function;
@@ -2004,16 +2073,16 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
 
     code_s->starting_token = starting;
     code_s->token_count = end_pos;
-	code_s->scope_depth++;
+    code_s->scope_depth++;
 
-    sl_init_sl_parser(code_s); 
-	code_s->scope_depth--;
+    sl_init_sl_parser(code_s);
+    code_s->scope_depth--;
 
     code_s->starting_token = old_start;
     code_s->token_count = old_count;
     current = end_pos;
   }
-  
+
   function.frame_size = code_s->frame.total_vars;
   code_s->funcs[func_index].frame_size = function.frame_size;
   for (int i = 0; i < code_s->frame.total_vars; i++) {
@@ -2049,7 +2118,8 @@ size_t sl_emit_jump(struct SL_Code *code, uint32_t jump_opcode) {
   return patch_position;
 }
 
-void sl_patch_jump_to(struct SL_Code *code, size_t patch_position, size_t target_pc) {
+void sl_patch_jump_to(struct SL_Code *code, size_t patch_position,
+                      size_t target_pc) {
   code->bytecode[patch_position] = (uint32_t)target_pc;
 }
 
@@ -2059,10 +2129,12 @@ void sl_patch_jump_here(struct SL_Code *code, size_t patch_position) {
 
 int sl_add_constant(struct SL_Code *code, struct SL_Variable constant) {
   if (code->constant_pool_len >= code->constant_pool_capacity) {
-    code->constant_pool_capacity =
-        (code->constant_pool_capacity == 0) ? 64 : code->constant_pool_capacity * 2;
-    code->constant_pool = srealloc(
-        code->constant_pool, code->constant_pool_capacity * sizeof(struct SL_Variable));
+    code->constant_pool_capacity = (code->constant_pool_capacity == 0)
+                                       ? 64
+                                       : code->constant_pool_capacity * 2;
+    code->constant_pool =
+        srealloc(code->constant_pool,
+                 code->constant_pool_capacity * sizeof(struct SL_Variable));
   }
   code->constant_pool[code->constant_pool_len] = constant;
   return code->constant_pool_len++;
@@ -2081,7 +2153,8 @@ void sl_emit_push_string(struct SL_Code *code, const char *text) {
   sl_emit_push_constant(code, string_constant);
 }
 
-void sl_compile_statements(struct SL_Code *code, int first_token, int end_token) {
+void sl_compile_statements(struct SL_Code *code, int first_token,
+                           int end_token) {
   int old_starting_token = code->starting_token;
   int old_token_count = code->token_count;
   int old_types_set = code->types_set;
@@ -2097,16 +2170,19 @@ void sl_compile_statements(struct SL_Code *code, int first_token, int end_token)
   code->token_count = old_token_count;
 }
 
-void sl_compile_expression(struct SL_Code *code, int first_token, int end_token) {
+void sl_compile_expression(struct SL_Code *code, int first_token,
+                           int end_token) {
   int current_token = first_token;
-  sl_expression_solver(code, code->code, code->types, &current_token, end_token);
+  sl_expression_solver(code, code->code, code->types, &current_token,
+                       end_token);
 }
 
 void sl_begin_frame_scope(struct SL_Code *code, struct SL_FrameScope *scope) {
   scope->saved_outer_count = code->frame.total_vars;
   scope->saved_outer_vars = NULL;
   if (scope->saved_outer_count > 0) {
-    scope->saved_outer_vars = smalloc(scope->saved_outer_count * sizeof(struct SL_Variable));
+    scope->saved_outer_vars =
+        smalloc(scope->saved_outer_count * sizeof(struct SL_Variable));
     memcpy(scope->saved_outer_vars, code->frame.vars,
            scope->saved_outer_count * sizeof(struct SL_Variable));
   }
@@ -2138,14 +2214,17 @@ int sl_end_frame_scope(struct SL_Code *code, struct SL_FrameScope *scope) {
 void sl_loop_begin(struct SL_Code *code) {
   if (global_loop_stack.capacity == 0) {
     global_loop_stack.capacity = 16;
-    global_loop_stack.contexts = scalloc(global_loop_stack.capacity, sizeof(SL_LoopContext));
+    global_loop_stack.contexts =
+        scalloc(global_loop_stack.capacity, sizeof(SL_LoopContext));
   } else if (global_loop_stack.depth >= global_loop_stack.capacity) {
     global_loop_stack.capacity *= 2;
-    global_loop_stack.contexts = srealloc(global_loop_stack.contexts,
-                                          global_loop_stack.capacity * sizeof(SL_LoopContext));
+    global_loop_stack.contexts =
+        srealloc(global_loop_stack.contexts,
+                 global_loop_stack.capacity * sizeof(SL_LoopContext));
   }
 
-  SL_LoopContext *context = &global_loop_stack.contexts[global_loop_stack.depth++];
+  SL_LoopContext *context =
+      &global_loop_stack.contexts[global_loop_stack.depth++];
   context->start_pc = (uint32_t)code->bytecode_len;
   context->break_count = 0;
   context->break_capacity = 16;
@@ -2157,7 +2236,8 @@ uint32_t sl_loop_start_pc(void) {
 }
 
 void sl_loop_end(struct SL_Code *code) {
-  SL_LoopContext *context = &global_loop_stack.contexts[global_loop_stack.depth - 1];
+  SL_LoopContext *context =
+      &global_loop_stack.contexts[global_loop_stack.depth - 1];
   for (int i = 0; i < context->break_count; i++) {
     sl_patch_jump_here(code, context->break_patches[i]);
   }
@@ -2170,7 +2250,8 @@ int sl_find_function_index(struct SL_Code *code, const char *name) {
   return is_has_func(*code, name);
 }
 
-void sl_emit_call_function(struct SL_Code *code, int function_index, int argument_count) {
+void sl_emit_call_function(struct SL_Code *code, int function_index,
+                           int argument_count) {
   if (code->funcs[function_index].linked_function == 1)
     emit(code, OPCODE_CALL_LINKED_FUNC);
   else
@@ -2300,7 +2381,8 @@ static inline enum TokenTypes identifier_tokenizer_converter(const char *s) {
 }
 
 void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
-                          struct SL_Variable **fixed_values, int token_count) {
+                             struct SL_Variable **fixed_values,
+                             int token_count) {
   if (code == NULL || types == NULL || *types == NULL || fixed_values == NULL ||
       *fixed_values == NULL)
     return;
@@ -2333,20 +2415,24 @@ static void sl_vm_error(struct SL_Code *code, uint32_t token_idx,
 static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
                               uint32_t arg_count, size_t *pc) {
   if (code->obj.call_frame_size >= code->obj.call_frame_capacity) {
-    code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0) ? SL_INIT : code->obj.call_frame_capacity * 2;
-    code->obj.call_frames = srealloc(code->obj.call_frames,
-                          code->obj.call_frame_capacity * sizeof(struct SL_CallFrame));
+    code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0)
+                                        ? SL_INIT
+                                        : code->obj.call_frame_capacity * 2;
+    code->obj.call_frames =
+        srealloc(code->obj.call_frames,
+                 code->obj.call_frame_capacity * sizeof(struct SL_CallFrame));
   }
-  code->obj.call_frames[code->obj.call_frame_size++] = (struct SL_CallFrame){
-    .frame_base = code->current_frame_base,
-    .saved_total_vars = code->frame.total_vars
-  };
+  code->obj.call_frames[code->obj.call_frame_size++] =
+      (struct SL_CallFrame){.frame_base = code->current_frame_base,
+                            .saved_total_vars = code->frame.total_vars};
 
   size_t new_base = code->frame.total_vars;
   int nfixed = code->funcs[func_idx].total_arguments;
   int fsize = code->funcs[func_idx].frame_size;
-  if (fsize < nfixed) fsize = nfixed;
-  size_t extra = ((int)arg_count > nfixed) ? (size_t)((int)arg_count - nfixed) : 0;
+  if (fsize < nfixed)
+    fsize = nfixed;
+  size_t extra =
+      ((int)arg_count > nfixed) ? (size_t)((int)arg_count - nfixed) : 0;
 
   frame_reserve(code, new_base + fsize + extra + 1);
 
@@ -2354,7 +2440,10 @@ static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
     struct SL_Variable value = pop(code);
     size_t slot = (i < nfixed) ? new_base + i : new_base + fsize + (i - nfixed);
     sl_free_variable(&code->frame.vars[slot]);
-    if (value.name != NULL) { free(value.name); value.name = NULL; }
+    if (value.name != NULL) {
+      free(value.name);
+      value.name = NULL;
+    }
     code->frame.vars[slot] = value;
   }
 
@@ -2363,8 +2452,8 @@ static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
 
   if (code->obj.call_stack_size >= code->obj.call_stack_capacity) {
     code->obj.call_stack_capacity *= 2;
-    code->obj.call_stack = srealloc(code->obj.call_stack,
-                          code->obj.call_stack_capacity * sizeof(size_t));
+    code->obj.call_stack = srealloc(
+        code->obj.call_stack, code->obj.call_stack_capacity * sizeof(size_t));
   }
   code->obj.call_stack[code->obj.call_stack_size++] = *pc;
   *pc = (size_t)code->funcs[func_idx].entry_pc;
@@ -2372,17 +2461,28 @@ static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
 
 static const char *vm_type_name(enum SL_Types type) {
   switch (type) {
-    case INIT:    return "INIT";
-    case INTEGER: return "INTEGER";
-    case DOUBLE:  return "DOUBLE";
-    case CHAR:    return "CHAR";
-    case STRING:  return "STRING";
-    case BOOLEAN: return "BOOLEAN";
-    case RETURN:  return "RETURN";
-    case LONG:    return "LONG";
-    case ERROR:   return "ERROR";
-    case POINTER: return "POINTER";
-    case BYTES:   return "BYTES";
+  case INIT:
+    return "INIT";
+  case INTEGER:
+    return "INTEGER";
+  case DOUBLE:
+    return "DOUBLE";
+  case CHAR:
+    return "CHAR";
+  case STRING:
+    return "STRING";
+  case BOOLEAN:
+    return "BOOLEAN";
+  case RETURN:
+    return "RETURN";
+  case LONG:
+    return "LONG";
+  case ERROR:
+    return "ERROR";
+  case POINTER:
+    return "POINTER";
+  case BYTES:
+    return "BYTES";
   }
   return "UNKNOWN";
 }
@@ -2421,8 +2521,8 @@ static void vm_push_stepped_variable(struct SL_Code *code, uint32_t var_idx,
   } else {
     static char error_message[128];
     snprintf(error_message, sizeof(error_message),
-             "Type mismatch: %s expects INTEGER or DOUBLE, got %s",
-             opcode_name, vm_type_name(variable.type));
+             "Type mismatch: %s expects INTEGER or DOUBLE, got %s", opcode_name,
+             vm_type_name(variable.type));
     sl_vm_error(code, (uint32_t)-1, error_message,
                 "Ensure that the variable you are incrementing or "
                 "decrementing is a number.");
@@ -2458,646 +2558,808 @@ static void vm_loop(struct SL_Code *code, size_t pc) {
     uint32_t instruction = code->bytecode[pc++];
 
     switch (instruction) {
-		/*
-      case OPCODE_PUSH_CONST: {
-        uint32_t const_idx = code->bytecode[pc++];
-        push(code, copy_value_without_name(code->fixed_values[const_idx]));
-        break;
-      } OLD USAGE -> 3151 */
-      
-      case OPCODE_LOAD_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        push(code, copy_value_without_name(code->vars[var_idx]));
-        break;
+      /*
+case OPCODE_PUSH_CONST: {
+uint32_t const_idx = code->bytecode[pc++];
+push(code, copy_value_without_name(code->fixed_values[const_idx]));
+break;
+} OLD USAGE -> 3151 */
+
+    case OPCODE_LOAD_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      push(code, copy_value_without_name(code->vars[var_idx]));
+      break;
+    }
+
+    case OPCODE_INC_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      vm_push_stepped_variable(code, var_idx, 1, "INC");
+      break;
+    }
+
+    case OPCODE_DEC_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      vm_push_stepped_variable(code, var_idx, -1, "DEC");
+      break;
+    }
+
+    case OPCODE_STORE_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      struct SL_Variable value = pop(code);
+      struct SL_Variable *slot = &code->vars[var_idx];
+      char *name = slot->name;
+      unsigned long hash = slot->hash;
+      slot->name = NULL;
+      sl_free_variable(slot);
+      if (value.name != NULL) {
+        free(value.name);
+        value.name = NULL;
       }
-	  
-      case OPCODE_INC_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        vm_push_stepped_variable(code, var_idx, 1, "INC");
-        break;
+      *slot = value;
+      slot->name = name;
+      slot->hash = hash;
+      break;
+    }
+
+    case OPCODE_LOAD_LOCAL_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      size_t actual_idx = code->current_frame_base + var_idx;
+      push(code, copy_value_without_name(code->frame.vars[actual_idx]));
+      break;
+    }
+
+    case OPCODE_STORE_LOCAL_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      size_t actual_idx = code->current_frame_base + var_idx;
+      struct SL_Variable value = pop(code);
+      sl_free_variable(&code->frame.vars[actual_idx]);
+      if (value.name != NULL) {
+        free(value.name);
+        value.name = NULL;
       }
+      code->frame.vars[actual_idx] = value;
+      break;
+    }
 
-      case OPCODE_DEC_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        vm_push_stepped_variable(code, var_idx, -1, "DEC");
-        break;
+    case OPCODE_FUNC_CALL: {
+      uint32_t func_idx = code->bytecode[pc++];
+      uint32_t arg_count = code->bytecode[pc++];
+      vm_enter_function(code, func_idx, arg_count, &pc);
+      break;
+    }
+
+    case OPCODE_PUSH_POOL_CONST: {
+      uint32_t pool_index = code->bytecode[pc++];
+      push(code, copy_value_without_name(code->constant_pool[pool_index]));
+      break;
+    }
+
+    case OPCODE_PUSH_EMPTY: {
+      struct SL_Variable empty_value = {0};
+      push(code, empty_value);
+      break;
+    }
+
+    case OPCODE_SET_ASSIGNMENT: {
+      struct SL_Variable name_var = pop(code);
+      free(current_assignment);
+      current_assignment = sl_string_getter(name_var.vals);
+      sl_free_variable(&name_var);
+      break;
+    }
+    case OPCODE_CALL_ADDRESS: {
+      uint32_t call_target_pc = code->bytecode[pc++];
+      uint32_t callee_frame_size = code->bytecode[pc++];
+
+      if (code->obj.call_frame_size >= code->obj.call_frame_capacity) {
+        code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0)
+                                            ? SL_INIT
+                                            : code->obj.call_frame_capacity * 2;
+        code->obj.call_frames =
+            srealloc(code->obj.call_frames, code->obj.call_frame_capacity *
+                                                sizeof(struct SL_CallFrame));
       }
+      code->obj.call_frames[code->obj.call_frame_size++] =
+          (struct SL_CallFrame){.frame_base = code->current_frame_base,
+                                .saved_total_vars = code->frame.total_vars};
 
-      case OPCODE_STORE_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        struct SL_Variable value = pop(code);
-        struct SL_Variable *slot = &code->vars[var_idx];
-        char *name = slot->name;
-        unsigned long hash = slot->hash;
-        slot->name = NULL;
-        sl_free_variable(slot);
-        if (value.name != NULL) { free(value.name); value.name = NULL; }
-        *slot = value;
-        slot->name = name;
-        slot->hash = hash;
-        break;
+      size_t callee_base = code->frame.total_vars;
+      frame_reserve(code, callee_base + callee_frame_size + 1);
+      code->current_frame_base = callee_base;
+      code->frame.total_vars = callee_base + callee_frame_size;
+
+      if (code->obj.call_stack_size >= code->obj.call_stack_capacity) {
+        code->obj.call_stack_capacity *= 2;
+        code->obj.call_stack =
+            srealloc(code->obj.call_stack,
+                     code->obj.call_stack_capacity * sizeof(size_t));
       }
+      code->obj.call_stack[code->obj.call_stack_size++] = pc;
+      pc = (size_t)call_target_pc;
+      break;
+    }
 
-	  case OPCODE_LOAD_LOCAL_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        size_t actual_idx = code->current_frame_base + var_idx;
-        push(code, copy_value_without_name(code->frame.vars[actual_idx]));
-        break;
-      }
-	  
-      case OPCODE_STORE_LOCAL_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-        size_t actual_idx = code->current_frame_base + var_idx;
-        struct SL_Variable value = pop(code);
-        sl_free_variable(&code->frame.vars[actual_idx]);
-        if (value.name != NULL) { free(value.name); value.name = NULL; }
-		code->frame.vars[actual_idx] = value;
-		break;
-	}
-
-	  case OPCODE_FUNC_CALL: {
-			uint32_t func_idx = code->bytecode[pc++];
-			uint32_t arg_count = code->bytecode[pc++];
-			vm_enter_function(code, func_idx, arg_count, &pc);
-			break;
-	  }
-	  
-	  case OPCODE_PUSH_POOL_CONST: {
-			uint32_t pool_index = code->bytecode[pc++];
-			push(code, copy_value_without_name(code->constant_pool[pool_index]));
-			break;
-	  }
-
-	  case OPCODE_PUSH_EMPTY: {
-			struct SL_Variable empty_value = {0};
-			push(code, empty_value);
-			break;
-	  }
-	  
-	  case OPCODE_SET_ASSIGNMENT: {
-			struct SL_Variable name_var = pop(code);
-			free(current_assignment);
-			current_assignment = sl_string_getter(name_var.vals);
-			sl_free_variable(&name_var);
-			break;
-	  }
-	  case OPCODE_CALL_ADDRESS: {
-			uint32_t call_target_pc = code->bytecode[pc++];
-			uint32_t callee_frame_size = code->bytecode[pc++];
-
-			if (code->obj.call_frame_size >= code->obj.call_frame_capacity) {
-				code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0) ? SL_INIT : code->obj.call_frame_capacity * 2;
-				code->obj.call_frames = srealloc(code->obj.call_frames,
-											code->obj.call_frame_capacity * sizeof(struct SL_CallFrame));
-			}
-			code->obj.call_frames[code->obj.call_frame_size++] = (struct SL_CallFrame){
-				.frame_base = code->current_frame_base,
-				.saved_total_vars = code->frame.total_vars
-			};
-
-			size_t callee_base = code->frame.total_vars;
-			frame_reserve(code, callee_base + callee_frame_size + 1);
-			code->current_frame_base = callee_base;
-			code->frame.total_vars = callee_base + callee_frame_size;
-
-			if (code->obj.call_stack_size >= code->obj.call_stack_capacity) {
-				code->obj.call_stack_capacity *= 2;
-				code->obj.call_stack = srealloc(code->obj.call_stack,
-										code->obj.call_stack_capacity * sizeof(size_t));
-			}
-			code->obj.call_stack[code->obj.call_stack_size++] = pc;
-			pc = (size_t)call_target_pc;
-			break;
-	  }
-
-	  case OPCODE_RETURN: {
-	  		if (code->obj.call_stack_size == 0) {
-				return;
-	  		}
-			
-			for (size_t i = code->current_frame_base; i < (size_t)code->frame.total_vars; i++) {
-				sl_free_variable(&code->frame.vars[i]);
-				memset(&code->frame.vars[i], 0, sizeof(struct SL_Variable));
-			}
-
-			if (code->obj.call_frame_size > 0) {
-				struct SL_CallFrame prev_frame = code->obj.call_frames[--code->obj.call_frame_size];
-				code->current_frame_base = prev_frame.frame_base;
-				code->frame.total_vars = prev_frame.saved_total_vars;
-			}
-			
-	  		pc = code->obj.call_stack[--code->obj.call_stack_size];
-	  		break;
-	  }
-
-
-
-	  case OPCODE_CALL_LINKED_FUNC: {
-        uint32_t func_idx = code->bytecode[pc++];
-        uint32_t arg_count = code->bytecode[pc++];
-        
-        struct SL_Variable *args = smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable) : sizeof(struct SL_Variable));
-        for (int i = (int)arg_count - 1; i >= 0; i--) {
-            args[i] = pop(code);
-        }
-        
-        int starting_index = code->total_vars;
-		int starting_index_func = code->total_funcs;
-        if (code->total_vars + arg_count >= code->total_size_v) {
-            code->total_size_v = (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
-            while (code->total_vars + arg_count >= code->total_size_v) {
-                code->total_size_v *= 2;
-            }
-            code->vars = srealloc(code->vars, code->total_size_v * sizeof(struct SL_Variable));
-        }
-        
-        for (int i = 0; i < arg_count; i++) {
-            code->vars[code->total_vars++] = sl_copy_variable(args[i]);
-        }
-
-        struct SL_L_Function lfunc = {0};
-        lfunc.total_arguments = arg_count;
-        lfunc.starting_index = starting_index;
-        
-        struct SL_Variable result = code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
-		
-		for (int i = starting_index; i < code->total_vars; i++) {
-			if (result.type == STRING && result.vals != NULL && result.vals == code->vars[i].vals) {
-				result.vals = strdup(result.vals);
-				break;
-			}
-		}
-        
-		sl_clean_local_scope(code, starting_index, starting_index_func);
-        
-        for (int i = 0; i < arg_count; i++) {
-            sl_free_variable(&args[i]);
-        }
-        free(args);
-		
-        push(code, result);
-        break;
-      }
-	  
-	  case OPCODE_CALL_DYNAMIC_LINKED_FUNC: {
-        uint32_t name_const_idx = code->bytecode[pc++];
-        uint32_t arg_count = code->bytecode[pc++];
-
-        char *func_name = code->constant_pool[name_const_idx].vals;
-
-        int func_idx = is_has_func(*code, func_name);
-        if (func_idx == -1) {
-            sl_vm_error(code, (uint32_t)-1, "FUNCTION NOT FOUND!",
-                        "Expected: Create a function first (variables need a '$' prefix).");
-        }
-
-		if (code->funcs[func_idx].linked_function != 1) {
-			vm_enter_function(code, func_idx, arg_count, &pc);
-			break;
-		}
-
-        struct SL_Variable *args = smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable) : sizeof(struct SL_Variable));
-        for (int i = (int)arg_count - 1; i >= 0; i--) {
-            args[i] = pop(code);
-        }
-		
-        int starting_index = code->total_vars;
-		int starting_index_func = code->total_funcs;
-        if (code->total_vars + arg_count >= code->total_size_v) {
-            code->total_size_v = (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
-            while (code->total_vars + arg_count >= code->total_size_v) {
-                code->total_size_v *= 2;
-            }
-            code->vars = srealloc(code->vars, code->total_size_v * sizeof(struct SL_Variable));
-        }
-        
-        for (int i = 0; i < arg_count; i++) {
-            code->vars[code->total_vars++] = sl_copy_variable(args[i]);
-        }
-        
-        struct SL_L_Function lfunc = {0};
-        lfunc.total_arguments = arg_count;
-        lfunc.starting_index = starting_index;
-        
-        struct SL_Variable result = code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
-		for (int i = starting_index; i < code->total_vars; i++) {
-			if (result.type == STRING && result.vals != NULL && result.vals == code->vars[i].vals) {
-				result.vals = strdup(result.vals);
-				break;
-			}
-		}
-        
-		sl_clean_local_scope(code, starting_index, starting_index_func);
-        
-        for (int i = 0; i < arg_count; i++) {
-            sl_free_variable(&args[i]);
-        }
-        free(args);
-		
-        push(code, result);
-        break;
-      }
-
-	  case OPCODE_LOAD_DYNAMIC_ADDED_VAR: {
-        uint32_t var_idx = code->bytecode[pc++];
-		char *var_name = code->constant_pool[var_idx].vals;
-
-        int real_idx = getvar_index_from_sl(*code, var_name + 1, sl_hash_string(var_name + 1));
-        if (real_idx == -1) {
-            sl_vm_error(code, (uint32_t)-1, "VARIABLE NOT FOUND!",
-                        "Expected: Define a variable first.");
-        }
-        push(code, copy_value_without_name(code->vars[real_idx]));
-        break;
-      }
-	  
-      case OPCODE_STORE_DYNAMIC_ADDED_VAR: {
-        struct SL_Variable name_var = pop(code);
-        struct SL_Variable value = pop(code);
-        char *var_name = sl_string_getter(name_var.vals);
-        sl_free_variable(&name_var);
-
-        int real_idx = getvar_index_from_sl(*code, var_name, sl_hash_string(var_name));
-        if (real_idx == -1) {
-          static char error_message[128];
-          snprintf(error_message, sizeof(error_message),
-                   "VARIABLE NOT FOUND ON ASSIGNMENT! (%s)", var_name);
-          int error_token = find_assignment_token(code, var_name);
-          sl_vm_error(code, (uint32_t)error_token, error_message,
-                      "Expected: Define a variable first with 'var'.");
-        }
-        free(var_name);
-
-        struct SL_Variable *slot = &code->vars[real_idx];
-        char *name = slot->name;
-        unsigned long hash = slot->hash;
-        slot->name = NULL;
-        sl_free_variable(slot);
-        if (value.name != NULL) { free(value.name); value.name = NULL; }
-        *slot = value;
-        slot->name = name;
-        slot->hash = hash;
-        break;
-      }
-
-	  case OPCODE_IF_JUMP_FALSE: {
-	  	uint32_t target_pc = code->bytecode[pc++];
-	  	struct SL_Variable condition = pop(code); 
-	  
-	  	int is_false = 0;
-	  	if (condition.type == BOOLEAN) is_false = (condition.valb == 0);
-	  	else if (condition.type == INIT) is_false = 1;
-	  
-	  	sl_free_variable(&condition);
-	  
-	  
-	  	if (is_false) {
-	  		pc = target_pc;
-	  	}
-	  	break;
-	  }
-
-	  case OPCODE_JMP: {
-	  	uint32_t target_pc = code->bytecode[pc++];
-	  	pc = target_pc;
-	  	break;
-	  }
-	  
-	  /* Arithmetic Logic Unit */
-      case OPCODE_ADD: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-
-        result.type = left.type;
-        switch (left.type) {
-          case INTEGER: result.vali = left.vali + right.vali; break;
-          case DOUBLE:  result.valf = left.valf + right.valf; break;
-          case BOOLEAN: result.valb = left.valb + right.valb; break;
-          case LONG:    result.valh = left.valh + right.valh; break;
-          case STRING: {
-            char *left_str = sl_string_getter(left.vals);
-            char *right_str = sl_string_getter(right.vals);
-            size_t len = strlen(left_str) + strlen(right_str);
-            char *joined = smalloc(len + 1);
-            strcpy(joined, left_str);
-            strcat(joined, right_str);
-            result.vals = sl_quote_string(joined);
-            free(joined); free(left_str); free(right_str);
-            break;
-          }
-          default: break;
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_SUB: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-
-        result.type = left.type;
-        switch (left.type) {
-          case INTEGER: result.vali = left.vali - right.vali; break;
-          case DOUBLE:  result.valf = left.valf - right.valf; break;
-          case BOOLEAN: result.valb = left.valb - right.valb; break;
-          case LONG:    result.valh = left.valh - right.valh; break;
-          default: break;
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_MUL: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-
-        result.type = left.type;
-        switch (left.type) {
-          case INTEGER: result.vali = left.vali * right.vali; break;
-          case DOUBLE:  result.valf = left.valf * right.valf; break;
-          case BOOLEAN: result.valb = left.valb * right.valb; break;
-          case LONG:    result.valh = left.valh * right.valh; break;
-          default: break;
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_DIV: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-
-        result.type = left.type;
-        switch (left.type) {
-          case INTEGER: if(right.vali != 0) result.vali = left.vali / right.vali; break;
-          case DOUBLE:  if(right.valf != 0) result.valf = left.valf / right.valf; break;
-          case BOOLEAN: if(right.valb != 0) result.valb = left.valb / right.valb; break;
-          case LONG:    if(right.valh != 0) result.valh = left.valh / right.valh; break;
-          default: break;
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_MOD: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali % right.vali;
-        else if (left.type == LONG) result.valh = left.valh % right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      /* BITWISE */
-      case OPCODE_BAND: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali & right.vali;
-        else if (left.type == LONG) result.valh = left.valh & right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_BOR: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali | right.vali;
-        else if (left.type == LONG) result.valh = left.valh | right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_XOR: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali ^ right.vali;
-        else if (left.type == LONG) result.valh = left.valh ^ right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_SHR: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali >> right.vali;
-        else if (left.type == LONG) result.valh = left.valh >> right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_SHL: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {0};
-        result.type = left.type;
-        if (left.type == INTEGER) result.vali = left.vali << right.vali;
-        else if (left.type == LONG) result.valh = left.valh << right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      /* CONDITIONS */
-      case OPCODE_BIGGER: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali > right.vali;
-        else if (left.type == DOUBLE) result.valb = left.valf > right.valf;
-        else if (left.type == LONG)   result.valb = left.valh > right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_LESSER: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali < right.vali;
-        else if (left.type == DOUBLE) result.valb = left.valf < right.valf;
-        else if (left.type == LONG)   result.valb = left.valh < right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_EQU: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali == right.vali;
-        else if (left.type == DOUBLE)  result.valb = left.valf == right.valf;
-		else if (left.type == CHAR) result.valb = left.valc == right.valc;
-        else if (left.type == BOOLEAN) result.valb = left.valb == right.valb;
-        else if (left.type == LONG)    result.valb = left.valh == right.valh;
-        else if (left.type == STRING) {
-          char *ls = sl_string_getter(left.vals);
-          char *rs = sl_string_getter(right.vals);
-          result.valb = (strcmp(ls, rs) == 0);
-          free(ls); free(rs);
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_NEQ: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali != right.vali;
-        else if (left.type == DOUBLE)  result.valb = left.valf != right.valf;
-        else if (left.type == BOOLEAN) result.valb = left.valb != right.valb;
-		else if (left.type == CHAR) result.valb = left.valc != right.valc;
-        else if (left.type == LONG)    result.valb = left.valh != right.valh;
-        else if (left.type == STRING) {
-          char *ls = sl_string_getter(left.vals);
-          char *rs = sl_string_getter(right.vals);
-          result.valb = (strcmp(ls, rs) != 0);
-          free(ls); free(rs);
-        }
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_EQG: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali >= right.vali;
-        else if (left.type == DOUBLE) result.valb = left.valf >= right.valf;
-        else if (left.type == LONG)   result.valb = left.valh >= right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_EQL: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali <= right.vali;
-        else if (left.type == DOUBLE) result.valb = left.valf <= right.valf;
-        else if (left.type == LONG)   result.valb = left.valh <= right.valh;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_LAND: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali && right.vali;
-        else if (left.type == BOOLEAN) result.valb = left.valb && right.valb;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-
-      case OPCODE_LOR: {
-        struct SL_Variable right = pop(code);
-        struct SL_Variable left  = pop(code);
-        vm_prepare_operands(code, &left, &right);
-        struct SL_Variable result = {.type = BOOLEAN};
-        if (left.type == INTEGER) result.valb = left.vali || right.vali;
-        else if (left.type == BOOLEAN) result.valb = left.valb || right.valb;
-        push(code, result);
-        sl_free_variable(&left); sl_free_variable(&right);
-        break;
-      }
-	  /* Arithmetic Logic Unit */
-      default:
-        fprintf(stderr, "Unknown opcode: 0x%02X at PC: %zu\n", instruction, pc - 1);
+    case OPCODE_RETURN: {
+      if (code->obj.call_stack_size == 0) {
         return;
+      }
+
+      for (size_t i = code->current_frame_base;
+           i < (size_t)code->frame.total_vars; i++) {
+        sl_free_variable(&code->frame.vars[i]);
+        memset(&code->frame.vars[i], 0, sizeof(struct SL_Variable));
+      }
+
+      if (code->obj.call_frame_size > 0) {
+        struct SL_CallFrame prev_frame =
+            code->obj.call_frames[--code->obj.call_frame_size];
+        code->current_frame_base = prev_frame.frame_base;
+        code->frame.total_vars = prev_frame.saved_total_vars;
+      }
+
+      pc = code->obj.call_stack[--code->obj.call_stack_size];
+      break;
+    }
+
+    case OPCODE_CALL_LINKED_FUNC: {
+      uint32_t func_idx = code->bytecode[pc++];
+      uint32_t arg_count = code->bytecode[pc++];
+
+      struct SL_Variable *args =
+          smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable)
+                                : sizeof(struct SL_Variable));
+      for (int i = (int)arg_count - 1; i >= 0; i--) {
+        args[i] = pop(code);
+      }
+
+      int starting_index = code->total_vars;
+      int starting_index_func = code->total_funcs;
+      if (code->total_vars + arg_count >= code->total_size_v) {
+        code->total_size_v =
+            (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
+        while (code->total_vars + arg_count >= code->total_size_v) {
+          code->total_size_v *= 2;
+        }
+        code->vars = srealloc(code->vars,
+                              code->total_size_v * sizeof(struct SL_Variable));
+      }
+
+      for (int i = 0; i < arg_count; i++) {
+        code->vars[code->total_vars++] = sl_copy_variable(args[i]);
+      }
+
+      struct SL_L_Function lfunc = {0};
+      lfunc.total_arguments = arg_count;
+      lfunc.starting_index = starting_index;
+
+      struct SL_Variable result =
+          code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
+
+      for (int i = starting_index; i < code->total_vars; i++) {
+        if (result.type == STRING && result.vals != NULL &&
+            result.vals == code->vars[i].vals) {
+          result.vals = strdup(result.vals);
+          break;
+        }
+      }
+
+      sl_clean_local_scope(code, starting_index, starting_index_func);
+
+      for (int i = 0; i < arg_count; i++) {
+        sl_free_variable(&args[i]);
+      }
+      free(args);
+
+      push(code, result);
+      break;
+    }
+
+    case OPCODE_CALL_DYNAMIC_LINKED_FUNC: {
+      uint32_t name_const_idx = code->bytecode[pc++];
+      uint32_t arg_count = code->bytecode[pc++];
+
+      char *func_name = code->constant_pool[name_const_idx].vals;
+
+      int func_idx = is_has_func(*code, func_name);
+      if (func_idx == -1) {
+        sl_vm_error(
+            code, (uint32_t)-1, "FUNCTION NOT FOUND!",
+            "Expected: Create a function first (variables need a '$' prefix).");
+      }
+
+      if (code->funcs[func_idx].linked_function != 1) {
+        vm_enter_function(code, func_idx, arg_count, &pc);
+        break;
+      }
+
+      struct SL_Variable *args =
+          smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable)
+                                : sizeof(struct SL_Variable));
+      for (int i = (int)arg_count - 1; i >= 0; i--) {
+        args[i] = pop(code);
+      }
+
+      int starting_index = code->total_vars;
+      int starting_index_func = code->total_funcs;
+      if (code->total_vars + arg_count >= code->total_size_v) {
+        code->total_size_v =
+            (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
+        while (code->total_vars + arg_count >= code->total_size_v) {
+          code->total_size_v *= 2;
+        }
+        code->vars = srealloc(code->vars,
+                              code->total_size_v * sizeof(struct SL_Variable));
+      }
+
+      for (int i = 0; i < arg_count; i++) {
+        code->vars[code->total_vars++] = sl_copy_variable(args[i]);
+      }
+
+      struct SL_L_Function lfunc = {0};
+      lfunc.total_arguments = arg_count;
+      lfunc.starting_index = starting_index;
+
+      struct SL_Variable result =
+          code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
+      for (int i = starting_index; i < code->total_vars; i++) {
+        if (result.type == STRING && result.vals != NULL &&
+            result.vals == code->vars[i].vals) {
+          result.vals = strdup(result.vals);
+          break;
+        }
+      }
+
+      sl_clean_local_scope(code, starting_index, starting_index_func);
+
+      for (int i = 0; i < arg_count; i++) {
+        sl_free_variable(&args[i]);
+      }
+      free(args);
+
+      push(code, result);
+      break;
+    }
+
+    case OPCODE_LOAD_DYNAMIC_ADDED_VAR: {
+      uint32_t var_idx = code->bytecode[pc++];
+      char *var_name = code->constant_pool[var_idx].vals;
+
+      int real_idx = getvar_index_from_sl(*code, var_name + 1,
+                                          sl_hash_string(var_name + 1));
+      if (real_idx == -1) {
+        sl_vm_error(code, (uint32_t)-1, "VARIABLE NOT FOUND!",
+                    "Expected: Define a variable first.");
+      }
+      push(code, copy_value_without_name(code->vars[real_idx]));
+      break;
+    }
+
+    case OPCODE_STORE_DYNAMIC_ADDED_VAR: {
+      struct SL_Variable name_var = pop(code);
+      struct SL_Variable value = pop(code);
+      char *var_name = sl_string_getter(name_var.vals);
+      sl_free_variable(&name_var);
+
+      int real_idx =
+          getvar_index_from_sl(*code, var_name, sl_hash_string(var_name));
+      if (real_idx == -1) {
+        static char error_message[128];
+        snprintf(error_message, sizeof(error_message),
+                 "VARIABLE NOT FOUND ON ASSIGNMENT! (%s)", var_name);
+        int error_token = find_assignment_token(code, var_name);
+        sl_vm_error(code, (uint32_t)error_token, error_message,
+                    "Expected: Define a variable first with 'var'.");
+      }
+      free(var_name);
+
+      struct SL_Variable *slot = &code->vars[real_idx];
+      char *name = slot->name;
+      unsigned long hash = slot->hash;
+      slot->name = NULL;
+      sl_free_variable(slot);
+      if (value.name != NULL) {
+        free(value.name);
+        value.name = NULL;
+      }
+      *slot = value;
+      slot->name = name;
+      slot->hash = hash;
+      break;
+    }
+
+    case OPCODE_IF_JUMP_FALSE: {
+      uint32_t target_pc = code->bytecode[pc++];
+      struct SL_Variable condition = pop(code);
+
+      int is_false = 0;
+      if (condition.type == BOOLEAN)
+        is_false = (condition.valb == 0);
+      else if (condition.type == INIT)
+        is_false = 1;
+
+      sl_free_variable(&condition);
+
+      if (is_false) {
+        pc = target_pc;
+      }
+      break;
+    }
+
+    case OPCODE_JMP: {
+      uint32_t target_pc = code->bytecode[pc++];
+      pc = target_pc;
+      break;
+    }
+
+      /* Arithmetic Logic Unit */
+    case OPCODE_ADD: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+
+      result.type = left.type;
+      switch (left.type) {
+      case INTEGER:
+        result.vali = left.vali + right.vali;
+        break;
+      case DOUBLE:
+        result.valf = left.valf + right.valf;
+        break;
+      case BOOLEAN:
+        result.valb = left.valb + right.valb;
+        break;
+      case LONG:
+        result.valh = left.valh + right.valh;
+        break;
+      case STRING: {
+        char *left_str = sl_string_getter(left.vals);
+        char *right_str = sl_string_getter(right.vals);
+        size_t len = strlen(left_str) + strlen(right_str);
+        char *joined = smalloc(len + 1);
+        strcpy(joined, left_str);
+        strcat(joined, right_str);
+        result.vals = sl_quote_string(joined);
+        free(joined);
+        free(left_str);
+        free(right_str);
+        break;
+      }
+      default:
+        break;
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_SUB: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+
+      result.type = left.type;
+      switch (left.type) {
+      case INTEGER:
+        result.vali = left.vali - right.vali;
+        break;
+      case DOUBLE:
+        result.valf = left.valf - right.valf;
+        break;
+      case BOOLEAN:
+        result.valb = left.valb - right.valb;
+        break;
+      case LONG:
+        result.valh = left.valh - right.valh;
+        break;
+      default:
+        break;
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_MUL: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+
+      result.type = left.type;
+      switch (left.type) {
+      case INTEGER:
+        result.vali = left.vali * right.vali;
+        break;
+      case DOUBLE:
+        result.valf = left.valf * right.valf;
+        break;
+      case BOOLEAN:
+        result.valb = left.valb * right.valb;
+        break;
+      case LONG:
+        result.valh = left.valh * right.valh;
+        break;
+      default:
+        break;
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_DIV: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+
+      result.type = left.type;
+      switch (left.type) {
+      case INTEGER:
+        if (right.vali != 0)
+          result.vali = left.vali / right.vali;
+        break;
+      case DOUBLE:
+        if (right.valf != 0)
+          result.valf = left.valf / right.valf;
+        break;
+      case BOOLEAN:
+        if (right.valb != 0)
+          result.valb = left.valb / right.valb;
+        break;
+      case LONG:
+        if (right.valh != 0)
+          result.valh = left.valh / right.valh;
+        break;
+      default:
+        break;
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_MOD: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali % right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh % right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    /* BITWISE */
+    case OPCODE_BAND: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali & right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh & right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_BOR: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali | right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh | right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_XOR: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali ^ right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh ^ right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_SHR: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali >> right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh >> right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_SHL: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {0};
+      result.type = left.type;
+      if (left.type == INTEGER)
+        result.vali = left.vali << right.vali;
+      else if (left.type == LONG)
+        result.valh = left.valh << right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    /* CONDITIONS */
+    case OPCODE_BIGGER: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali > right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf > right.valf;
+      else if (left.type == LONG)
+        result.valb = left.valh > right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_LESSER: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali < right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf < right.valf;
+      else if (left.type == LONG)
+        result.valb = left.valh < right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_EQU: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali == right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf == right.valf;
+      else if (left.type == CHAR)
+        result.valb = left.valc == right.valc;
+      else if (left.type == BOOLEAN)
+        result.valb = left.valb == right.valb;
+      else if (left.type == LONG)
+        result.valb = left.valh == right.valh;
+      else if (left.type == STRING) {
+        char *ls = sl_string_getter(left.vals);
+        char *rs = sl_string_getter(right.vals);
+        result.valb = (strcmp(ls, rs) == 0);
+        free(ls);
+        free(rs);
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_NEQ: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali != right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf != right.valf;
+      else if (left.type == BOOLEAN)
+        result.valb = left.valb != right.valb;
+      else if (left.type == CHAR)
+        result.valb = left.valc != right.valc;
+      else if (left.type == LONG)
+        result.valb = left.valh != right.valh;
+      else if (left.type == STRING) {
+        char *ls = sl_string_getter(left.vals);
+        char *rs = sl_string_getter(right.vals);
+        result.valb = (strcmp(ls, rs) != 0);
+        free(ls);
+        free(rs);
+      }
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_EQG: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali >= right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf >= right.valf;
+      else if (left.type == LONG)
+        result.valb = left.valh >= right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_EQL: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali <= right.vali;
+      else if (left.type == DOUBLE)
+        result.valb = left.valf <= right.valf;
+      else if (left.type == LONG)
+        result.valb = left.valh <= right.valh;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_LAND: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali && right.vali;
+      else if (left.type == BOOLEAN)
+        result.valb = left.valb && right.valb;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+
+    case OPCODE_LOR: {
+      struct SL_Variable right = pop(code);
+      struct SL_Variable left = pop(code);
+      vm_prepare_operands(code, &left, &right);
+      struct SL_Variable result = {.type = BOOLEAN};
+      if (left.type == INTEGER)
+        result.valb = left.vali || right.vali;
+      else if (left.type == BOOLEAN)
+        result.valb = left.valb || right.valb;
+      push(code, result);
+      sl_free_variable(&left);
+      sl_free_variable(&right);
+      break;
+    }
+      /* Arithmetic Logic Unit */
+    default:
+      fprintf(stderr, "Unknown opcode: 0x%02X at PC: %zu\n", instruction,
+              pc - 1);
+      return;
     }
   }
 }
 
 static void print_disassembled_value(struct SL_Variable value) {
   switch (value.type) {
-    case INTEGER: printf("%d", value.vali); break;
-    case DOUBLE:  printf("%g", value.valf); break;
-    case BOOLEAN: printf("%s", value.valb ? "true" : "false"); break;
-    case CHAR:    printf("'%c'", value.valc); break;
-    case LONG:    printf("%jd", value.valh); break;
-    case STRING:
-    case RETURN:
-      printf("%s", value.vals != NULL ? value.vals : "(null)");
-      break;
-    default:
-      printf("<%s>", vm_type_name(value.type));
-      break;
+  case INTEGER:
+    printf("%d", value.vali);
+    break;
+  case DOUBLE:
+    printf("%g", value.valf);
+    break;
+  case BOOLEAN:
+    printf("%s", value.valb ? "true" : "false");
+    break;
+  case CHAR:
+    printf("'%c'", value.valc);
+    break;
+  case LONG:
+    printf("%jd", value.valh);
+    break;
+  case STRING:
+  case RETURN:
+    printf("%s", value.vals != NULL ? value.vals : "(null)");
+    break;
+  default:
+    printf("<%s>", vm_type_name(value.type));
+    break;
   }
 }
 
 static const char *get_simple_opcode_name(uint32_t opcode) {
   switch (opcode) {
-    case OPCODE_ADD:                      return "ADD";
-    case OPCODE_SUB:                      return "SUB";
-    case OPCODE_MUL:                      return "MUL";
-    case OPCODE_DIV:                      return "DIV";
-    case OPCODE_MOD:                      return "MOD";
-    case OPCODE_BAND:                     return "BAND";
-    case OPCODE_BOR:                      return "BOR";
-    case OPCODE_XOR:                      return "XOR";
-    case OPCODE_SHR:                      return "SHR";
-    case OPCODE_SHL:                      return "SHL";
-    case OPCODE_BIGGER:                   return "BIGGER";
-    case OPCODE_LESSER:                   return "LESSER";
-    case OPCODE_EQU:                      return "EQU";
-    case OPCODE_NEQ:                      return "NEQ";
-    case OPCODE_EQG:                      return "EQG";
-    case OPCODE_EQL:                      return "EQL";
-    case OPCODE_LAND:                     return "LAND";
-    case OPCODE_LOR:                      return "LOR";
-    case OPCODE_RETURN:                   return "RETURN";
-    case OPCODE_PUSH_EMPTY:               return "PUSH_EMPTY";
-    case OPCODE_SET_ASSIGNMENT:           return "SET_ASSIGNMENT";
-    case OPCODE_STORE_DYNAMIC_ADDED_VAR:  return "STORE_DYNAMIC_ADDED_VAR";
-    default:                              return NULL;
+  case OPCODE_ADD:
+    return "ADD";
+  case OPCODE_SUB:
+    return "SUB";
+  case OPCODE_MUL:
+    return "MUL";
+  case OPCODE_DIV:
+    return "DIV";
+  case OPCODE_MOD:
+    return "MOD";
+  case OPCODE_BAND:
+    return "BAND";
+  case OPCODE_BOR:
+    return "BOR";
+  case OPCODE_XOR:
+    return "XOR";
+  case OPCODE_SHR:
+    return "SHR";
+  case OPCODE_SHL:
+    return "SHL";
+  case OPCODE_BIGGER:
+    return "BIGGER";
+  case OPCODE_LESSER:
+    return "LESSER";
+  case OPCODE_EQU:
+    return "EQU";
+  case OPCODE_NEQ:
+    return "NEQ";
+  case OPCODE_EQG:
+    return "EQG";
+  case OPCODE_EQL:
+    return "EQL";
+  case OPCODE_LAND:
+    return "LAND";
+  case OPCODE_LOR:
+    return "LOR";
+  case OPCODE_RETURN:
+    return "RETURN";
+  case OPCODE_PUSH_EMPTY:
+    return "PUSH_EMPTY";
+  case OPCODE_SET_ASSIGNMENT:
+    return "SET_ASSIGNMENT";
+  case OPCODE_STORE_DYNAMIC_ADDED_VAR:
+    return "STORE_DYNAMIC_ADDED_VAR";
+  default:
+    return NULL;
   }
 }
 
@@ -3108,15 +3370,18 @@ static uint32_t read_disassembly_operand(struct SL_Code *code, size_t *pc) {
   return code->bytecode[(*pc)++];
 }
 
-static void print_global_variable_operand(struct SL_Code *code, uint32_t var_idx) {
-  if (var_idx < (uint32_t)code->total_vars && code->vars[var_idx].name != NULL) {
+static void print_global_variable_operand(struct SL_Code *code,
+                                          uint32_t var_idx) {
+  if (var_idx < (uint32_t)code->total_vars &&
+      code->vars[var_idx].name != NULL) {
     printf("[%s]", code->vars[var_idx].name);
   } else {
     printf("[var#%u]", var_idx);
   }
 }
 
-static void print_pool_constant_operand(struct SL_Code *code, uint32_t pool_idx) {
+static void print_pool_constant_operand(struct SL_Code *code,
+                                        uint32_t pool_idx) {
   printf("[");
   if (pool_idx < (uint32_t)code->constant_pool_len) {
     print_disassembled_value(code->constant_pool[pool_idx]);
@@ -3128,7 +3393,8 @@ static void print_pool_constant_operand(struct SL_Code *code, uint32_t pool_idx)
 
 static void print_function_operand(struct SL_Code *code, uint32_t func_idx,
                                    uint32_t arg_count) {
-  if (func_idx < (uint32_t)code->total_funcs && code->funcs[func_idx].name != NULL) {
+  if (func_idx < (uint32_t)code->total_funcs &&
+      code->funcs[func_idx].name != NULL) {
     printf("[%s] args=%u", code->funcs[func_idx].name, arg_count);
   } else {
     printf("[func#%u] args=%u", func_idx, arg_count);
@@ -3148,92 +3414,98 @@ static void disassemble_instruction(struct SL_Code *code, size_t *pc) {
   }
 
   switch (opcode) {
-/*
-    case OPCODE_PUSH_CONST: {
-      uint32_t const_idx = read_disassembly_operand(code, pc);
-      printf("%-24s [", "PUSH_CONST");
-      print_disassembled_value(code->fixed_values[const_idx]);
-      printf("]\n");
-      break;
-    } OLD USAGE -> 2466
- */
-    case OPCODE_PUSH_POOL_CONST: {
-      uint32_t pool_idx = read_disassembly_operand(code, pc);
-      printf("%-24s ", "PUSH_POOL_CONST");
-      print_pool_constant_operand(code, pool_idx);
-      printf("\n");
-      break;
-    }
+    /*
+        case OPCODE_PUSH_CONST: {
+          uint32_t const_idx = read_disassembly_operand(code, pc);
+          printf("%-24s [", "PUSH_CONST");
+          print_disassembled_value(code->fixed_values[const_idx]);
+          printf("]\n");
+          break;
+        } OLD USAGE -> 2466
+     */
+  case OPCODE_PUSH_POOL_CONST: {
+    uint32_t pool_idx = read_disassembly_operand(code, pc);
+    printf("%-24s ", "PUSH_POOL_CONST");
+    print_pool_constant_operand(code, pool_idx);
+    printf("\n");
+    break;
+  }
 
-    case OPCODE_LOAD_VAR:
-    case OPCODE_STORE_VAR:
-    case OPCODE_INC_VAR:
-    case OPCODE_DEC_VAR: {
-      uint32_t var_idx = read_disassembly_operand(code, pc);
-      const char *name = "LOAD_VAR";
-      if (opcode == OPCODE_STORE_VAR) name = "STORE_VAR";
-      if (opcode == OPCODE_INC_VAR)   name = "INC";
-      if (opcode == OPCODE_DEC_VAR)   name = "DEC";
-      printf("%-24s ", name);
-      print_global_variable_operand(code, var_idx);
-      printf("\n");
-      break;
-    }
+  case OPCODE_LOAD_VAR:
+  case OPCODE_STORE_VAR:
+  case OPCODE_INC_VAR:
+  case OPCODE_DEC_VAR: {
+    uint32_t var_idx = read_disassembly_operand(code, pc);
+    const char *name = "LOAD_VAR";
+    if (opcode == OPCODE_STORE_VAR)
+      name = "STORE_VAR";
+    if (opcode == OPCODE_INC_VAR)
+      name = "INC";
+    if (opcode == OPCODE_DEC_VAR)
+      name = "DEC";
+    printf("%-24s ", name);
+    print_global_variable_operand(code, var_idx);
+    printf("\n");
+    break;
+  }
 
-    case OPCODE_LOAD_LOCAL_VAR:
-    case OPCODE_STORE_LOCAL_VAR: {
-      uint32_t slot = read_disassembly_operand(code, pc);
-      const char *name = (opcode == OPCODE_LOAD_LOCAL_VAR) ? "LOAD_LOCAL_VAR" : "STORE_LOCAL_VAR";
-      printf("%-24s [local#%u]\n", name, slot);
-      break;
-    }
+  case OPCODE_LOAD_LOCAL_VAR:
+  case OPCODE_STORE_LOCAL_VAR: {
+    uint32_t slot = read_disassembly_operand(code, pc);
+    const char *name = (opcode == OPCODE_LOAD_LOCAL_VAR) ? "LOAD_LOCAL_VAR"
+                                                         : "STORE_LOCAL_VAR";
+    printf("%-24s [local#%u]\n", name, slot);
+    break;
+  }
 
-    case OPCODE_LOAD_DYNAMIC_ADDED_VAR: {
-      uint32_t pool_idx = read_disassembly_operand(code, pc);
-      printf("%-24s ", "LOAD_DYNAMIC_ADDED_VAR");
-      print_pool_constant_operand(code, pool_idx);
-      printf("\n");
-      break;
-    }
+  case OPCODE_LOAD_DYNAMIC_ADDED_VAR: {
+    uint32_t pool_idx = read_disassembly_operand(code, pc);
+    printf("%-24s ", "LOAD_DYNAMIC_ADDED_VAR");
+    print_pool_constant_operand(code, pool_idx);
+    printf("\n");
+    break;
+  }
 
-    case OPCODE_JMP:
-    case OPCODE_IF_JUMP_FALSE: {
-      uint32_t target_pc = read_disassembly_operand(code, pc);
-      const char *name = (opcode == OPCODE_JMP) ? "JMP" : "IF_JUMP_FALSE";
-      printf("%-24s -> %04u\n", name, target_pc);
-      break;
-    }
+  case OPCODE_JMP:
+  case OPCODE_IF_JUMP_FALSE: {
+    uint32_t target_pc = read_disassembly_operand(code, pc);
+    const char *name = (opcode == OPCODE_JMP) ? "JMP" : "IF_JUMP_FALSE";
+    printf("%-24s -> %04u\n", name, target_pc);
+    break;
+  }
 
-    case OPCODE_FUNC_CALL:
-    case OPCODE_CALL_LINKED_FUNC: {
-      uint32_t func_idx = read_disassembly_operand(code, pc);
-      uint32_t arg_count = read_disassembly_operand(code, pc);
-      const char *name = (opcode == OPCODE_FUNC_CALL) ? "FUNC_CALL" : "CALL_LINKED_FUNC";
-      printf("%-24s ", name);
-      print_function_operand(code, func_idx, arg_count);
-      printf("\n");
-      break;
-    }
+  case OPCODE_FUNC_CALL:
+  case OPCODE_CALL_LINKED_FUNC: {
+    uint32_t func_idx = read_disassembly_operand(code, pc);
+    uint32_t arg_count = read_disassembly_operand(code, pc);
+    const char *name =
+        (opcode == OPCODE_FUNC_CALL) ? "FUNC_CALL" : "CALL_LINKED_FUNC";
+    printf("%-24s ", name);
+    print_function_operand(code, func_idx, arg_count);
+    printf("\n");
+    break;
+  }
 
-    case OPCODE_CALL_DYNAMIC_LINKED_FUNC: {
-      uint32_t pool_idx = read_disassembly_operand(code, pc);
-      uint32_t arg_count = read_disassembly_operand(code, pc);
-      printf("%-24s ", "CALL_DYNAMIC_LINKED_FUNC");
-      print_pool_constant_operand(code, pool_idx);
-      printf(" args=%u\n", arg_count);
-      break;
-    }
+  case OPCODE_CALL_DYNAMIC_LINKED_FUNC: {
+    uint32_t pool_idx = read_disassembly_operand(code, pc);
+    uint32_t arg_count = read_disassembly_operand(code, pc);
+    printf("%-24s ", "CALL_DYNAMIC_LINKED_FUNC");
+    print_pool_constant_operand(code, pool_idx);
+    printf(" args=%u\n", arg_count);
+    break;
+  }
 
-    case OPCODE_CALL_ADDRESS: {
-      uint32_t target_pc = read_disassembly_operand(code, pc);
-      uint32_t frame_size = read_disassembly_operand(code, pc);
-      printf("%-24s -> %04u frame_size=%u\n", "CALL_ADDRESS", target_pc, frame_size);
-      break;
-    }
+  case OPCODE_CALL_ADDRESS: {
+    uint32_t target_pc = read_disassembly_operand(code, pc);
+    uint32_t frame_size = read_disassembly_operand(code, pc);
+    printf("%-24s -> %04u frame_size=%u\n", "CALL_ADDRESS", target_pc,
+           frame_size);
+    break;
+  }
 
-    default:
-      printf("UNKNOWN                  0x%02X\n", opcode);
-      break;
+  default:
+    printf("UNKNOWN                  0x%02X\n", opcode);
+    break;
   }
 }
 
@@ -3253,7 +3525,8 @@ void sl_run_vm(struct SL_Code *code) {
   if (code->obj.call_frame_size == 0) {
     if (code->frame.vars != NULL && code->frame.total_vars_capacity > 0)
       memset(code->frame.vars, 0,
-             (size_t)code->frame.total_vars_capacity * sizeof(struct SL_Variable));
+             (size_t)code->frame.total_vars_capacity *
+                 sizeof(struct SL_Variable));
     code->frame.total_vars = 0;
     code->current_frame_base = 0;
   }
@@ -3290,7 +3563,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
     if (code_s->custom_keyword_count > 0) {
       int found = 0;
       for (int i = 0; i < code_s->custom_keyword_count; i++) {
-        if (strcmp(code_s->custom_keyword[i], code_s->code[current_token]) == 0) {
+        if (strcmp(code_s->custom_keyword[i], code_s->code[current_token]) ==
+            0) {
           code_s->custom_keywordr[i](code_s, &current_token);
           found = 1;
         }
@@ -3313,24 +3587,29 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       }
 
       current_token++;
-      variable_parser(code_s, code_s->types, code_s->code, &current_token, end, 0);
+      variable_parser(code_s, code_s->types, code_s->code, &current_token, end,
+                      0);
       if (current_assignment != NULL) {
         free(current_assignment);
         current_assignment = NULL;
       }
-      if (end > 0) current_token = end - 1;
-      else current_token--;
+      if (end > 0)
+        current_token = end - 1;
+      else
+        current_token--;
     } break;
 
     case T_IF: {
       current_token++;
-      sl_if_parser(code_s, code_s->types, code_s->code, &current_token, code_s->token_count, -1);
+      sl_if_parser(code_s, code_s->types, code_s->code, &current_token,
+                   code_s->token_count, -1);
       current_token--;
     } break;
 
     case T_WHILE: {
       current_token++;
-      sl_while_parser(code_s, code_s->types, code_s->code, &current_token, code_s->token_count, -1);
+      sl_while_parser(code_s, code_s->types, code_s->code, &current_token,
+                      code_s->token_count, -1);
       current_token--;
     } break;
 
@@ -3341,7 +3620,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
                           "Expected: define a loop first.");
       }
 
-      SL_LoopContext *curr = &global_loop_stack.contexts[global_loop_stack.depth - 1];
+      SL_LoopContext *curr =
+          &global_loop_stack.contexts[global_loop_stack.depth - 1];
       emit(code_s, OPCODE_JMP);
       emit(code_s, curr->start_pc);
     } break;
@@ -3352,7 +3632,8 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
                           code_s->token_count, "BREAK USAGE WITHOUT LOOP",
                           "Expected: define a loop first.");
       }
-      SL_LoopContext *curr = &global_loop_stack.contexts[global_loop_stack.depth - 1];
+      SL_LoopContext *curr =
+          &global_loop_stack.contexts[global_loop_stack.depth - 1];
 
       if (curr->break_count >= curr->break_capacity) {
         curr->break_capacity *= 2;
@@ -3371,13 +3652,14 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       break;
 
     case T_IMPORT: {
-      sl_throw_an_error(*code_s, code_s->code, current_token,
-                        code_s->token_count, "IMPORT WAS NOT RESOLVED!",
-                        "Expected: tokens from sl_init_sl_lexer() or "
-                        "sl_dostr_sl_process(), imports are embedded while lexing.");
+      sl_throw_an_error(
+          *code_s, code_s->code, current_token, code_s->token_count,
+          "IMPORT WAS NOT RESOLVED!",
+          "Expected: tokens from sl_init_sl_lexer() or "
+          "sl_dostr_sl_process(), imports are embedded while lexing.");
     } break;
 
-	case T_DEF: {
+    case T_DEF: {
       current_token++;
       struct SL_Function func =
           sl_define_parser(code_s, code_s->code, code_s->types, &current_token,
@@ -3385,14 +3667,15 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
       (void)func;
     } break;
 
-	case T_RETURN: {
-		current_token++;
-		end = sl_find_end_of_expr(code_s, code_s->code, code_s->types,
-									current_token, code_s->token_count);
-		sl_expression_solver(code_s, code_s->code, code_s->types, &current_token, end);
-		emit(code_s, OPCODE_RETURN);
-		current_token = end - 1;
-	} break;
+    case T_RETURN: {
+      current_token++;
+      end = sl_find_end_of_expr(code_s, code_s->code, code_s->types,
+                                current_token, code_s->token_count);
+      sl_expression_solver(code_s, code_s->code, code_s->types, &current_token,
+                           end);
+      emit(code_s, OPCODE_RETURN);
+      current_token = end - 1;
+    } break;
 
     default: {
       if (code_s->code[current_token][0] == '$' &&
@@ -3406,13 +3689,15 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
             break;
           }
         }
-        assignment_parser(code_s, code_s->code, code_s->types, &current_token, end, 0);
+        assignment_parser(code_s, code_s->code, code_s->types, &current_token,
+                          end, 0);
         current_token = end - 1;
       } else {
         end = sl_find_end_of_expr(code_s, code_s->code, code_s->types,
                                   current_token, code_s->token_count);
-        sl_expression_solver(code_s, code_s->code, code_s->types, &current_token, end);
-        current_token = end - 1; 
+        sl_expression_solver(code_s, code_s->code, code_s->types,
+                             &current_token, end);
+        current_token = end - 1;
       }
     } break;
     }
@@ -3434,16 +3719,18 @@ struct SL_Code sl_init_sl_process() {
   code.obj.call_stack_capacity = SL_INIT;
   code.obj.call_stack_size = 0;
   code.obj.call_stack = scalloc(code.obj.call_stack_capacity, sizeof(size_t));
-  
+
   code.frame.total_vars_capacity = SL_INIT;
   code.frame.total_vars = 0;
-  code.frame.vars = scalloc(code.frame.total_vars_capacity, sizeof(struct SL_Variable));
-  
+  code.frame.vars =
+      scalloc(code.frame.total_vars_capacity, sizeof(struct SL_Variable));
+
   code.obj.call_frame_capacity = SL_INIT;
   code.obj.call_frame_size = 0;
-  code.obj.call_frames = scalloc(code.obj.call_frame_capacity, sizeof(struct SL_CallFrame));
+  code.obj.call_frames =
+      scalloc(code.obj.call_frame_capacity, sizeof(struct SL_CallFrame));
   code.current_frame_base = 0;
-  
+
   code.funcs = scalloc(SL_INIT, sizeof(struct SL_Function));
   code.total_size_f = SL_INIT;
   code.vars = scalloc(SL_INIT, sizeof(struct SL_Variable));
@@ -3685,8 +3972,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
       continue;
     if (code_p.total_funcs >= code_p.total_size_f) {
       code_p.total_size_f *= 2;
-      code_p.funcs = srealloc(code_p.funcs, code_p.total_size_f *
-                                                sizeof(struct SL_Function));
+      code_p.funcs = srealloc(code_p.funcs,
+                              code_p.total_size_f * sizeof(struct SL_Function));
     }
     code_p.funcs[code_p.total_funcs++] = sl_copy_function(code_s->funcs[i]);
   }
@@ -3694,8 +3981,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   for (int i = 0; i < code_s->total_vars; i++) {
     if (code_p.total_vars >= code_p.total_size_v) {
       code_p.total_size_v *= 2;
-      code_p.vars = srealloc(code_p.vars, code_p.total_size_v *
-                                              sizeof(struct SL_Variable));
+      code_p.vars = srealloc(code_p.vars,
+                             code_p.total_size_v * sizeof(struct SL_Variable));
     }
     code_p.vars[code_p.total_vars++] = sl_copy_variable(code_s->vars[i]);
   }
@@ -3704,7 +3991,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
     sl_add_custom_keyword(&code_p, code_s->custom_keyword[i],
                           code_s->custom_keywordr[i]);
   for (int i = 0; i < code_s->custom_expr_count; i++)
-    sl_add_custom_expr(&code_p, code_s->custom_expr[i], code_s->custom_exprr[i]);
+    sl_add_custom_expr(&code_p, code_s->custom_expr[i],
+                       code_s->custom_exprr[i]);
   for (int i = 0; i < code_s->custom_splitter_count; i++)
     sl_add_custom_splitter(&code_p, code_s->custom_splitter[i],
                            code_s->custom_splitterr[i]);
@@ -3719,8 +4007,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
                            code_p.special_tokens, 1024);
 
   struct SL_ImportRegistry registry = {0};
-  count = sl_expand_imports(&code_p.code, count, SL_INIT,
-                            code_p.special_tokens, &registry);
+  count = sl_expand_imports(&code_p.code, count, SL_INIT, code_p.special_tokens,
+                            &registry);
   sl_import_registry_free(&registry);
 
   if (count > 0) {
@@ -3775,8 +4063,8 @@ int sl_close_sl_process(struct SL_Code *code) {
     code->constant_pool = NULL;
     code->constant_pool_len = 0;
   }
-  
-    if (code->bytecode != NULL) {
+
+  if (code->bytecode != NULL) {
     free(code->bytecode);
     code->bytecode = NULL;
     code->bytecode_len = 0;
@@ -3936,15 +4224,15 @@ void *srealloc(void *pptr, size_t size) {
   return ptr;
 }
 
-void sl_run_process(struct SL_Code *code, char* file_name) {
+void sl_run_process(struct SL_Code *code, char *file_name) {
   if (sl_open_sl_process(code, file_name) != 0) {
     fprintf(stderr, "sl_open_sl_process failed\n");
     return;
   }
   sl_run_vm(code);
   if (sl_close_sl_process(code) != 0) {
-	fprintf(stderr, "sl_close_sl_process failed\n");
-    return;  
+    fprintf(stderr, "sl_close_sl_process failed\n");
+    return;
   }
   return;
 }
@@ -4173,7 +4461,8 @@ static void sl_x_get_function(struct SL_X_Cursor *cursor,
     return;
   }
   if (argument_count > 0) {
-    function->arguments = scalloc((size_t)argument_count, sizeof(struct SL_Variable));
+    function->arguments =
+        scalloc((size_t)argument_count, sizeof(struct SL_Variable));
     function->total_arguments = (int)argument_count;
     for (uint64_t i = 0; i < argument_count; i++)
       sl_x_get_variable(cursor, &function->arguments[i]);
@@ -4236,7 +4525,8 @@ int sl_save_slx(struct SL_Code *code, const char *file_name) {
   header.total_constants = (uint64_t)slx_file.total_constants;
   header.var_sizes = scalloc((size_t)header.total_vars + 1, sizeof(uint64_t));
   header.func_sizes = scalloc((size_t)header.total_funcs + 1, sizeof(uint64_t));
-  header.fixed_sizes = scalloc((size_t)header.total_fixeds + 1, sizeof(uint64_t));
+  header.fixed_sizes =
+      scalloc((size_t)header.total_fixeds + 1, sizeof(uint64_t));
   header.constant_sizes =
       scalloc((size_t)header.total_constants + 1, sizeof(uint64_t));
 
@@ -4248,20 +4538,23 @@ int sl_save_slx(struct SL_Code *code, const char *file_name) {
 
   for (int i = 0; written && i < slx_file.total_vars; i++) {
     sl_x_put_variable(&item, &slx_file.vars[i]);
-    written = sl_x_flush_item(file, &item, &header.var_sizes[i], &header.file_size);
+    written =
+        sl_x_flush_item(file, &item, &header.var_sizes[i], &header.file_size);
   }
   for (int i = 0; written && i < slx_file.total_funcs; i++) {
     sl_x_put_function(&item, &slx_file.funcs[i]);
-    written = sl_x_flush_item(file, &item, &header.func_sizes[i], &header.file_size);
+    written =
+        sl_x_flush_item(file, &item, &header.func_sizes[i], &header.file_size);
   }
   for (int i = 0; written && i < slx_file.total_fixeds; i++) {
     sl_x_put_variable(&item, &slx_file.fixeds[i]);
-    written = sl_x_flush_item(file, &item, &header.fixed_sizes[i], &header.file_size);
+    written =
+        sl_x_flush_item(file, &item, &header.fixed_sizes[i], &header.file_size);
   }
   for (int i = 0; written && i < slx_file.total_constants; i++) {
     sl_x_put_variable(&item, &slx_file.constants[i]);
-    written =
-        sl_x_flush_item(file, &item, &header.constant_sizes[i], &header.file_size);
+    written = sl_x_flush_item(file, &item, &header.constant_sizes[i],
+                              &header.file_size);
   }
 
   if (written) {
@@ -4365,7 +4658,8 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
     goto corrupt;
   total_size = (uint64_t)measured_size;
 
-  if (!sl_x_read_at(file, total_size - SL_X_WORD_SIZE, trailer, sizeof(trailer)))
+  if (!sl_x_read_at(file, total_size - SL_X_WORD_SIZE, trailer,
+                    sizeof(trailer)))
     goto corrupt;
   cursor = (struct SL_X_Cursor){trailer, sizeof(trailer), 0, 0};
   header.header_size = sl_x_get_u64(&cursor);
@@ -4393,7 +4687,8 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
       header.total_funcs > max_items || header.total_fixeds > max_items ||
       header.total_constants > max_items || header.bytecode_size % 4 != 0)
     goto corrupt;
-  if (header.bytecode_size + header.file_size + header.header_size != total_size)
+  if (header.bytecode_size + header.file_size + header.header_size !=
+      total_size)
     goto corrupt;
   if ((SL_X_HEADER_FIXED_FIELDS + 1 + header.total_vars + header.total_funcs +
        header.total_fixeds + header.total_constants) *
@@ -4403,7 +4698,8 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
 
   header.var_sizes = scalloc((size_t)header.total_vars + 1, sizeof(uint64_t));
   header.func_sizes = scalloc((size_t)header.total_funcs + 1, sizeof(uint64_t));
-  header.fixed_sizes = scalloc((size_t)header.total_fixeds + 1, sizeof(uint64_t));
+  header.fixed_sizes =
+      scalloc((size_t)header.total_fixeds + 1, sizeof(uint64_t));
   header.constant_sizes =
       scalloc((size_t)header.total_constants + 1, sizeof(uint64_t));
   for (uint64_t i = 0; i < header.total_vars; i++)
@@ -4419,10 +4715,12 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
 
   vars_capacity = (int)header.total_vars + SL_INIT;
   funcs_capacity = (int)header.total_funcs + SL_INIT;
-  constants_capacity = (int)header.total_constants + SL_X_CONSTANT_EXTRA_CAPACITY;
+  constants_capacity =
+      (int)header.total_constants + SL_X_CONSTANT_EXTRA_CAPACITY;
   slx_file.vars = scalloc((size_t)vars_capacity, sizeof(struct SL_Variable));
   slx_file.funcs = scalloc((size_t)funcs_capacity, sizeof(struct SL_Function));
-  slx_file.fixeds = scalloc((size_t)header.total_fixeds + 1, sizeof(struct SL_Variable));
+  slx_file.fixeds =
+      scalloc((size_t)header.total_fixeds + 1, sizeof(struct SL_Variable));
   slx_file.constants =
       scalloc((size_t)constants_capacity, sizeof(struct SL_Variable));
   slx_file.total_vars = (int)header.total_vars;
@@ -4435,28 +4733,32 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
     goto corrupt;
 
   for (int i = 0; i < slx_file.total_vars; i++) {
-    if (!sl_x_read_item(file, header.var_sizes[i], &scratch, &scratch_capacity, &cursor))
+    if (!sl_x_read_item(file, header.var_sizes[i], &scratch, &scratch_capacity,
+                        &cursor))
       goto corrupt;
     sl_x_get_variable(&cursor, &slx_file.vars[i]);
     if (!sl_x_item_is_valid(&cursor))
       goto corrupt;
   }
   for (int i = 0; i < slx_file.total_funcs; i++) {
-    if (!sl_x_read_item(file, header.func_sizes[i], &scratch, &scratch_capacity, &cursor))
+    if (!sl_x_read_item(file, header.func_sizes[i], &scratch, &scratch_capacity,
+                        &cursor))
       goto corrupt;
     sl_x_get_function(&cursor, &slx_file.funcs[i]);
     if (!sl_x_item_is_valid(&cursor))
       goto corrupt;
   }
   for (int i = 0; i < slx_file.total_fixeds; i++) {
-    if (!sl_x_read_item(file, header.fixed_sizes[i], &scratch, &scratch_capacity, &cursor))
+    if (!sl_x_read_item(file, header.fixed_sizes[i], &scratch,
+                        &scratch_capacity, &cursor))
       goto corrupt;
     sl_x_get_variable(&cursor, &slx_file.fixeds[i]);
     if (!sl_x_item_is_valid(&cursor))
       goto corrupt;
   }
   for (int i = 0; i < slx_file.total_constants; i++) {
-    if (!sl_x_read_item(file, header.constant_sizes[i], &scratch, &scratch_capacity, &cursor))
+    if (!sl_x_read_item(file, header.constant_sizes[i], &scratch,
+                        &scratch_capacity, &cursor))
       goto corrupt;
     sl_x_get_variable(&cursor, &slx_file.constants[i]);
     if (!sl_x_item_is_valid(&cursor))

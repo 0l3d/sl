@@ -1255,8 +1255,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
   if (func.total_arguments < 3) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at dyn.set_ptr_field! Not enough arguments.";
+    return_var.vals = "Error usage at dyn.set_ptr_field! Not enough arguments.";
     return return_var;
   }
 
@@ -1280,8 +1279,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
   if (!ptr_arg.valp) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Null pointer on dyn.set_ptr_field.";
+    return_var.vals = "Null pointer on dyn.set_ptr_field.";
     return return_var;
   }
 
@@ -1289,8 +1287,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
   if (offset < 0) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Negative offset on dyn.set_ptr_field.";
+    return_var.vals = "Negative offset on dyn.set_ptr_field.";
     return return_var;
   }
 
@@ -1304,8 +1301,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
       return return_var;
     }
 
-    struct SL_Variable value_next =
-        sl_get_argument(*code, func, 3);
+    struct SL_Variable value_next = sl_get_argument(*code, func, 3);
 
     DCsigchar type_char = (DCsigchar)value.vali;
 
@@ -1366,8 +1362,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
     }
 
     case DC_SIGCHAR_ULONGLONG: {
-      unsigned long long v =
-          (unsigned long long)value_next.valh;
+      unsigned long long v = (unsigned long long)value_next.valh;
       memcpy(dst, &v, sizeof(v));
       break;
     }
@@ -1386,8 +1381,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
     default:
       return_var.type = ERROR;
-      return_var.vals =
-          "Unsupported type requested on dyn.set_ptr_field.";
+      return_var.vals = "Unsupported type requested on dyn.set_ptr_field.";
       return return_var;
     }
 
@@ -1428,17 +1422,14 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
     case POINTER: {
       void *ptr_to_store = value.valp;
 
-      if (value.info == SL_DYN_STRUCT_PTR ||
-          value.info == SL_DYN_STRUCT_VAL ||
+      if (value.info == SL_DYN_STRUCT_PTR || value.info == SL_DYN_STRUCT_VAL ||
           value.info == SL_DYN_STRUCT_REF) {
 
-        struct SL_DynStruct *maybe =
-            (struct SL_DynStruct *)value.valp;
+        struct SL_DynStruct *maybe = (struct SL_DynStruct *)value.valp;
 
         if (!maybe || !maybe->aggr) {
           return_var.type = ERROR;
-          return_var.vals =
-              "Invalid dyn struct pointer on dyn.set_ptr_field.";
+          return_var.vals = "Invalid dyn struct pointer on dyn.set_ptr_field.";
           return return_var;
         }
 
@@ -1446,8 +1437,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
           if (!maybe->data) {
             return_var.type = ERROR;
-            return_var.vals =
-                "Invalid PTR-mode dyn struct data.";
+            return_var.vals = "Invalid PTR-mode dyn struct data.";
             return return_var;
           }
 
@@ -1457,9 +1447,8 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
           if (!sl_dynstruct_ensure_buffer(maybe)) {
             return_var.type = ERROR;
-            return_var.vals =
-                "Nested dyn struct has no instance buffer "
-                "on dyn.set_ptr_field.";
+            return_var.vals = "Nested dyn struct has no instance buffer "
+                              "on dyn.set_ptr_field.";
             return return_var;
           }
 
@@ -1487,8 +1476,7 @@ struct SL_Variable dyn_set_ptr_field_fn(struct SL_Code *code,
 
     default:
       return_var.type = ERROR;
-      return_var.vals =
-          "Unsupported value type on dyn.set_ptr_field.";
+      return_var.vals = "Unsupported value type on dyn.set_ptr_field.";
       return return_var;
     }
   }
@@ -1505,8 +1493,7 @@ struct SL_Variable dyn_get_ptr_field_fn(struct SL_Code *code,
 
   if (func.total_arguments < 3) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Error usage at dyn.get_ptr_field! Not enough arguments.";
+    return_var.vals = "Error usage at dyn.get_ptr_field! Not enough arguments.";
     return return_var;
   }
 
@@ -1514,20 +1501,17 @@ struct SL_Variable dyn_get_ptr_field_fn(struct SL_Code *code,
   struct SL_Variable offset_arg = sl_get_argument(*code, func, 1);
   struct SL_Variable type_arg = sl_get_argument(*code, func, 2);
 
-  if (ptr_arg.type != POINTER ||
-      offset_arg.type != INTEGER ||
+  if (ptr_arg.type != POINTER || offset_arg.type != INTEGER ||
       type_arg.type != INTEGER) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Expected POINTER, INTEGER and INTEGER as first, second, "
-        "third arguments to dyn.get_ptr_field.";
+    return_var.vals = "Expected POINTER, INTEGER and INTEGER as first, second, "
+                      "third arguments to dyn.get_ptr_field.";
     return return_var;
   }
 
   if (!ptr_arg.valp) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Null pointer on dyn.get_ptr_field.";
+    return_var.vals = "Null pointer on dyn.get_ptr_field.";
     return return_var;
   }
 
@@ -1535,8 +1519,7 @@ struct SL_Variable dyn_get_ptr_field_fn(struct SL_Code *code,
 
   if (offset < 0) {
     return_var.type = ERROR;
-    return_var.vals =
-        "Negative offset on dyn.get_ptr_field.";
+    return_var.vals = "Negative offset on dyn.get_ptr_field.";
     return return_var;
   }
 
@@ -1631,8 +1614,7 @@ struct SL_Variable dyn_get_ptr_field_fn(struct SL_Code *code,
 
   default: {
     return_var.type = ERROR;
-    return_var.vals =
-        "Unsupported type requested on dyn.get_ptr_field!";
+    return_var.vals = "Unsupported type requested on dyn.get_ptr_field!";
     break;
   }
   }
@@ -3162,12 +3144,13 @@ struct SL_Variable long_to_int_fn(struct SL_Code *code,
 }
 
 struct SL_Variable double_to_int_fn(struct SL_Code *code,
-                                  struct SL_L_Function func,
-                                  struct SL_Function rfunc) {
+                                    struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
-    return_var.vals = "Error usage at types.double_to_int! Not enough arguments.";
+    return_var.vals =
+        "Error usage at types.double_to_int! Not enough arguments.";
     return return_var;
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
@@ -5791,8 +5774,9 @@ struct SL_Variable List_len_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
-struct SL_Variable List_clear_fn(struct SL_Code *code, struct SL_L_Function func,
-                                struct SL_Function rfunc) {
+struct SL_Variable List_clear_fn(struct SL_Code *code,
+                                 struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
   if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
@@ -5822,7 +5806,7 @@ struct SL_Variable List_clear_fn(struct SL_Code *code, struct SL_L_Function func
     sl_free_variable(&list->vars[i]);
     memset(&list->vars[i], 0, sizeof(struct SL_Variable));
   }
-  
+
   if (list->fixed == 1) {
     for (int i = 0; i < list->size; i++) {
       list->vars[i].type = INTEGER;
@@ -6039,7 +6023,8 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 /* Object Like system for SL */
 static int find_func_by_entry(struct SL_Code *code, int entry_pc) {
   for (int i = 0; i < code->total_funcs; i++) {
-    if (code->funcs[i].linked_function != 1 && code->funcs[i].entry_pc == entry_pc)
+    if (code->funcs[i].linked_function != 1 &&
+        code->funcs[i].entry_pc == entry_pc)
       return i;
   }
   return -1;
@@ -6089,42 +6074,45 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     sl_add_var(code, var);
     free(full_attr_name);
   }
-for (int i = 0; i < collections.collections[collec_index].total_funcs; i++) {
-  struct SL_Function raw_func = collections.collections[collec_index].functions[i];
+  for (int i = 0; i < collections.collections[collec_index].total_funcs; i++) {
+    struct SL_Function raw_func =
+        collections.collections[collec_index].functions[i];
 
-  int orig_idx = find_func_by_entry(code, raw_func.entry_pc);
-  if (orig_idx == -1) continue;
-  int nargs = raw_func.total_arguments;
+    int orig_idx = find_func_by_entry(code, raw_func.entry_pc);
+    if (orig_idx == -1)
+      continue;
+    int nargs = raw_func.total_arguments;
 
-  int total_len = strlen(assigned_var) + strlen(raw_func.name);
-  char *full_func_name = smalloc(total_len + 2);
-  snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var, raw_func.name);
+    int total_len = strlen(assigned_var) + strlen(raw_func.name);
+    char *full_func_name = smalloc(total_len + 2);
+    snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
+             raw_func.name);
 
-  size_t skip = sl_emit_jump(code, OPCODE_JMP);
-  int entry = (int)sl_current_pc(code);
+    size_t skip = sl_emit_jump(code, OPCODE_JMP);
+    int entry = (int)sl_current_pc(code);
 
-  sl_emit_push_string(code, assigned_var);             
-  sl_emit_push_string(code, "self");                   
-  sl_emit(code, OPCODE_STORE_DYNAMIC_ADDED_VAR);
-  for (int a = 0; a < nargs; a++) {
-    sl_emit(code, OPCODE_LOAD_LOCAL_VAR);
-    sl_emit(code, (uint32_t)a);
+    sl_emit_push_string(code, assigned_var);
+    sl_emit_push_string(code, "self");
+    sl_emit(code, OPCODE_STORE_DYNAMIC_ADDED_VAR);
+    for (int a = 0; a < nargs; a++) {
+      sl_emit(code, OPCODE_LOAD_LOCAL_VAR);
+      sl_emit(code, (uint32_t)a);
+    }
+    sl_emit_call_function(code, orig_idx, nargs);
+    sl_emit(code, OPCODE_RETURN);
+    sl_patch_jump_here(code, skip);
+
+    struct SL_Function wrapper = {0};
+    wrapper.name = full_func_name;
+    wrapper.hash = sl_hash_string(full_func_name);
+    wrapper.linked_function = 0;
+    wrapper.entry_pc = entry;
+    wrapper.total_arguments = nargs;
+    wrapper.frame_size = nargs;
+    wrapper.scope_lifetime = scope;
+    sl_add_raw_func(code, &wrapper);
+    free(full_func_name);
   }
-  sl_emit_call_function(code, orig_idx, nargs);         
-  sl_emit(code, OPCODE_RETURN);
-  sl_patch_jump_here(code, skip);
-
-  struct SL_Function wrapper = {0};
-  wrapper.name = full_func_name;
-  wrapper.hash = sl_hash_string(full_func_name);
-  wrapper.linked_function = 0;
-  wrapper.entry_pc = entry;
-  wrapper.total_arguments = nargs;
-  wrapper.frame_size = nargs;
-  wrapper.scope_lifetime = scope;
-  sl_add_raw_func(code, &wrapper);
-  free(full_func_name);
-}
   return_var.vals = sl_quote_string(assigned_var);
   return_var.type = STRING;
   return_var.info = SL_COLLECTION;
@@ -6251,17 +6239,19 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       else
         link_name = actual_name;
 
-	  struct SL_Function *link_func_p = sl_get_func(code, actual_name);
-	  if (link_func_p == NULL) {
-		fprintf(stderr, "Collections.create_collection: Function not found, name: %s\n", actual_name);
-		exit(EXIT_FAILURE);
-	  }
-	  struct SL_Function link_func = sl_copy_function(*link_func_p);
-	  free(link_func.name);
-	  link_func.name = strdup(link_name);       
-	  link_func.hash = sl_hash_string(link_name);
-	  collections.collections[index]
-				.functions[collections.collections[index].total_funcs++] = link_func;
+      struct SL_Function *link_func_p = sl_get_func(code, actual_name);
+      if (link_func_p == NULL) {
+        fprintf(stderr,
+                "Collections.create_collection: Function not found, name: %s\n",
+                actual_name);
+        exit(EXIT_FAILURE);
+      }
+      struct SL_Function link_func = sl_copy_function(*link_func_p);
+      free(link_func.name);
+      link_func.name = strdup(link_name);
+      link_func.hash = sl_hash_string(link_name);
+      collections.collections[index]
+          .functions[collections.collections[index].total_funcs++] = link_func;
       if (link_name != actual_name) {
         free(link_name);
       }
@@ -10577,7 +10567,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.long_to_str", long_to_str_fn);
       sl_add_func(code, "types.int_to_long", int_to_long_fn);
       sl_add_func(code, "types.long_to_int", long_to_int_fn);
-	  sl_add_func(code, "types.double_to_int", double_to_int_fn);
+      sl_add_func(code, "types.double_to_int", double_to_int_fn);
 
       /* TYPE CHECK */
       sl_add_func(code, "types.is_int", is_int_fn);
@@ -11639,7 +11629,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.copy", List_copy_fn);
       sl_add_func(code, "List.relative", List_relative_fn);
       sl_add_func(code, "List.remove", List_remove_fn);
-	  sl_add_func(code, "List.clear", List_clear_fn);
+      sl_add_func(code, "List.clear", List_clear_fn);
       sl_add_func(code, "List.len", List_len_fn);
     } else if (strcmp(libstr, "extra") == 0) {
       if (used_extra == 1)
