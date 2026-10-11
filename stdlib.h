@@ -545,28 +545,23 @@ struct SL_Variable sl_run_callback_function(struct SL_Code *code,
                                             const char *name,
                                             struct SL_Variable *args,
                                             int arg_count) {
-  int function_number = -1;
   struct SL_Variable return_val = {0};
-  unsigned long hash = sl_hash_string(name);
 
-  for (int i = 0; i < code->total_funcs; i++) {
-    if (code->funcs[i].hash == hash) {
-      if (strcmp(code->funcs[i].name, name) == 0) {
-        function_number = i;
-        break;
-      }
-    }
-  }
-
+  int function_number = sl_find_function_index(code, name);
   if (function_number == -1) {
     return_val.type = ERROR;
     return_val.vali = 0;
     return return_val;
   }
 
+  struct SL_Function function = code->funcs[function_number];
+
+  if (function.linked_function != 1) {
+    return sl_call_function(code, function_number, args, arg_count);
+  }
+
   int start_var_index = code->total_vars;
   int start_func_index = code->total_funcs;
-  struct SL_Function function = code->funcs[function_number];
   struct SL_L_Function lfunc = {0};
 
   int safe_alloc_count = (arg_count > 0) ? arg_count : 1;
@@ -582,60 +577,19 @@ struct SL_Variable sl_run_callback_function(struct SL_Code *code,
     }
 
     code->vars[code->total_vars] = args[i];
-
-    if (function.linked_function == 1) {
-      lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
-      code->vars[code->total_vars].name = NULL;
-      if (args[i].name != NULL) {
-        code->vars[code->total_vars].name = strdup(args[i].name);
-      }
-      lfunc.total_arguments++;
-    } else {
-      if (function.total_arguments <= i && function.vaargs == 1) {
-        char function_name[256];
-        snprintf(function_name, sizeof(function_name), "%s_VA_ARGUMENT_%d",
-                 function.name, i);
-        code->vars[code->total_vars].name = strdup(function_name);
-        code->vars[code->total_vars].hash = sl_hash_string(function_name);
-      } else if (i < function.total_arguments) {
-        if (function.arguments[i].name != NULL) {
-          code->vars[code->total_vars].name =
-              strdup(function.arguments[i].name);
-        } else {
-          code->vars[code->total_vars].name = NULL;
-        }
-        code->vars[code->total_vars].hash = function.arguments[i].hash;
-      }
+    lfunc.argument_indexes[lfunc.total_arguments] = code->total_vars;
+    code->vars[code->total_vars].name = NULL;
+    if (args[i].name != NULL) {
+      code->vars[code->total_vars].name = strdup(args[i].name);
     }
+    lfunc.total_arguments++;
     code->total_vars++;
   }
 
-  if (function.linked_function == 1) {
-    return_val = function.funcr(code, lfunc, function);
-  } else {
-    struct SL_Code code_def = *code;
-    code_def.code = function.code_tokens;
-    code_def.types = function.types;
-    code_def.fixed_values = function.fixed_values;
-    code_def.token_count = function.code_len;
-    code_def.scope_depth = code->scope_depth + 1;
-
-    return_val = sl_init_sl_parser(&code_def);
-
-    code->vars = code_def.vars;
-    code->total_size_v = code_def.total_size_v;
-    code->total_vars = code_def.total_vars;
-    code->funcs = code_def.funcs;
-    code->total_size_f = code_def.total_size_f;
-    code->total_funcs = code_def.total_funcs;
-  }
+  return_val = function.funcr(code, lfunc, function);
 
   sl_clean_local_scope(code, start_var_index, start_func_index);
-
-  if (lfunc.argument_indexes != NULL) {
-    free(lfunc.argument_indexes);
-  }
-
+  free(lfunc.argument_indexes);
   return return_val;
 }
 
@@ -3204,6 +3158,22 @@ struct SL_Variable long_to_int_fn(struct SL_Code *code,
   return_var.type = INTEGER;
   return_var.vali = (int)first_arg.valh;
 
+  return return_var;
+}
+
+struct SL_Variable double_to_int_fn(struct SL_Code *code,
+                                  struct SL_L_Function func,
+                                  struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.double_to_int! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  return_var.type = INTEGER;
+  return_var.valh = (int)first_arg.valf;
   return return_var;
 }
 
@@ -5821,6 +5791,52 @@ struct SL_Variable List_len_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
+struct SL_Variable List_clear_fn(struct SL_Code *code, struct SL_L_Function func,
+                                struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at List.clear! Not enough arguments.";
+    return return_var;
+  }
+
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+
+  if (first_arg.info != SL_LIST) {
+    return_var.type = ERROR;
+    return_var.vals =
+        "Expected list_variable as the first argument to List.clear.";
+    return return_var;
+  }
+
+  if (first_arg.vali >= LISTS_count || first_arg.vali < 0) {
+    return_var.type = ERROR;
+    return_var.vals = "List buffer overflow!";
+    return return_var;
+  }
+
+  struct SL_List *list = &LISTS[first_arg.vali];
+
+  for (int i = 0; i < list->size; i++) {
+    sl_free_variable(&list->vars[i]);
+    memset(&list->vars[i], 0, sizeof(struct SL_Variable));
+  }
+  
+  if (list->fixed == 1) {
+    for (int i = 0; i < list->size; i++) {
+      list->vars[i].type = INTEGER;
+      list->vars[i].vali = 0;
+    }
+  } else {
+    list->size = 0;
+  }
+
+  return_var.type = INTEGER;
+  return_var.vali = 1;
+  return return_var;
+}
+
 /* Simple Database system for SL */
 struct SL_Variable db_from_lists_fn(struct SL_Code *code,
                                     struct SL_L_Function func,
@@ -6021,6 +6037,14 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 }
 
 /* Object Like system for SL */
+static int find_func_by_entry(struct SL_Code *code, int entry_pc) {
+  for (int i = 0; i < code->total_funcs; i++) {
+    if (code->funcs[i].linked_function != 1 && code->funcs[i].entry_pc == entry_pc)
+      return i;
+  }
+  return -1;
+}
+
 struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
                                                  struct SL_L_Function func,
                                                  struct SL_Function rfunc) {
@@ -6040,6 +6064,16 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
 
   char *assigned_var = sl_get_assignment_var();
   int assigned_len = strlen(assigned_var);
+
+  if (sl_get_var(code, "self") == NULL) {
+    struct SL_Variable self_var = {0};
+    self_var.name = "self";
+    self_var.hash = sl_hash_string("self");
+    self_var.type = STRING;
+    self_var.vals = "";
+    self_var.scope_lifetime = -1;
+    sl_add_var(code, self_var);
+  }
   for (int i = 0; i < collections.collections[collec_index].total_attrs; i++) {
     char *raw_attr = collections.collections[collec_index].attrs[i];
     int assigned_var_len = strlen(assigned_var);
@@ -6055,28 +6089,42 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     sl_add_var(code, var);
     free(full_attr_name);
   }
-  for (int i = 0; i < collections.collections[collec_index].total_funcs; i++) {
-    struct SL_Function raw_func =
-        collections.collections[collec_index].functions[i];
-    int assigned_var_len = strlen(assigned_var);
-    int funcn_len = strlen(raw_func.name);
-    int total_len = assigned_var_len + funcn_len;
-    char *full_func_name = smalloc(total_len + 2);
-    snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
-             raw_func.name);
-    struct SL_Function func = {0};
-    func = raw_func;
-    free(func.code_tokens[3]);
-    func.code_tokens[3] = smalloc(assigned_len + 3);
-    snprintf(func.code_tokens[3], assigned_len + 3, "\"%s\"", assigned_var);
-    sl_identifier_tokenizer(func.code_tokens, &func.types, &func.fixed_values,
-                            func.code_len);
-    func.name = full_func_name;
-    func.hash = sl_hash_string(full_func_name);
-    func.scope_lifetime = scope;
-    sl_add_raw_func(code, &func);
-    free(full_func_name);
+for (int i = 0; i < collections.collections[collec_index].total_funcs; i++) {
+  struct SL_Function raw_func = collections.collections[collec_index].functions[i];
+
+  int orig_idx = find_func_by_entry(code, raw_func.entry_pc);
+  if (orig_idx == -1) continue;
+  int nargs = raw_func.total_arguments;
+
+  int total_len = strlen(assigned_var) + strlen(raw_func.name);
+  char *full_func_name = smalloc(total_len + 2);
+  snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var, raw_func.name);
+
+  size_t skip = sl_emit_jump(code, OPCODE_JMP);
+  int entry = (int)sl_current_pc(code);
+
+  sl_emit_push_string(code, assigned_var);             
+  sl_emit_push_string(code, "self");                   
+  sl_emit(code, OPCODE_STORE_DYNAMIC_ADDED_VAR);
+  for (int a = 0; a < nargs; a++) {
+    sl_emit(code, OPCODE_LOAD_LOCAL_VAR);
+    sl_emit(code, (uint32_t)a);
   }
+  sl_emit_call_function(code, orig_idx, nargs);         
+  sl_emit(code, OPCODE_RETURN);
+  sl_patch_jump_here(code, skip);
+
+  struct SL_Function wrapper = {0};
+  wrapper.name = full_func_name;
+  wrapper.hash = sl_hash_string(full_func_name);
+  wrapper.linked_function = 0;
+  wrapper.entry_pc = entry;
+  wrapper.total_arguments = nargs;
+  wrapper.frame_size = nargs;
+  wrapper.scope_lifetime = scope;
+  sl_add_raw_func(code, &wrapper);
+  free(full_func_name);
+}
   return_var.vals = sl_quote_string(assigned_var);
   return_var.type = STRING;
   return_var.info = SL_COLLECTION;
@@ -6203,45 +6251,17 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
       else
         link_name = actual_name;
 
-      struct SL_Function *link_func_p = sl_get_func(code, actual_name);
-      if (link_func_p == NULL) {
-        fprintf(stderr,
-                "Collections.create_collection: Function not found, name: %s\n",
-                actual_name);
-        exit(EXIT_FAILURE);
-      }
-      struct SL_Function link_func = sl_copy_function(*link_func_p);
-      /* [var] [self] [=] ["attr_name"] 4 more tokens */
-      int old_len = link_func.code_len;
-      int new_len = old_len + 4;
-
-      link_func.code_tokens = srealloc(
-          link_func.code_tokens, new_len * sizeof(*link_func.code_tokens));
-
-      link_func.types =
-          srealloc(link_func.types, new_len * sizeof(*link_func.types));
-
-      link_func.fixed_values = srealloc(
-          link_func.fixed_values, new_len * sizeof(*link_func.fixed_values));
-      memset(link_func.types + old_len, 0, 4 * sizeof(*link_func.types));
-
-      memset(link_func.fixed_values + old_len, 0,
-             4 * sizeof(*link_func.fixed_values));
-
-      memmove(link_func.code_tokens + 4, link_func.code_tokens,
-              link_func.code_len * sizeof(char *));
-
-      link_func.code_tokens[0] = strdup("var");
-      link_func.code_tokens[1] = strdup("self");
-      link_func.code_tokens[2] = strdup("=");
-      link_func.code_tokens[3] = strdup("false");
-      link_func.code_len += 4;
-      if (link_func.name != NULL)
-        free(link_func.name);
-
-      link_func.name = strdup(link_name);
-      collections.collections[index]
-          .functions[collections.collections[index].total_funcs++] = link_func;
+	  struct SL_Function *link_func_p = sl_get_func(code, actual_name);
+	  if (link_func_p == NULL) {
+		fprintf(stderr, "Collections.create_collection: Function not found, name: %s\n", actual_name);
+		exit(EXIT_FAILURE);
+	  }
+	  struct SL_Function link_func = sl_copy_function(*link_func_p);
+	  free(link_func.name);
+	  link_func.name = strdup(link_name);       
+	  link_func.hash = sl_hash_string(link_name);
+	  collections.collections[index]
+				.functions[collections.collections[index].total_funcs++] = link_func;
       if (link_name != actual_name) {
         free(link_name);
       }
@@ -10557,6 +10577,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.long_to_str", long_to_str_fn);
       sl_add_func(code, "types.int_to_long", int_to_long_fn);
       sl_add_func(code, "types.long_to_int", long_to_int_fn);
+	  sl_add_func(code, "types.double_to_int", double_to_int_fn);
 
       /* TYPE CHECK */
       sl_add_func(code, "types.is_int", is_int_fn);
@@ -11618,6 +11639,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "List.copy", List_copy_fn);
       sl_add_func(code, "List.relative", List_relative_fn);
       sl_add_func(code, "List.remove", List_remove_fn);
+	  sl_add_func(code, "List.clear", List_clear_fn);
       sl_add_func(code, "List.len", List_len_fn);
     } else if (strcmp(libstr, "extra") == 0) {
       if (used_extra == 1)

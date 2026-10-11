@@ -105,10 +105,6 @@ end
 while $i < 10 { #...
 ---
 
-+++ NOTES FOR PROGRAMMERS
-Dont forget that while loops are very costly in SL, so heavy use of them can significantly reduce performance. Make sure to optimize your while loops as much as possible. Since SL doesnt use bytecode, while loops can be slower than in languages like Python, Lua, or Ruby, but with reasonable usage and proper optimization, their performance can sometimes be comparable.
-
-
 ++ FUNCTIONS
 SL uses a simple function syntax.  
 For example:
@@ -246,6 +242,14 @@ enum TokenTypes
 
 struct SL_Code
 {
+    uint32_t *bytecode;
+    size_t bytecode_len;
+    size_t bytecode_capacity;
+    struct SL_VM_Objects obj;
+    struct SL_VM_Frame frame;
+    size_t stack_pointer;
+    int stack_size;
+    size_t current_frame_base;
     char **code;
     enum TokenTypes *types;
     struct SL_Variable *fixed_values;
@@ -272,7 +276,11 @@ struct SL_Code
     int (**custom_splitterr)(struct SL_Code *, int *current_token);
     struct SL_Variable (**custom_exprr)(struct SL_Code *, int *current_token);
     int starting_token;
+    struct SL_Variable *constant_pool;
+    int constant_pool_len;
+    int constant_pool_capacity;
 };
+// obj and frame are vm internals (stack, call frames, locals), check sl.h
 -------------
 ++ Linking a Function
 Linking functions in SL is very simple as shown below.  
@@ -324,17 +332,15 @@ struct SL_Function
 {
     char *name;
     unsigned long hash;
+    int entry_pc;
     struct SL_Variable *arguments;
     int total_arguments;
-    char **code_tokens;
-    enum TokenTypes *types;
-    struct SL_Variable *fixed_values;
     int info;
-    int code_len;
     int vaargs;
     struct SL_Variable (*funcr)(struct SL_Code *, struct SL_L_Function, struct SL_Function);
     int linked_function;
     int scope_lifetime;
+    int frame_size;
 };
 ---------
 
@@ -404,7 +410,7 @@ struct SL_Variable
         int valb;
         char valc;
         char *vals;
-        intptr_t valh;
+        intmax_t valh;
         void* valp;
     };
 };
@@ -449,14 +455,30 @@ int scope_level = sl_get_scope(<CODE POINTER> (for example: &sl_code));
 unsigned long hash = sl_hash_string(<STRING> (for example: variable name/function name));
 -----------------------------------------------------------
 
+++ Running a Process
+Easiest way to run a file. It opens the process, runs the vm and closes it for you, so you dont need to call anything else.
+-------
+// MAIN:
+sl_run_process(&sl_code, "file.sl");
+// sl_run_process(SL_Code as pointer, filename)
+-----
+It returns nothing and everything is closed at the end, so you cant reuse the same sl_code after it. If you need more control use open, run vm and close below.
+
 ++ Opening a Process
-You can automatically run files by opening an SL process. 
+Opening a process lexes the file and compiles it to bytecode. It doesnt run it, you need `sl_run_vm` for that.
 -------
 // MAIN:
 if (sl_open_sl_process(&sl_code, "file.sl") != 0) {
     exit(-1);
 }
 // sl_open_sl_process(SL_Code as pointer, filename)
+-----
+
+++ Running the VM
+The vm reads the bytecode that open process generated (or sl_load_slx loaded) and runs it. It is stack based, every expression pushes its result and operators pop their operands.
+-------
+// MAIN:
+sl_run_vm(&sl_code);
 -----
 
 ++ Closing a Opened Process and Initialized Process
@@ -468,6 +490,27 @@ if (sl_close_sl_process(&sl_code) == -1) {
 	return -1;
 }
 -------
+
+++ Saving and Loading Bytecode
+After opening a process you can save the bytecode to a `.slx` file and run it later without compiling again.
+-------
+// MAIN:
+sl_open_sl_process(&sl_code, "file.sl");
+sl_save_slx(&sl_code, "file.slx");
+sl_close_sl_process(&sl_code);
+
+// Later, maybe in another program:
+sl_load_slx(&sl_code, "file.slx");
+sl_run_vm(&sl_code);
+sl_close_sl_process(&sl_code);
+-----
+Both return 0 when it works. C functions you linked (`sl_add_func`, stdlib) must be registered before `sl_load_slx`, otherwise it fails with a "not registered" error.
+The `sl` binary does the same from the command line. `/c` and `/r` work too, for windows people.
+-------
+./sl script.sl
+./sl -c script.sl script.slx
+./sl -r script.slx
+-----
 
 + Example SL Code 
 -----
@@ -491,85 +534,101 @@ SL lets you tweak and modify things heavily without changing the core language. 
 
 (Example taken from `sl_lang.c`)
 
-Every custom expression requires 2 functions:
+Every custom expression needs 2 functions:
 
-1) Splitter function: Tells the parser how far your expression spans from start to end. 
+1) Splitter function: Tells the parser where your expression ends. It starts at the opening token and returns the index of the closing one.
 For example:
 -----------
-int find_end_brace(char **tokens, int start, int max_tokens) {
-  int depth = 0;
+static int find_closing_brace(char **tokens, int open_brace_index,
+                              int max_tokens) {
+  int nested_depth = 0;
 
-  for (int i = start; i < max_tokens; i++) {
+  for (int i = open_brace_index + 1; i < max_tokens; i++) {
     if (tokens[i] == NULL)
       continue;
 
     if (tokens[i][0] == '{') {
-      depth++;
+      nested_depth++;
     } else if (tokens[i][0] == '}') {
-      if (depth == 0)
+      if (nested_depth == 0)
         return i;
-
-      depth--;
+      nested_depth--;
     }
   }
 
   return -1;
 }
-int then_end_splitter(struct SL_Code *code, int *current_token) {
 
-  int tokens =
-      find_end_brace(code->code, (*current_token) + 1, code->token_count);
-  return tokens;
+int brace_block_splitter(struct SL_Code *code, int *current_token) {
+  int closing_brace = find_closing_brace(code->code, *current_token, code->token_count);
+
+  if (closing_brace == -1) {
+    sl_throw_an_error(*code, code->code, *current_token, code->token_count,
+                      "UNCLOSED '{' (opening brace)",
+                      "Expected: a matching '}' (closing brace)");
+  }
+  return closing_brace;
 }
-
 ---------
 
 Here, we start at `{` and go all the way to `}`. In case you're wondering why it starts at `{`:
 
 ------------
-sl_add_custom_splitter(&sl_code, "{", then_end_splitter);
+sl_add_custom_splitter(&sl_code, "{", brace_block_splitter);
 ----------
 
 We basically told it: when you hit `{`, stop, run this splitter function, and resume parsing from the index returned by the function.
 
-2) Expression evaluator function: Since we're adding a mathematical expression, we need to evaluate it. We define an expression function like this:
+2) Expression function: SL compiles to bytecode now, so this function doesnt calculate anything. It only emits the bytecode that will calculate it when the vm runs. For that we use the functions from the Compiler Toolchain part below. The return value is not used, the result of the expression goes to the vm stack.
 ---------
-struct SL_Variable then_end_expression(struct SL_Code *code,
-                                       int *current_token) {
+static void compile_block_as_value(struct SL_Code *code, int first_token,
+                                   int end_token) {
+  size_t skip_body_jump = sl_emit_jump(code, OPCODE_JMP);
+  size_t body_start_pc = sl_current_pc(code);
 
-  struct SL_Variable return_val = {0};
-  int old_tokens = code->token_count;
-  int tokens = sl_find_end(code->code, code->types, *current_token,
-                           code->token_count, 0);
-  (*current_token)++;
-  struct SL_Code code_def = *code;
-  code_def.starting_token = *current_token;
-  code_def.token_count = tokens;
-  int start_var_index = code->total_vars;
-  int start_func_index = code->total_funcs;
-  return_val = sl_init_sl_parser(&code_def);
-  code->vars = code_def.vars;
-  code->total_size_v = code_def.total_size_v;
-  code->total_vars = code_def.total_vars;
-  code->funcs = code_def.funcs;
-  code->total_size_f = code_def.total_size_f;
-  code->total_funcs = code_def.total_funcs;
-  code_def.fixed_values = code->fixed_values;
-  code->token_count = old_tokens;
-  sl_clean_local_scope(code, start_var_index, start_func_index);
-  return return_val;
+  struct SL_FrameScope block_scope;
+  sl_begin_frame_scope(code, &block_scope);
+  sl_compile_statements(code, first_token, end_token);
+  sl_emit(code, OPCODE_PUSH_EMPTY);
+  sl_emit(code, OPCODE_RETURN);
+  int block_frame_size = sl_end_frame_scope(code, &block_scope);
+
+  sl_patch_jump_here(code, skip_body_jump);
+  sl_emit(code, OPCODE_CALL_ADDRESS);
+  sl_emit(code, (uint32_t)body_start_pc);
+  sl_emit(code, (uint32_t)block_frame_size);
+}
+
+struct SL_Variable brace_block_expression(struct SL_Code *code,
+                                          int *current_token) {
+  struct SL_Variable nothing_to_return = {0};
+  int opening_brace = *current_token;
+  int closing_brace = brace_block_splitter(code, current_token);
+
+  compile_block_as_value(code, opening_brace + 1, closing_brace);
+
+  *current_token = closing_brace;
+  return nothing_to_return;
 }
 ----------
 
 Then we register the expression function like this:
 
 -----------
-sl_add_custom_expr(&sl_code, "{", then_end_expression);
+sl_add_custom_expr(&sl_code, "{", brace_block_expression);
 -------
 
 +++ What did we just do?
 
-We set up internal scopes for `{` and `}`. (Why we use `{` and `}` is to avoid conflicts with core language features like `then` and `end`. If you use `then` and `end`, you may encounter undefined behavior. While it normally works fine in simple code, you cannot support it inside functions because functions search specifically for `end`. Since the main `end` search routine won't account for your custom `then` or any other keywords, it will mistake your block's closing `end` for the function's own `end`. It is recommended to leverage SL's hackability using custom syntax rather than overriding existing language keywords.)
+We made `{` and `}` blocks. A block is compiled like a small function that gets called right where you wrote it:
+
+1) jump over the body, so normal code doesnt fall into it
+2) compile the inside in its own frame scope, so its variables stay inside
+3) end the body with a return (empty value if the block has no `return`)
+4) patch the jump and emit a call to the body
+
+Whatever the block returns is the value of the expression. At the end we set `*current_token` to the closing brace, so the parser continues after the block.
+(Why we use `{` and `}` is to avoid conflicts with core language features like `then` and `end`. `sl_find_end` counts them for if, while and def, so a block of yours that uses them will confuse it and it will take the wrong `end`. It is recommended to leverage SL's hackability using custom syntax rather than overriding existing language keywords.)
 If you run the code below and it behaves consistently without throwing errors, you're on the right track:
 
 ---------------
@@ -615,7 +674,7 @@ void for_keyword(struct SL_Code *code, int *current_token) {
 }
 ------------
 
-Base SL doesn't have a `for` loop, which is why I chose it for this example. You could technically override base language features with your own parsing algorithm, but I wouldn't really recommend doing that.
+Base SL doesn't have a `for` loop, which is why I chose it for this example. This one only prints. A real keyword should emit bytecode with the Compiler Toolchain functions below. You could technically override base language features with your own parsing algorithm, but I wouldn't really recommend doing that.
 
 Here is how you register the keyword:
 
@@ -639,5 +698,78 @@ sl_remove_custom_keyword(&sl_code, 0);
 
 If you want to dive deeper into hackability or create a custom dialect on top of SL (without writing a parser from scratch), take a look at `stdlib.h`, `sl.c`, and `sl_lang.c`, or check `sl.h` for available functions and API usage.
   
++ Compiler Toolchain
+
+SL doesnt build a syntax tree. The parser walks the tokens and writes bytecode right away, then the vm runs it (source -> tokens -> bytecode -> vm).
+These are the same functions the parser uses, so your custom expressions and keywords can emit bytecode too. All of them are in `sl.h` under COMPILER TOOLKIT, opcodes are in `enum OpcodeTypes`.
+
+Few rules:
+Every expression must leave exactly one value on the vm stack.
+Operators pop their operands and push the result, so push both sides first then emit the opcode.
+Operands are just extra words after the opcode. `OPCODE_JMP` has one (target), `OPCODE_CALL_ADDRESS` has two (target, frame size).
+
+++ Emitting
+-----------
+size_t sl_current_pc(struct SL_Code *code);          // where the next word will go
+void sl_emit(struct SL_Code *code, uint32_t value);  // write one word, opcode or operand
+---------
+
+++ Jumps
+You dont know the target when you emit a jump, so you leave a hole and patch it later.
+-----------
+size_t patch = sl_emit_jump(code, OPCODE_JMP);  // emits opcode and empty target, returns position of the hole
+// emit the code you want to skip
+sl_patch_jump_here(code, patch);                // target is the current position now
+// sl_patch_jump_to(code, patch, target_pc) if you want some other position
+---------
+
+++ Constants
+-----------
+sl_emit_push_string(code, "hello");            // pushes a C string as an SL string
+sl_emit_push_constant(code, variable);         // pushes any SL_Variable
+int index = sl_add_constant(code, variable);   // only adds it to the pool and returns the index
+---------
+
+++ Compiling tokens
+Both end tokens are not included.
+-----------
+sl_compile_statements(code, first_token, end_token);  // tokens as statements, like a block body
+sl_compile_expression(code, first_token, end_token);  // tokens as one expression, leaves the result on the stack
+---------
+
+++ Frame scopes
+Locals live in frames. Anything with its own locals (function, block) needs a frame scope, otherwise its variables leak into the outer one.
+-----------
+struct SL_FrameScope scope;
+sl_begin_frame_scope(code, &scope);
+// compile the body
+int frame_size = sl_end_frame_scope(code, &scope);  // how many local slots the body used
+---------
+Frame size goes to the call (`OPCODE_CALL_ADDRESS`) so the vm knows how much space to reserve.
+
+++ Loops
+`break` and `continue` use a loop stack, so a loop needs to register itself. This is how `while` does it:
+-----------
+sl_loop_begin(code);                                   // remembers the start of the loop
+sl_compile_expression(code, cond_start, cond_end);
+size_t exit_patch = sl_emit_jump(code, OPCODE_IF_JUMP_FALSE);
+sl_compile_statements(code, body_start, body_end);
+sl_emit(code, OPCODE_JMP);
+sl_emit(code, sl_loop_start_pc());                     // jump back to the start
+sl_patch_jump_here(code, exit_patch);
+sl_loop_end(code);                                     // every break inside jumps here
+---------
+
+++ Functions
+-----------
+int index = sl_find_function_index(code, "myfunc");  // -1 if not found
+sl_emit_call_function(code, index, 2);               // emits the call, the 2 arguments must be pushed already
+---------
+You can also call a function defined with `def` from C. It returns what the function returned.
+-----------
+struct SL_Variable result = sl_call_function(&sl_code, index, args, arg_count);
+---------
+
+
 +++++++ Thats it! ++++++++++++
 Yes that's it! You've finished the entire wiki.

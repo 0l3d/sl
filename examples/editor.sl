@@ -12,6 +12,7 @@ var indicator_foreground = $COLOR_BLACK
 
 # Keyword color
 var keyword_highlighting = $COLOR_MAGENTA
+var variable_highlighting = $COLOR_YELLOW
 
 # Page DOWN/UP Size 
 var scroll = 20
@@ -220,7 +221,6 @@ def render_highlighted -> str then
                         io.print($print_buffer)
                         $print_buffer = ""
                     end
-                    
                     console.foreground_color($keyword_highlighting)
                     io.print($temp_buffer)
                     
