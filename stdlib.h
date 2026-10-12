@@ -2054,7 +2054,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
     if (return_var.info != SL_LIST) {
       switch (return_var.type) {
       case INTEGER:
-        length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
+        length = snprintf(buffer, sizeof(buffer), "%ld", return_var.vali);
         if (length > 0)
           sl_console_write(buffer, (size_t)length);
         break;
@@ -2109,7 +2109,7 @@ struct SL_Variable print_fn(struct SL_Code *code, struct SL_L_Function func,
           int length = 0;
           switch (list.vars[j].type) {
           case INTEGER:
-            length = snprintf(buffer, sizeof(buffer), "%d", list.vars[j].vali);
+            length = snprintf(buffer, sizeof(buffer), "%ld", list.vars[j].vali);
             if (length > 0)
               sl_console_write(buffer, (size_t)length);
             break;
@@ -2180,7 +2180,7 @@ struct SL_Variable print_raw_fn(struct SL_Code *code, struct SL_L_Function func,
       break;
 
     case INTEGER:
-      length = snprintf(buffer, sizeof(buffer), "%d", value.vali);
+      length = snprintf(buffer, sizeof(buffer), "%ld", value.vali);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -2226,7 +2226,7 @@ struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
 
     switch (return_var.type) {
     case INTEGER:
-      length = snprintf(buffer, sizeof(buffer), "%d", return_var.vali);
+      length = snprintf(buffer, sizeof(buffer), "%ld", return_var.vali);
       if (length > 0)
         sl_console_write(buffer, (size_t)length);
       break;
@@ -3111,7 +3111,7 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
     }
 
   char *tmp = smalloc(digits + 1);
-  snprintf(tmp, digits + 1, "%d", first_arg.vali);
+  snprintf(tmp, digits + 1, "%ld", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
   return_var.type = STRING;
@@ -5872,7 +5872,7 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
       char item_str[512] = "";
       switch (item.type) {
       case INTEGER:
-        snprintf(item_str, sizeof(item_str), "%d", item.vali);
+        snprintf(item_str, sizeof(item_str), "%ld", item.vali);
         break;
       case DOUBLE:
         snprintf(item_str, sizeof(item_str), "%f", item.valf);
@@ -7972,7 +7972,7 @@ struct SL_Variable console_cursor_position_win_fn(struct SL_Code *code,
   }
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
+  snprintf(buf, sizeof(buf), "\x1b[%ld;%ldH", second_arg.vali + 1,
            first_arg.vali + 1);
 
   if (!sl_console_write_cstr(buf)) {
@@ -8677,7 +8677,7 @@ struct SL_Variable console_cursor_position_posix_fn(struct SL_Code *code,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dH", second_arg.vali + 1,
+  snprintf(buf, sizeof(buf), "\x1b[%ld;%ldH", second_arg.vali + 1,
            first_arg.vali + 1);
 
   if (!sl_console_write_cstr(buf)) {
@@ -9205,7 +9205,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
   }
 
   int prefix_len =
-      snprintf(NULL, 0, "\033[%d;%dH", y_arg.vali + 1, x_arg.vali + 1);
+      snprintf(NULL, 0, "\033[%ld;%ldH", y_arg.vali + 1, x_arg.vali + 1);
 
   if (prefix_len < 0) {
     free(text);
@@ -9226,7 +9226,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
     return return_var;
   }
 
-  snprintf(output, (size_t)prefix_len + 1, "\033[%d;%dH", y_arg.vali + 1,
+  snprintf(output, (size_t)prefix_len + 1, "\033[%ld;%ldH", y_arg.vali + 1,
            x_arg.vali + 1);
 
   memcpy(output + prefix_len, text, text_len);
@@ -9318,7 +9318,7 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
 
   for (int row = 0; row < height_arg.vali; row++) {
     int cursor_len =
-        snprintf(NULL, 0, "\033[%d;%dH", y_arg.vali + row + 1, x_arg.vali + 1);
+        snprintf(NULL, 0, "\033[%ld;%ldH", y_arg.vali + row + 1, x_arg.vali + 1);
 
     if (cursor_len < 0) {
       return_var.type = ERROR;
@@ -9335,7 +9335,7 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
 
   for (int row = 0; row < height_arg.vali; row++) {
     int cursor_len =
-        snprintf(output + offset, total_size + 1 - offset, "\033[%d;%dH",
+        snprintf(output + offset, total_size + 1 - offset, "\033[%ld;%ldH",
                  y_arg.vali + row + 1, x_arg.vali + 1);
 
     if (cursor_len < 0) {
@@ -9382,7 +9382,7 @@ struct SL_Variable console_scroll_area_fn(struct SL_Code *code,
   struct SL_Variable second_arg = sl_get_argument(*code, func, 1);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d;%dr", first_arg.vali, second_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ld;%ldr", first_arg.vali, second_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9424,7 +9424,7 @@ struct SL_Variable console_scroll_up_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dS", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldS", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9451,7 +9451,7 @@ struct SL_Variable console_scroll_down_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dT", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldT", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9510,7 +9510,7 @@ struct SL_Variable console_insert_line_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dL", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldL", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9537,7 +9537,7 @@ struct SL_Variable console_delete_line_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dM", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldM", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9566,7 +9566,7 @@ struct SL_Variable console_rgb_foreground_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[38;2;%d;%d;%dm", first_arg.vali,
+  snprintf(buf, sizeof(buf), "\x1b[38;2;%ld;%ld;%ldm", first_arg.vali,
            second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
@@ -9596,7 +9596,7 @@ struct SL_Variable console_rgb_background_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[48;2;%d;%d;%dm", first_arg.vali,
+  snprintf(buf, sizeof(buf), "\x1b[48;2;%ld;%ld;%ldm", first_arg.vali,
            second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
@@ -9624,7 +9624,7 @@ struct SL_Variable console_insert_char_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%d@", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ld@", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9697,7 +9697,7 @@ struct SL_Variable console_delete_char_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dP", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldP", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9724,7 +9724,7 @@ struct SL_Variable console_erase_char_fn(struct SL_Code *code,
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
 
   char buf[32];
-  snprintf(buf, sizeof(buf), "\x1b[%dX", first_arg.vali);
+  snprintf(buf, sizeof(buf), "\x1b[%ldX", first_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {
     return_var.type = ERROR;
@@ -9999,7 +9999,7 @@ struct SL_Variable console_rgb_underline_color_fn(struct SL_Code *code,
   struct SL_Variable third_arg = sl_get_argument(*code, func, 2);
 
   char buf[128];
-  snprintf(buf, sizeof(buf), "\x1b[58;2;%d;%d;%dm", first_arg.vali,
+  snprintf(buf, sizeof(buf), "\x1b[58;2;%ld;%ld;%ldm", first_arg.vali,
            second_arg.vali, third_arg.vali);
 
   if (!sl_console_write_cstr(buf)) {

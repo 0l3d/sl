@@ -3290,7 +3290,7 @@ break;
 static void print_disassembled_value(struct SL_Variable value) {
   switch (value.type) {
   case INTEGER:
-    printf("%d", value.vali);
+    printf("%ld", value.vali);
     break;
   case DOUBLE:
     printf("%g", value.valf);
@@ -4024,7 +4024,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
       free(code_p.fixed_values);
       free(code_p.types);
       free(code_p.code);
-      result.type == ERROR;
+      result.type = ERROR;
       result.vals = "sl_init_sl_parser() failed\nCalled by: sl_dostr_sl_process()\n";
       return result;
     }
