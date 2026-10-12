@@ -13,6 +13,10 @@
 
 #define SL_REALLOC_DEFAULT 1024
 
+#if defined(__GNUC__) && !defined(_WIN32)
+#pragma GCC visibility push(default)
+#endif
+
 enum SL_Types {
   INIT = 0,
   INTEGER = 1,
@@ -350,5 +354,9 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var);
 struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name);
 struct SL_Function *sl_get_func(struct SL_Code *code, const char *name);
 /* EXTRAS FOR ANYTHING */
+
+#if defined(__GNUC__) && !defined(_WIN32)
+#pragma GCC visibility pop
+#endif
 
 #endif

@@ -34,7 +34,7 @@ jobs:
           make test
 
       - name: Distribute Musl
-        run: make distribute DIST_NAME=sl-linux-musl-x86_64-${{ github.ref_name }}
+        run: make distribute DIST_NAME=sl-linux-musl-x86_64-${{ github.ref_name }} DIST_SHARED=0
 
       - name: Upload Linux Standard package
         uses: actions/upload-artifact@v4

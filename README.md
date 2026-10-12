@@ -28,6 +28,20 @@ You can edit SL files with basic syntax highlighting without using an external e
 # Cross Platform editor for SL.
 ```
   
+### Useful tools in the Examples folder
+  
+Even though the Examples folder is mostly for testing the language, a lot of the scripts are actually small tools that might come in handy.  
+  
+Here are a few of them:  
+  
+- `basic_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)  
+- `brainfuck.sl`: a complete Brainfuck interpreter.  
+- `ex_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER  
+- `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary. 
+- `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.  
+- `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.  
+- `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.  
+  
 ## Platform compatibility 
   
 `sl.c` and `sl.h` (the main library sources) are written in Standard C.  
