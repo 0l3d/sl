@@ -3654,15 +3654,6 @@ static void disassemble_instruction(struct SL_Code *code, size_t *pc) {
   }
 
   switch (opcode) {
-    /*
-        case OPCODE_PUSH_CONST: {
-          uint32_t const_idx = read_disassembly_operand(code, pc);
-          printf("%-24s [", "PUSH_CONST");
-          print_disassembled_value(code->fixed_values[const_idx]);
-          printf("]\n");
-          break;
-        } OLD USAGE -> 2466
-     */
   case OPCODE_PUSH_POOL_CONST: {
     uint32_t pool_idx = read_disassembly_operand(code, pc);
     printf("%-24s ", "PUSH_POOL_CONST");
