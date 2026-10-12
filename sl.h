@@ -342,8 +342,10 @@ int sl_add_func(struct SL_Code *code, char *name,
                                             struct SL_Function));
 struct SL_Variable sl_copy_variable(struct SL_Variable var);
 struct SL_Function sl_copy_function(struct SL_Function function);
-struct SL_Variable sl_get_argument(struct SL_Code code,
-                                   struct SL_L_Function func, int which_one);
+struct SL_Variable sl_get_argument_p(const struct SL_Code *code,
+                                     struct SL_L_Function func, int which_one);
+#define sl_get_argument(code, func, which_one)                                 \
+  sl_get_argument_p(&(code), (func), (which_one))
 int sl_add_var(struct SL_Code *code, struct SL_Variable var);
 struct SL_Variable *sl_get_var(struct SL_Code *code, const char *name);
 struct SL_Function *sl_get_func(struct SL_Code *code, const char *name);

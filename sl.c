@@ -7,22 +7,35 @@
 #include <string.h>
 #include <inttypes.h>
 
+#if defined(__GNUC__)
+#define SL_UNLIKELY(condition) __builtin_expect(!!(condition), 0)
+#define SL_COLD_FUNCTION __attribute__((noinline, cold))
+#else
+#define SL_UNLIKELY(condition) (condition)
+#define SL_COLD_FUNCTION
+#endif
+
+static SL_COLD_FUNCTION void stack_grow(struct SL_Code *code) {
+  code->obj.stack_capacity =
+      (code->obj.stack_capacity == 0) ? SL_INIT : code->obj.stack_capacity * 2;
+  code->obj.stack = srealloc(code->obj.stack, code->obj.stack_capacity *
+                                                  sizeof(struct SL_Variable));
+}
+
+static SL_COLD_FUNCTION void stack_underflow(void) {
+  fprintf(stderr, "[VM ERROR] Stack underflow!\n");
+  exit(-1);
+}
+
 void push(struct SL_Code *code, struct SL_Variable val) {
-  if (code->obj.stack_size >= code->obj.stack_capacity) {
-    code->obj.stack_capacity = (code->obj.stack_capacity == 0)
-                                   ? SL_INIT
-                                   : code->obj.stack_capacity * 2;
-    code->obj.stack = srealloc(code->obj.stack, code->obj.stack_capacity *
-                                                    sizeof(struct SL_Variable));
-  }
+  if (SL_UNLIKELY(code->obj.stack_size >= code->obj.stack_capacity))
+    stack_grow(code);
   code->obj.stack[code->obj.stack_size++] = val;
 }
 
 struct SL_Variable pop(struct SL_Code *code) {
-  if (code->obj.stack_size == 0) {
-    fprintf(stderr, "[VM ERROR] Stack underflow!\n");
-    exit(-1);
-  }
+  if (SL_UNLIKELY(code->obj.stack_size == 0))
+    stack_underflow();
   return code->obj.stack[--code->obj.stack_size];
 }
 
@@ -170,24 +183,26 @@ char *sl_quote_string(const char *str) {
   if (str == NULL)
     return NULL;
 
-  size_t size = 3;
+  size_t length = strlen(str);
+  size_t escapes = 0;
+  for (const char *p = str; *(p += strcspn(p, "\"\\")) != '\0'; p++)
+    escapes++;
 
-  for (size_t i = 0; str[i] != '\0'; i++) {
-    if (str[i] == '"' || str[i] == '\\')
-      size++;
-    size++;
-  }
-
-  char *result = smalloc(size);
+  char *result = smalloc(length + escapes + 3);
 
   size_t j = 0;
   result[j++] = '"';
 
-  for (size_t i = 0; str[i] != '\0'; i++) {
-    if (str[i] == '"' || str[i] == '\\')
+  const char *p = str;
+  while (*p != '\0') {
+    size_t run = strcspn(p, "\"\\");
+    memcpy(result + j, p, run);
+    j += run;
+    p += run;
+    if (*p != '\0') {
       result[j++] = '\\';
-
-    result[j++] = str[i];
+      result[j++] = *p++;
+    }
   }
 
   result[j++] = '"';
@@ -536,11 +551,9 @@ int check_number(const char *s) {
   return 0;
 }
 
-int string_checker(char *word) {
+static int string_quote_length(const char *word, size_t size) {
   if (word == NULL)
     return 0;
-
-  size_t size = strlen(word);
 
   if (size >= 6 && word[0] == '"' && word[1] == '"' && word[2] == '"' &&
       word[size - 1] == '"' && word[size - 2] == '"' && word[size - 3] == '"') {
@@ -554,64 +567,68 @@ int string_checker(char *word) {
   return 0;
 }
 
+int string_checker(char *word) {
+  if (word == NULL)
+    return 0;
+  return string_quote_length(word, strlen(word));
+}
+
+static char sl_unescape_char(char escaped) {
+  switch (escaped) {
+  case 'n':
+    return '\n';
+  case 'b':
+    return '\b';
+  case 'e':
+    return '\e';
+  case 'a':
+    return '\a';
+  case 'f':
+    return '\f';
+  case 'r':
+    return '\r';
+  case 't':
+    return '\t';
+  case 'v':
+    return '\v';
+  case '0':
+    return '\0';
+  default:
+    return escaped;
+  }
+}
+
 char *sl_string_getter(char *word) {
   if (word == NULL)
     return NULL;
 
-  int quote_len = string_checker(word);
+  size_t size = strlen(word);
+  int quote_len = string_quote_length(word, size);
 
   if (quote_len == 0) {
-    return strdup(word);
+    return sl_bytes_copy(word, size + 1);
   }
 
-  size_t size = strlen(word);
   char *our_word = smalloc(size);
+  size_t end = size - (size_t)quote_len;
+  size_t i = (size_t)quote_len;
+  size_t j = 0;
 
-  int j = 0;
+  while (i < end) {
+    size_t run = strcspn(word + i, "\\");
+    if (run > end - i)
+      run = end - i;
+    memcpy(our_word + j, word + i, run);
+    i += run;
+    j += run;
+    if (i >= end)
+      break;
 
-  for (int i = quote_len; i < size - (unsigned)quote_len; i++) {
-    if (word[i] == '\\' && (i + 1) < (size - (unsigned)quote_len)) {
-      i++;
-      switch (word[i]) {
-      case 'n':
-        our_word[j++] = '\n';
-        break;
-      case 'b':
-        our_word[j++] = '\b';
-        break;
-      case 'e':
-        our_word[j++] = '\e';
-        break;
-      case 'a':
-        our_word[j++] = '\a';
-        break;
-      case 'f':
-        our_word[j++] = '\f';
-        break;
-      case 'r':
-        our_word[j++] = '\r';
-        break;
-      case 't':
-        our_word[j++] = '\t';
-        break;
-      case 'v':
-        our_word[j++] = '\v';
-        break;
-      case '0':
-        our_word[j++] = '\0';
-        break;
-      case '"':
-        our_word[j++] = '\"';
-        break;
-      case '\\':
-        our_word[j++] = '\\';
-        break;
-      default:
-        our_word[j++] = word[i];
-        break;
-      }
+    if (i + 1 < end) {
+      our_word[j++] = sl_unescape_char(word[i + 1]);
+      i += 2;
     } else {
-      our_word[j++] = word[i];
+      our_word[j++] = word[i++];
     }
   }
 
@@ -734,19 +751,21 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
   return v;
 }
 
-int getvar_index_from_sl(struct SL_Code code, const char *name,
-                         unsigned long hash) {
-  for (int i = code.total_vars - 1; i >= 0; i--) {
-    if (code.vars[i].name == NULL)
+int getvar_index_from_sl_p(const struct SL_Code *code, const char *name,
+                           unsigned long hash) {
+  for (int i = code->total_vars - 1; i >= 0; i--) {
+    if (code->vars[i].name == NULL)
       continue;
-    if (code.vars[i].hash == hash) {
-      if (strcmp(code.vars[i].name, name) == 0) {
+    if (code->vars[i].hash == hash) {
+      if (strcmp(code->vars[i].name, name) == 0) {
         return i;
       }
     }
   }
   return -1;
 }
+#define getvar_index_from_sl(code, name, hash)                                 \
+  getvar_index_from_sl_p(&(code), (name), (hash))
 
 int getvar_local_index_from_sl(struct SL_Code code, const char *name,
                                unsigned long hash) {
@@ -762,17 +781,23 @@ int getvar_local_index_from_sl(struct SL_Code code, const char *name,
   return -1;
 }
 
-int is_has_func(struct SL_Code code, const char *name) {
-  unsigned long target_hash = sl_hash_string(name);
-  for (int i = 0; i < code.total_funcs; i++) {
-    if (code.funcs[i].hash == target_hash) {
-      if (strcmp(code.funcs[i].name, name) == 0) {
+int is_has_func_hashed_p(const struct SL_Code *code, const char *name,
+                         unsigned long target_hash) {
+  for (int i = 0; i < code->total_funcs; i++) {
+    if (code->funcs[i].hash == target_hash) {
+      if (strcmp(code->funcs[i].name, name) == 0) {
         return i;
       }
     }
   }
   return -1;
 }
+
+int is_has_func_p(const struct SL_Code *code, const char *name) {
+  return is_has_func_hashed_p(code, name, sl_hash_string(name));
+}
+
+#define is_has_func(code, name) is_has_func_p(&(code), (name))
 
 void sl_free_variable(struct SL_Variable *var) {
   if (var == NULL) {
@@ -848,13 +873,13 @@ int sl_add_func(struct SL_Code *code, char *name,
   return 0;
 }
 
-struct SL_Variable sl_get_argument(struct SL_Code code,
-                                   struct SL_L_Function func, int which_one) {
+struct SL_Variable sl_get_argument_p(const struct SL_Code *code,
+                                     struct SL_L_Function func, int which_one) {
   struct SL_Variable error_val = {0};
   error_val.type = ERROR;
   if (which_one >= func.total_arguments)
     return error_val;
-  return code.vars[func.starting_index + which_one];
+  return code->vars[func.starting_index + which_one];
 }
 
 int sl_add_var(struct SL_Code *code, struct SL_Variable var) {
@@ -2576,6 +2601,199 @@ static int find_token_by_name(struct SL_Code *code, const char *name) {
   return -1;
 }
 
+static inline int vm_top_pair_plain_matched(struct SL_Code *code,
+                                            struct SL_Variable **lhs,
+                                            struct SL_Variable **rhs) {
+  if (code->obj.stack_size < 2)
+    return 0;
+  *rhs = &code->obj.stack[code->obj.stack_size - 1];
+  *lhs = *rhs - 1;
+  if ((*lhs)->name != NULL || (*rhs)->name != NULL)
+    return 0;
+  if ((*lhs)->type == DOUBLE && (*rhs)->type == INTEGER) {
+    (*rhs)->valf = (double)(*rhs)->vali;
+    (*rhs)->type = DOUBLE;
+  } else if ((*lhs)->type == INTEGER && (*rhs)->type == DOUBLE) {
+    (*lhs)->valf = (double)(*lhs)->vali;
+    (*lhs)->type = DOUBLE;
+  }
+  return (*lhs)->type == (*rhs)->type;
+}
+
+static inline void vm_collapse_pair_to_double(struct SL_Code *code,
+                                              double value) {
+  struct SL_Variable *slot = &code->obj.stack[code->obj.stack_size - 2];
+  memset(slot, 0, sizeof *slot);
+  slot->type = DOUBLE;
+  slot->valf = value;
+  code->obj.stack_size--;
+}
+
+static inline void vm_collapse_pair_to_integer(struct SL_Code *code,
+                                               long value) {
+  struct SL_Variable *slot = &code->obj.stack[code->obj.stack_size - 2];
+  memset(slot, 0, sizeof *slot);
+  slot->type = INTEGER;
+  slot->vali = value;
+  code->obj.stack_size--;
+}
+
+static inline void vm_collapse_pair_to_boolean(struct SL_Code *code,
+                                               long value) {
+  struct SL_Variable *slot = &code->obj.stack[code->obj.stack_size - 2];
+  memset(slot, 0, sizeof *slot);
+  slot->type = BOOLEAN;
+  slot->valb = value;
+  code->obj.stack_size--;
+}
+
+#define VM_FAST_NUMERIC(DOUBLE_EXPR, INTEGER_EXPR)                             \
+  {                                                                            \
+    struct SL_Variable *lhs, *rhs;                                             \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                       \
+      if (lhs->type == DOUBLE) {                                               \
+        vm_collapse_pair_to_double(code, (DOUBLE_EXPR));                       \
+        break;                                                                 \
+      }                                                                        \
+      if (lhs->type == INTEGER) {                                              \
+        vm_collapse_pair_to_integer(code, (INTEGER_EXPR));                     \
+        break;                                                                 \
+      }                                                                        \
+    }                                                                          \
+  }
+
+#define VM_FAST_ARITHMETIC(OP)                                                 \
+  VM_FAST_NUMERIC(lhs->valf OP rhs->valf, lhs->vali OP rhs->vali)
+
+#define VM_FAST_DIVISION                                                       \
+  VM_FAST_NUMERIC(rhs->valf != 0 ? lhs->valf / rhs->valf : 0,                  \
+                  rhs->vali != 0 ? lhs->vali / rhs->vali : 0)
+
+#define VM_FAST_MODULO                                                         \
+  {                                                                            \
+    struct SL_Variable *lhs, *rhs;                                             \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs) &&                       \
+        lhs->type == INTEGER && rhs->vali != 0) {                              \
+      vm_collapse_pair_to_integer(code, lhs->vali % rhs->vali);                \
+      break;                                                                   \
+    }                                                                          \
+  }
+
+#define VM_FAST_COMPARISON(OP)                                                 \
+  {                                                                            \
+    struct SL_Variable *lhs, *rhs;                                             \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                       \
+      if (lhs->type == DOUBLE) {                                               \
+        vm_collapse_pair_to_boolean(code, lhs->valf OP rhs->valf);             \
+        break;                                                                 \
+      }                                                                        \
+      if (lhs->type == INTEGER) {                                              \
+        vm_collapse_pair_to_boolean(code, lhs->vali OP rhs->vali);             \
+        break;                                                                 \
+      }                                                                        \
+    }                                                                          \
+  }
+
+static struct SL_Variable vm_call_native(struct SL_Code *code,
+                                         uint32_t func_idx,
+                                         uint32_t arg_count) {
+  int starting_index = code->total_vars;
+  int starting_index_func = code->total_funcs;
+  if (code->total_vars + arg_count >= code->total_size_v) {
+    code->total_size_v =
+        (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
+    while (code->total_vars + arg_count >= code->total_size_v) {
+      code->total_size_v *= 2;
+    }
+    code->vars =
+        srealloc(code->vars, code->total_size_v * sizeof(struct SL_Variable));
+  }
+
+  for (int i = (int)arg_count - 1; i >= 0; i--) {
+    code->vars[starting_index + i] = pop(code);
+  }
+  code->total_vars += arg_count;
+
+  struct SL_L_Function lfunc = {0};
+  lfunc.total_arguments = arg_count;
+  lfunc.starting_index = starting_index;
+
+  struct SL_Variable result =
+      code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
+
+  if (result.type == STRING && result.vals != NULL) {
+    for (int i = starting_index; i < code->total_vars; i++) {
+      if (result.vals == code->vars[i].vals) {
+        result.vals = strdup(result.vals);
+        break;
+      }
+    }
+  }
+
+  sl_clean_local_scope(code, starting_index, starting_index_func);
+  return result;
+}
+
+static size_t vm_append_quoted_content(char *out, size_t j, const char *quoted) {
+  size_t end = strlen(quoted) - 1;
+  for (size_t i = 1; i < end; i++) {
+    char ch = quoted[i];
+    if (ch == '\\' && i + 1 < end)
+      ch = sl_unescape_char(quoted[++i]);
+    if (ch == '\0')
+      break;
+    if (ch == '"' || ch == '\\')
+      out[j++] = '\\';
+    out[j++] = ch;
+  }
+  return j;
+}
+
+static char *vm_concat_quoted(const char *left, const char *right) {
+  char *out = smalloc(2 * (strlen(left) + strlen(right)) + 3);
+  size_t j = 0;
+  out[j++] = '"';
+  j = vm_append_quoted_content(out, j, left);
+  j = vm_append_quoted_content(out, j, right);
+  out[j++] = '"';
+  out[j] = '\0';
+  return out;
+}
+
+static int vm_resolve_function_constant(struct SL_Code *code,
+                                        uint32_t pool_index) {
+  struct SL_Variable *name_constant = &code->constant_pool[pool_index];
+  if (name_constant->hash == 0)
+    name_constant->hash = sl_hash_string(name_constant->vals);
+
+  int cached = name_constant->cache_index - 1;
+  if (cached >= 0 && cached < code->total_funcs &&
+      code->funcs[cached].hash == name_constant->hash &&
+      strcmp(code->funcs[cached].name, name_constant->vals) == 0)
+    return cached;
+
+  int found = is_has_func_hashed_p(code, name_constant->vals,
+                                   name_constant->hash);
+  if (found != -1)
+    name_constant->cache_index = found + 1;
+  return found;
+}
+
+static inline void vm_push_variable_value(struct SL_Code *code,
+                                          const struct SL_Variable *source) {
+  if (SL_UNLIKELY(code->obj.stack_size >= code->obj.stack_capacity))
+    stack_grow(code);
+  struct SL_Variable *slot = &code->obj.stack[code->obj.stack_size++];
+  *slot = *source;
+  slot->name = NULL;
+  if ((source->type == STRING || source->type == RETURN) &&
+      source->vals != NULL) {
+    slot->vals = strdup(source->vals);
+  } else if (source->type == BYTES && source->vals != NULL) {
+    slot->vals = sl_bytes_copy(source->vals, source->length);
+  }
+}
+
 static void vm_loop(struct SL_Code *code, size_t pc) {
   while (pc < code->bytecode_len) {
     uint32_t instruction = code->bytecode[pc++];
@@ -2590,7 +2808,7 @@ break;
 
     case OPCODE_LOAD_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
-      push(code, copy_value_without_name(code->vars[var_idx]));
+      vm_push_variable_value(code, &code->vars[var_idx]);  
       break;
     }
 
@@ -2627,7 +2845,7 @@ break;
     case OPCODE_LOAD_LOCAL_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
       size_t actual_idx = code->current_frame_base + var_idx;
-      push(code, copy_value_without_name(code->frame.vars[actual_idx]));
+      vm_push_variable_value(code, &code->frame.vars[actual_idx]); 
       break;
     }
 
@@ -2653,7 +2871,7 @@ break;
 
     case OPCODE_PUSH_POOL_CONST: {
       uint32_t pool_index = code->bytecode[pc++];
-      push(code, copy_value_without_name(code->constant_pool[pool_index]));
+      vm_push_variable_value(code, &code->constant_pool[pool_index]); 
       break;
     }
 
@@ -2728,50 +2946,7 @@ break;
       uint32_t func_idx = code->bytecode[pc++];
       uint32_t arg_count = code->bytecode[pc++];
 
-      struct SL_Variable *args =
-          smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable)
-                                : sizeof(struct SL_Variable));
-      for (int i = (int)arg_count - 1; i >= 0; i--) {
-        args[i] = pop(code);
-      }
-
-      int starting_index = code->total_vars;
-      int starting_index_func = code->total_funcs;
-      if (code->total_vars + arg_count >= code->total_size_v) {
-        code->total_size_v =
-            (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
-        while (code->total_vars + arg_count >= code->total_size_v) {
-          code->total_size_v *= 2;
-        }
-        code->vars = srealloc(code->vars,
-                              code->total_size_v * sizeof(struct SL_Variable));
-      }
-
-      for (int i = 0; i < arg_count; i++) {
-        code->vars[code->total_vars++] = sl_copy_variable(args[i]);
-      }
-
-      struct SL_L_Function lfunc = {0};
-      lfunc.total_arguments = arg_count;
-      lfunc.starting_index = starting_index;
-
-      struct SL_Variable result =
-          code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
-
-      for (int i = starting_index; i < code->total_vars; i++) {
-        if (result.type == STRING && result.vals != NULL &&
-            result.vals == code->vars[i].vals) {
-          result.vals = strdup(result.vals);
-          break;
-        }
-      }
-
-      sl_clean_local_scope(code, starting_index, starting_index_func);
-
-      for (int i = 0; i < arg_count; i++) {
-        sl_free_variable(&args[i]);
-      }
-      free(args);
+      struct SL_Variable result = vm_call_native(code, func_idx, arg_count);
 
       push(code, result);
       break;
@@ -2783,7 +2958,7 @@ break;
 
       char *func_name = code->constant_pool[name_const_idx].vals;
 
-      int func_idx = is_has_func(*code, func_name);
+      int func_idx = vm_resolve_function_constant(code, name_const_idx);
       if (func_idx == -1) {
         int error_token = find_token_by_name(code, func_name);
         sl_vm_error(
@@ -2796,49 +2971,7 @@ break;
         break;
       }
 
-      struct SL_Variable *args =
-          smalloc(arg_count > 0 ? arg_count * sizeof(struct SL_Variable)
-                                : sizeof(struct SL_Variable));
-      for (int i = (int)arg_count - 1; i >= 0; i--) {
-        args[i] = pop(code);
-      }
-
-      int starting_index = code->total_vars;
-      int starting_index_func = code->total_funcs;
-      if (code->total_vars + arg_count >= code->total_size_v) {
-        code->total_size_v =
-            (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
-        while (code->total_vars + arg_count >= code->total_size_v) {
-          code->total_size_v *= 2;
-        }
-        code->vars = srealloc(code->vars,
-                              code->total_size_v * sizeof(struct SL_Variable));
-      }
-
-      for (int i = 0; i < arg_count; i++) {
-        code->vars[code->total_vars++] = sl_copy_variable(args[i]);
-      }
-
-      struct SL_L_Function lfunc = {0};
-      lfunc.total_arguments = arg_count;
-      lfunc.starting_index = starting_index;
-
-      struct SL_Variable result =
-          code->funcs[func_idx].funcr(code, lfunc, code->funcs[func_idx]);
-      for (int i = starting_index; i < code->total_vars; i++) {
-        if (result.type == STRING && result.vals != NULL &&
-            result.vals == code->vars[i].vals) {
-          result.vals = strdup(result.vals);
-          break;
-        }
-      }
-
-      sl_clean_local_scope(code, starting_index, starting_index_func);
-
-      for (int i = 0; i < arg_count; i++) {
-        sl_free_variable(&args[i]);
-      }
-      free(args);
+      struct SL_Variable result = vm_call_native(code, func_idx, arg_count);
 
       push(code, result);
       break;
@@ -2848,8 +2981,11 @@ break;
       uint32_t var_idx = code->bytecode[pc++];
       char *var_name = code->constant_pool[var_idx].vals;
 
-      int real_idx = getvar_index_from_sl(*code, var_name + 1,
-                                          sl_hash_string(var_name + 1));
+      struct SL_Variable *name_constant = &code->constant_pool[var_idx];
+      if (name_constant->hash == 0)
+        name_constant->hash = sl_hash_string(var_name + 1);
+      int real_idx =
+          getvar_index_from_sl(*code, var_name + 1, name_constant->hash);
       if (real_idx == -1) {
         sl_vm_error(code, (uint32_t)-1, "VARIABLE NOT FOUND!",
                     "Expected: Define a variable first.");
@@ -2893,6 +3029,15 @@ break;
 
     case OPCODE_IF_JUMP_FALSE: {
       uint32_t target_pc = code->bytecode[pc++];
+      if (code->obj.stack_size > 0) {
+        struct SL_Variable *top = &code->obj.stack[code->obj.stack_size - 1];
+        if (top->type == BOOLEAN && top->name == NULL) {
+          code->obj.stack_size--;
+          if (top->valb == 0)
+            pc = target_pc;
+          break;
+        }
+      }
       struct SL_Variable condition = pop(code);
 
       int is_false = 0;
@@ -2917,6 +3062,7 @@ break;
 
       /* Arithmetic Logic Unit */
     case OPCODE_ADD: {
+      VM_FAST_ARITHMETIC(+)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -2937,6 +3083,10 @@ break;
         result.valh = left.valh + right.valh;
         break;
       case STRING: {
+        if (string_checker(left.vals) == 1 && string_checker(right.vals) == 1) {
+          result.vals = vm_concat_quoted(left.vals, right.vals);
+          break;
+        }
         char *left_str = sl_string_getter(left.vals);
         char *right_str = sl_string_getter(right.vals);
         size_t len = strlen(left_str) + strlen(right_str);
@@ -2959,6 +3109,7 @@ break;
     }
 
     case OPCODE_SUB: {
+      VM_FAST_ARITHMETIC(-)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -2988,6 +3139,7 @@ break;
     }
 
     case OPCODE_MUL: {
+      VM_FAST_ARITHMETIC(*)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3017,6 +3169,7 @@ break;
     }
 
     case OPCODE_DIV: {
+      VM_FAST_DIVISION
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3050,6 +3203,7 @@ break;
     }
 
     case OPCODE_MOD: {
+      VM_FAST_MODULO
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3148,6 +3302,7 @@ break;
 
     /* CONDITIONS */
     case OPCODE_BIGGER: {
+      VM_FAST_COMPARISON(>)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3165,6 +3320,7 @@ break;
     }
 
     case OPCODE_LESSER: {
+      VM_FAST_COMPARISON(<)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3182,6 +3338,7 @@ break;
     }
 
     case OPCODE_EQU: {
+      VM_FAST_COMPARISON(==)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3210,6 +3367,7 @@ break;
     }
 
     case OPCODE_NEQ: {
+      VM_FAST_COMPARISON(!=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3238,6 +3396,7 @@ break;
     }
 
     case OPCODE_EQG: {
+      VM_FAST_COMPARISON(>=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);
@@ -3255,6 +3414,7 @@ break;
     }
 
     case OPCODE_EQL: {
+      VM_FAST_COMPARISON(<=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
       vm_prepare_operands(code, &left, &right);

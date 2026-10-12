@@ -1,5 +1,5 @@
 CC ?= cc
-CFLAGS ?= -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden -flto=auto
+CFLAGS ?= -O3 -DNDEBUG -flto -fno-strict-aliasing -fvisibility=hidden -flto=auto -fno-plt
 LDFLAGS ?= -O3 -flto -lm
 NET_CFLAGS = -DENABLE_NET
 
