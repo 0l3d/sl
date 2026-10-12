@@ -569,11 +569,87 @@ Here is how you register the keyword:
 sl_add_custom_keyword(&sl_code, "for", for_keyword);
 ----
 
+++ Adding a Custom Token (Operators)
+
+Custom tokens are for operators. Expressions are for things that start somewhere and end somewhere (like a block), keywords are for whole statements, a custom token sits between two values like `+` does and takes part in the normal precedence rules.
+(Example taken from `sl_lang.c`, the pipe operator `|>`)
+
+A custom token needs 3 things: the token text, a precedence and a handler function.
+-----------
+#define PIPE_TOKEN "|>"
+#define PIPE_PRECEDENCE 5
+
+static void pipe_token_handler(struct SL_Code *code, int first_token,
+                               int operator_token, int end_token) {
+  // first_token    -> start of the whole expression
+  // operator_token -> index of your operator
+  // end_token      -> end of the whole expression (not included)
+
+  sl_compile_expression(code, first_token, operator_token);  // left side
+  sl_compile_expression(code, operator_token + 1, end_token); // right side
+  // then emit whatever your operator does
+}
+
+// MAIN:
+sl_add_custom_token(&sl_code, PIPE_TOKEN, PIPE_PRECEDENCE, pipe_token_handler);
+---------
+
+The lexer also learns the token when you register it, so `|>` comes out as one token instead of `|` and `>`. It picks the longest match.
+Just like custom expressions, the handler emits bytecode, it doesnt calculate anything, and the result must end up on the vm stack as exactly one value.
+
++++ Precedence
+
+Higher precedence binds tighter. Built in operators are multiplied by 10 internally, so you can slot yours between them:
+-----------
+|| &&          10
+== != < >      20  (comparisons)
+|              30
+^              40
+&              50
+<< >>          60
++ -            70
+* / %          80
+---------
+Pipe uses 5, which is lower than everything, so `10 + 5 |> add(1)` means `(10 + 5) |> add(1)`. Same precedence is solved left to right. A precedence of 0 or less (or a NULL handler) disables the token as an operator, it will only be lexed.
+Note that unlike expressions, you don't write a splitter. The parser finds the operator with the lowest precedence and gives you the left and right sides as token ranges, you decide how to compile them.
+
++++ Token vs Expression vs Keyword
+
+-----------
+Custom token:   infix operator, parser gives you (first, operator, end). Has precedence.
+                Works inside mathematical expressions. Example: |>
+Custom expr:    starts with a token, you find where it ends (splitter) and compile it.
+                Works inside expressions too, but acts like a value. Example: { ... }
+Custom keyword: standalone statement, you parse everything yourself.
+                Can NOT be used inside expressions. Example: if, while, for
+---------
+Rule of thumb: if you want it to sit between two values, token. If it is a value on its own, expression. If it is a statement, keyword.
+
++++ Pipes
+
+`|>` takes the value on the left and passes it as the first argument of the function on the right. Extra arguments are optional.
+-----------
+use("io")
+
+var result = 10 |> add(5)          # same as add(10, 5)
+io.print(10 + 5 |> add(1), "\n")   # same as add(10 + 5, 1), prints 16
+
+# chaining, solved left to right
+"10" |> types.str_to_int |> add(5) |> io.print
+
+# Wrong way
+|> add(5)                          # nothing on the left
+10 |> 20                           # right side must be a function
+10 |> add(5) + 1                   # tokens after the stage are not allowed
+---------
+The right side must be a function name, with or without `( )`. Wrap the whole pipe in parentheses if you need to do math with its result: `(10 |> add(5)) + 1`.
+Pipes are not part of the base language; they are an sl_lang extension, just like { }. Do not assume that pipes are built into the language.
+
 ++ Dynamic Management & Runtime Control
 
 You can do these setups via the `use` function in `stdlib.h`, or even design `use` as its own custom keyword, it'll work either way.
 
-All of these extensions can be dynamically registered or removed at runtime. To remove them, use the corresponding `sl_remove_*` functions. Note that removals happen by **index**, not by name, so keeping track of your registered keywords/expressions is up to you.
+All of these extensions can be dynamically registered or removed at runtime. To remove them, use the corresponding `sl_remove_*` functions. Note that removals happen by **index**, not by name, so keeping track of your registered keywords/expressions/tokens is up to you.
 
 Example usage:
 
@@ -581,6 +657,7 @@ Example usage:
 sl_remove_custom_expr(&sl_code, 0);
 sl_remove_custom_splitter(&sl_code, 0);
 sl_remove_custom_keyword(&sl_code, 0);
+sl_remove_custom_token(&sl_code, 0);
 -------
 
 If you want to dive deeper into hackability or create a custom dialect on top of SL (without writing a parser from scratch), take a look at `stdlib.h`, `sl.c`, and `sl_lang.c`, or check `sl.h` for available functions and API usage.
