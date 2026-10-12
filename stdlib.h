@@ -2334,6 +2334,7 @@ struct SL_Variable file_read_to_str_fn(struct SL_Code *code,
 
   FILE *file_open = fopen(file_name, "r");
   if (file_open == NULL) {
+    free(file_name);
     return_var.type = ERROR;
     return_var.vals = "File not found!";
     return return_var;
