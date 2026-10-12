@@ -28,6 +28,13 @@ You can edit SL files with basic syntax highlighting without using an external e
 # Cross Platform editor for SL.
 ```
   
+For supported scripts (run the program first, if there's no output, it's not supported),  
+you can use the following command to generate reference docs or comment docs explaining how the script works:  
+```
+sl examples/ex_doc.sl file.sl
+```  
+The output is automatically styled with headings, plain text, and blinking text.  
+   
 ### Useful tools in the Examples folder
   
 Even though the Examples folder is mostly for testing the language, a lot of the scripts are actually small tools that might come in handy.  
