@@ -647,8 +647,8 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
     /* convert word to base 10 integer */
     v.vali = (int)strtol(word, &endptr, 10);
     if (*(endptr) != '\0') {
-      fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
-      exit(1);
+      v.vals = "Invalid characters in integer value";
+      v.type = ERROR;
     }
   } break;
   case DOUBLE:

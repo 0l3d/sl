@@ -36,9 +36,9 @@ struct SL_Variable {
   size_t length;
   int info;
   union {
-    int vali;
+    long vali;
     double valf;
-    int valb;
+    long valb;
     char valc;
     char *vals;
     intmax_t valh;
