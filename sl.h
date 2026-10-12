@@ -12,6 +12,7 @@
 #define OPERATORS "*/+-%><&|^"
 
 #define SL_REALLOC_DEFAULT 1024
+#define SL_BUILTIN_PRECEDENCE_SCALE 10
 
 #if defined(__GNUC__) && !defined(_WIN32)
 #pragma GCC visibility push(default)
@@ -157,6 +158,12 @@ struct SL_Code {
   int custom_splitter_count;
   int custom_splitter_capacity;
   int custom_keyword_capacity;
+  char **custom_token;
+  int *custom_token_precedence;
+  void (**custom_tokenr)(struct SL_Code *, int first_token, int operator_token,
+                         int end_token);
+  int custom_token_count;
+  int custom_token_capacity;
   void (**custom_keywordr)(struct SL_Code *, int *current_token);
   int (**custom_splitterr)(struct SL_Code *, int *current_token);
   struct SL_Variable (**custom_exprr)(struct SL_Code *, int *current_token);
@@ -307,6 +314,12 @@ int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
 int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
                            int (*custom_splitterr)(struct SL_Code *,
                                                    int *current_token));
+int sl_add_custom_token(struct SL_Code *code, char *token_name, int precedence,
+                        void (*custom_tokenr)(struct SL_Code *, int first_token,
+                                              int operator_token,
+                                              int end_token));
+int sl_remove_custom_token(struct SL_Code *code, int index);
+int sl_find_custom_token(struct SL_Code *code, const char *token_name);
 int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size,
                      const char *restrict file_name, char ***bufout,
                      char *special_tokens);

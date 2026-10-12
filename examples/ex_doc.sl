@@ -38,7 +38,7 @@ while List.iter($lines) then
 		var index = string.index_of($line, '#')
 		var char = string.char_at($line, $index + 1)
 		if $char equ '?' then 
-			console.reset_style($STYLE_BOLD)
+			console.reset_color()
 			var str_after_q = string.slice($line, $index + 2, string.len($line))
 			io.print("| ", $str_after_q, "\n")
 		elif $char equ '#' then 

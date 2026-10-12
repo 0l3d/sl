@@ -6,6 +6,8 @@
 #include <time.h>
 
 #define SPECIAL_TOKENS "()+-/*%^&|=<>,{}"
+#define PIPE_TOKEN "|>"
+#define PIPE_PRECEDENCE 5
 
 struct SL_Variable builtin_not_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
@@ -98,7 +100,111 @@ struct SL_Variable brace_block_expression(struct SL_Code *code,
   return nothing_to_return;
 }
 
+static int find_closing_parenthesis(char **tokens, int open_index,
+                                    int end_token) {
+  int nested_depth = 0;
+
+  for (int i = open_index + 1; i < end_token; i++) {
+    if (tokens[i][0] == '(') {
+      nested_depth++;
+    } else if (tokens[i][0] == ')') {
+      if (nested_depth == 0)
+        return i;
+      nested_depth--;
+    }
+  }
+
+  return -1;
+}
+
+static int find_argument_end(char **tokens, int first_token,
+                             int closing_token) {
+  int nested_depth = 0;
+
+  for (int i = first_token; i < closing_token; i++) {
+    if (tokens[i][0] == '(')
+      nested_depth++;
+    else if (tokens[i][0] == ')')
+      nested_depth--;
+    else if (tokens[i][0] == ',' && nested_depth == 0)
+      return i;
+  }
+
+  return closing_token;
+}
+
+static int compile_pipe_arguments(struct SL_Code *code, int open_index,
+                                  int closing_index) {
+  int argument_count = 0;
+  int argument_start = open_index + 1;
+
+  while (argument_start < closing_index) {
+    int argument_end =
+        find_argument_end(code->code, argument_start, closing_index);
+    sl_compile_expression(code, argument_start, argument_end);
+    argument_count++;
+    argument_start = argument_end + 1;
+  }
+
+  return argument_count;
+}
+
+static void emit_pipe_call(struct SL_Code *code, int stage_token,
+                           int argument_count) {
+  int function_index = sl_find_function_index(code, code->code[stage_token]);
+  if (function_index != -1) {
+    sl_emit_call_function(code, function_index, argument_count);
+    return;
+  }
+
+  int name_index = sl_add_constant(
+      code, sl_copy_variable(code->fixed_values[stage_token]));
+  sl_emit(code, OPCODE_CALL_DYNAMIC_LINKED_FUNC);
+  sl_emit(code, (uint32_t)name_index);
+  sl_emit(code, (uint32_t)argument_count);
+}
+
+static void pipe_token_handler(struct SL_Code *code, int first_token,
+                               int operator_token, int end_token) {
+  int stage_token = operator_token + 1;
+  if (operator_token == first_token || stage_token >= end_token) {
+    sl_throw_an_error(*code, code->code, operator_token, end_token,
+                      "UNEXPECTED PIPE USAGE",
+                      "Expected: <value> |> <function>");
+  }
+
+  int stage_end = stage_token + 1;
+  int closing_parenthesis = -1;
+  if (stage_end < end_token && code->code[stage_end][0] == '(') {
+    closing_parenthesis =
+        find_closing_parenthesis(code->code, stage_end, end_token);
+    if (closing_parenthesis == -1) {
+      sl_throw_an_error(*code, code->code, stage_end, end_token,
+                        "UNCLOSED '(' (opening parenthesis) AFTER PIPE",
+                        "Expected: a matching ')' (closing parenthesis)");
+    }
+    stage_end = closing_parenthesis + 1;
+  }
+
+  if (stage_end != end_token) {
+    sl_throw_an_error(*code, code->code, stage_end, end_token,
+                      "UNEXPECTED TOKENS AFTER PIPE STAGE",
+                      "Expected: <value> |> <function> or "
+                      "<value> |> <function>(extra arguments)");
+  }
+
+  sl_compile_expression(code, first_token, operator_token);
+
+  int argument_count = 1;
+  if (closing_parenthesis != -1)
+    argument_count +=
+        compile_pipe_arguments(code, stage_token + 1, closing_parenthesis);
+
+  emit_pipe_call(code, stage_token, argument_count);
+}
+
 static void register_language_extensions(struct SL_Code *sl_code) {
+  sl_add_custom_token(sl_code, PIPE_TOKEN, PIPE_PRECEDENCE, pipe_token_handler);
   sl_add_custom_splitter(sl_code, "{", brace_block_splitter);
   sl_add_custom_expr(sl_code, "{", brace_block_expression);
 }

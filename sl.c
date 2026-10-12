@@ -211,6 +211,45 @@ char *sl_quote_string(const char *str) {
   return result;
 }
 
+static struct SL_Code *lexing_code = NULL;
+
+int sl_find_custom_token(struct SL_Code *code, const char *token_name) {
+  if (code == NULL || token_name == NULL)
+    return -1;
+
+  for (int i = 0; i < code->custom_token_count; i++) {
+    if (strcmp(code->custom_token[i], token_name) == 0)
+      return i;
+  }
+  return -1;
+}
+
+static int sl_custom_operator_index(struct SL_Code *code,
+                                    const char *token_name) {
+  int index = sl_find_custom_token(code, token_name);
+  if (index == -1)
+    return -1;
+
+  if (code->custom_token_precedence[index] <= 0 ||
+      code->custom_tokenr[index] == NULL)
+    return -1;
+  return index;
+}
+
+static int sl_match_custom_token(const char *position) {
+  if (lexing_code == NULL)
+    return 0;
+
+  int longest_match = 0;
+  for (int i = 0; i < lexing_code->custom_token_count; i++) {
+    int length = (int)strlen(lexing_code->custom_token[i]);
+    if (length > longest_match &&
+        strncmp(position, lexing_code->custom_token[i], length) == 0)
+      longest_match = length;
+  }
+  return longest_match;
+}
+
 int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
                  char *special_tokens, int start_size) {
   int size_s = start_size;
@@ -271,6 +310,15 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
       (*bufout)[token_count++] = in_string_tokens;
 
     } else {
+      int custom_length = sl_match_custom_token(p);
+      if (custom_length > 0) {
+        char *custom_word = smalloc(custom_length + 1);
+        memcpy(custom_word, p, custom_length);
+        custom_word[custom_length] = '\0';
+        (*bufout)[token_count++] = custom_word;
+        p += custom_length;
+        continue;
+      }
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
         char *pot = smalloc(3);
         pot[0] = *p;
@@ -308,7 +356,8 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
       }
       const char *word_start = p;
       while (*p && !isspace(*p) &&
-             lexer_special_tokens_ex(special_tokens, *p) == 0)
+             lexer_special_tokens_ex(special_tokens, *p) == 0 &&
+             sl_match_custom_token(p) == 0)
         p++;
       int word_len = p - word_start;
       char *word = smalloc(word_len + 1);
@@ -528,10 +577,12 @@ int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size,
   struct SL_ImportRegistry registry = {0};
   sl_import_registry_add(&registry, file_name);
 
+  lexing_code = code;
   int token_count =
       sl_lex_file(code, malloc_size, file_name, bufout, special_tokens);
   token_count = sl_expand_imports(bufout, token_count, malloc_size,
                                   special_tokens, &registry);
+  lexing_code = NULL;
 
   sl_import_registry_free(&registry);
   return token_count;
@@ -990,6 +1041,8 @@ struct SL_Math_Splitter {
   char op;
   int is_op_type;
   int op_pos;
+  int precedence;
+  int custom_index;
   enum TokenTypes op_type;
 };
 
@@ -1051,6 +1104,9 @@ int operator_checker(struct SL_Code *code, char *expressions[],
   for (int i = start; i < end; i++) {
     if (expressions[i] == NULL)
       return 0;
+
+    if (sl_custom_operator_index(code, expressions[i]) != -1)
+      return 1;
 
     switch (types[i]) {
     case T_EQU:
@@ -1126,6 +1182,7 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
   int depth = 0;
   struct SL_Math_Splitter tree = {0};
   tree.op = 0;
+  tree.custom_index = -1;
 
   while (current_token < max_tokens) {
     if (code.custom_splitter_count > 0) {
@@ -1200,33 +1257,25 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
       break;
     }
 
-    int op_prec = prec_priority(op, op_type, optype);
+    int custom_index =
+        sl_custom_operator_index(&code, expression[current_token]);
+    int op_prec = prec_priority(op, op_type, optype) *
+                  SL_BUILTIN_PRECEDENCE_SCALE;
     if (optype == 0 && strlen(expression[current_token]) > 1) {
       op_prec = 0;
     }
+    if (custom_index != -1) {
+      op_prec = code.custom_token_precedence[custom_index];
+    }
 
-    if (op_prec != 0) {
-      if (tree.op == 0) {
-        tree.op = op;
-        if (optype == 1) {
-          tree.op_type = op_type;
-          tree.is_op_type = 1;
-        } else {
-          tree.is_op_type = 0;
-        }
-        tree.op_pos = current_token;
-      }
-      if (op_prec <= prec_priority(tree.op, tree.op_type, tree.is_op_type) &&
-          op_prec != 0) {
-        tree.op = op;
-
-        if (optype == 1) {
-          tree.op_type = op_type;
-          tree.is_op_type = 1;
-        } else {
-          tree.is_op_type = 0;
-        }
-        tree.op_pos = current_token;
+    if (op_prec != 0 && (tree.op == 0 || op_prec <= tree.precedence)) {
+      tree.op = op;
+      tree.op_pos = current_token;
+      tree.precedence = op_prec;
+      tree.custom_index = custom_index;
+      tree.is_op_type = optype;
+      if (optype == 1) {
+        tree.op_type = op_type;
       }
     }
     current_token++;
@@ -1580,6 +1629,13 @@ void sl_expression_solver(struct SL_Code *code_s, char *expression[],
   if (tree.op == 0) {
     resolve_variable(code_s, expression, types, current_token, max_tokens,
                      old_curr);
+    *current_token = max_tokens;
+    return;
+  }
+
+  if (tree.custom_index != -1) {
+    code_s->custom_tokenr[tree.custom_index](code_s, *current_token,
+                                             tree.op_pos, max_tokens);
     *current_token = max_tokens;
     return;
   }
@@ -3934,6 +3990,11 @@ struct SL_Code sl_init_sl_process() {
   code.custom_splitter_capacity = 0;
   code.custom_expr_capacity = 0;
   code.custom_keyword_capacity = 0;
+  code.custom_token = NULL;
+  code.custom_token_precedence = NULL;
+  code.custom_tokenr = NULL;
+  code.custom_token_count = 0;
+  code.custom_token_capacity = 0;
   code.scope_depth = 1;
   code.special_tokens = NULL;
   code.starting_token = 0;
@@ -4142,6 +4203,58 @@ int sl_remove_custom_splitter(struct SL_Code *code, int index) {
   return 1;
 }
 
+int sl_add_custom_token(struct SL_Code *code, char *token_name, int precedence,
+                        void (*custom_tokenr)(struct SL_Code *, int first_token,
+                                              int operator_token,
+                                              int end_token)) {
+  if (code == NULL || token_name == NULL || token_name[0] == '\0')
+    return 0;
+
+  int index = sl_find_custom_token(code, token_name);
+  if (index != -1) {
+    code->custom_token_precedence[index] = precedence;
+    code->custom_tokenr[index] = custom_tokenr;
+    return 1;
+  }
+
+  if (code->custom_token_count >= code->custom_token_capacity) {
+    code->custom_token_capacity += 128;
+    code->custom_token = srealloc(
+        code->custom_token, code->custom_token_capacity * sizeof(char *));
+    code->custom_token_precedence =
+        srealloc(code->custom_token_precedence,
+                 code->custom_token_capacity * sizeof(int));
+    code->custom_tokenr = srealloc(
+        code->custom_tokenr, code->custom_token_capacity * sizeof(custom_tokenr));
+  }
+
+  index = code->custom_token_count;
+  code->custom_token[index] = strdup(token_name);
+  code->custom_token_precedence[index] = precedence;
+  code->custom_tokenr[index] = custom_tokenr;
+  code->custom_token_count++;
+  return 1;
+}
+
+int sl_remove_custom_token(struct SL_Code *code, int index) {
+  if (code == NULL || code->custom_token_count <= 0)
+    return 0;
+
+  if (index < 0 || index >= code->custom_token_count)
+    return 0;
+
+  free(code->custom_token[index]);
+
+  for (int i = index; i < code->custom_token_count - 1; i++) {
+    code->custom_token[i] = code->custom_token[i + 1];
+    code->custom_token_precedence[i] = code->custom_token_precedence[i + 1];
+    code->custom_tokenr[i] = code->custom_tokenr[i + 1];
+  }
+
+  code->custom_token_count--;
+  return 1;
+}
+
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   struct SL_Variable result = {0};
   if (code_s == NULL || code == NULL)
@@ -4180,6 +4293,10 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   for (int i = 0; i < code_s->custom_splitter_count; i++)
     sl_add_custom_splitter(&code_p, code_s->custom_splitter[i],
                            code_s->custom_splitterr[i]);
+  for (int i = 0; i < code_s->custom_token_count; i++)
+    sl_add_custom_token(&code_p, code_s->custom_token[i],
+                        code_s->custom_token_precedence[i],
+                        code_s->custom_tokenr[i]);
 
   SL_LoopStack saved_loop_stack = global_loop_stack;
   char *saved_assignment = current_assignment;
@@ -4187,6 +4304,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   current_assignment = NULL;
 
   code_p.code = smalloc(1024 * sizeof(char *));
+  lexing_code = &code_p;
   int count = sl_raw_lexer(code, &code_p.code, strlen(code),
                            code_p.special_tokens, 1024);
 
@@ -4194,6 +4312,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   count = sl_expand_imports(&code_p.code, count, SL_INIT, code_p.special_tokens,
                             &registry);
   sl_import_registry_free(&registry);
+  lexing_code = NULL;
 
   if (count > 0) {
     code_p.token_count = count;
@@ -4364,6 +4483,21 @@ int sl_close_sl_process(struct SL_Code *code) {
     free(code->custom_splitterr);
     code->custom_splitterr = NULL;
   }
+
+  if (code->custom_token_count > 0) {
+    for (int i = 0; i < code->custom_token_count; i++) {
+      free(code->custom_token[i]);
+      code->custom_token[i] = NULL;
+    }
+    code->custom_token_count = 0;
+  }
+  free(code->custom_token);
+  code->custom_token = NULL;
+  free(code->custom_token_precedence);
+  code->custom_token_precedence = NULL;
+  free(code->custom_tokenr);
+  code->custom_tokenr = NULL;
+  code->custom_token_capacity = 0;
 
   return 0;
 }
