@@ -283,7 +283,8 @@ int sl_find_end(char **tokens, enum TokenTypes *types, int start,
 void sl_expression_solver(struct SL_Code *code_s, char *expression[],
                           enum TokenTypes *types, int *current_token,
                           int max_tokens);
-void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
+void sl_identifier_tokenizer(struct SL_Code *code_s, char **code,
+                             enum TokenTypes **types,
                              struct SL_Variable **fixed_values,
                              int token_count);
 void sl_throw_an_error(struct SL_Code code, char **tokens, int current_token,
@@ -302,8 +303,9 @@ int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
 int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
                            int (*custom_splitterr)(struct SL_Code *,
                                                    int *current_token));
-int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
-                     char ***bufout, char *special_tokens);
+int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size,
+                     const char *restrict file_name, char ***bufout,
+                     char *special_tokens);
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code);
 int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
                  char *special_tokens, int start_size);

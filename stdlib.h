@@ -9317,8 +9317,8 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
   size_t total_size = 0;
 
   for (int row = 0; row < height_arg.vali; row++) {
-    int cursor_len =
-        snprintf(NULL, 0, "\033[%ld;%ldH", y_arg.vali + row + 1, x_arg.vali + 1);
+    int cursor_len = snprintf(NULL, 0, "\033[%ld;%ldH", y_arg.vali + row + 1,
+                              x_arg.vali + 1);
 
     if (cursor_len < 0) {
       return_var.type = ERROR;

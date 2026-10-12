@@ -57,7 +57,8 @@ static int find_closing_brace(char **tokens, int open_brace_index,
 }
 
 int brace_block_splitter(struct SL_Code *code, int *current_token) {
-  int closing_brace = find_closing_brace(code->code, *current_token, code->token_count);
+  int closing_brace =
+      find_closing_brace(code->code, *current_token, code->token_count);
 
   if (closing_brace == -1) {
     sl_throw_an_error(*code, code->code, *current_token, code->token_count,

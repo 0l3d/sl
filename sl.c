@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 void push(struct SL_Code *code, struct SL_Variable val) {
   if (code->obj.stack_size >= code->obj.stack_capacity) {
@@ -307,8 +308,9 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   return token_count;
 }
 
-static int sl_lex_file(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
-                       char ***bufout, char *special_tokens) {
+static int sl_lex_file(struct SL_Code *code, size_t malloc_size,
+                       const char *restrict file_name, char ***bufout,
+                       char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
     fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
@@ -483,8 +485,8 @@ static int sl_expand_imports(char ***tokens, int token_count,
       sl_import_registry_add(registry, module_name);
 
       char **module_tokens = NULL;
-      int total_module_tokens =
-          sl_lex_file(NULL, malloc_size, module_name, &module_tokens, special_tokens);
+      int total_module_tokens = sl_lex_file(NULL, malloc_size, module_name,
+                                            &module_tokens, special_tokens);
       total_module_tokens =
           sl_expand_imports(&module_tokens, total_module_tokens, malloc_size,
                             special_tokens, registry);
@@ -505,12 +507,14 @@ static int sl_expand_imports(char ***tokens, int token_count,
   return total_expanded;
 }
 
-int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
-                     char ***bufout, char *special_tokens) {
+int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size,
+                     const char *restrict file_name, char ***bufout,
+                     char *special_tokens) {
   struct SL_ImportRegistry registry = {0};
   sl_import_registry_add(&registry, file_name);
 
-  int token_count = sl_lex_file(code, malloc_size, file_name, bufout, special_tokens);
+  int token_count =
+      sl_lex_file(code, malloc_size, file_name, bufout, special_tokens);
   token_count = sl_expand_imports(bufout, token_count, malloc_size,
                                   special_tokens, &registry);
 
@@ -702,27 +706,27 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
     }
     break;
   case LONG: {
-    int base = 0;
-    if (word[0] == '0') {
-      switch (word[1]) {
-      case 'x':
+    char *endptr = NULL;
+    int neg = (word[0] == '-');
+    const char *p = word + neg;
+    int base = 10;
+    if (p[0] == '0') {
+      if (p[1] == 'x')
         base = 16;
-        break;
-      case 'b':
+      else if (p[1] == 'b')
         base = 2;
-        break;
-      case 'o':
+      else if (p[1] == 'o')
         base = 8;
-        break;
-      default:
-        base = 10;
-        break;
-      }
     }
-    if (base == 2 || base == 8)
-      v.valh = strtol(word + 2, NULL, base);
-    else
-      v.valh = strtol(word, NULL, base);
+    const char *digits = (base == 10) ? p : p + 2;
+    errno = 0;
+    intmax_t val = strtoimax(digits, &endptr, base);
+    if (*digits == '\0' || *endptr != '\0' || errno == ERANGE) {
+      v.vals = "Invalid characters or out-of-range value in literal";
+      v.type = ERROR;
+      break;
+    }
+    v.valh = neg ? -val : val;
   } break;
   default:
     break;
@@ -2382,7 +2386,8 @@ static inline enum TokenTypes identifier_tokenizer_converter(const char *s) {
   return T_UNKNOWN;
 }
 
-void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
+void sl_identifier_tokenizer(struct SL_Code *code_s, char **code,
+                             enum TokenTypes **types,
                              struct SL_Variable **fixed_values,
                              int token_count) {
   if (code == NULL || types == NULL || *types == NULL || fixed_values == NULL ||
@@ -2398,6 +2403,10 @@ void sl_identifier_tokenizer(char **code, enum TokenTypes **types,
 
     if (out[i] == T_UNKNOWN) {
       fixed[i] = sl_word_to_var_converter(code[i]);
+      if (fixed[i].type == ERROR) {
+        sl_throw_an_error(*code_s, code, i, token_count, fixed[i].vals,
+                          "Integers can only contain digits.");
+      }
     }
   }
 }
@@ -2551,6 +2560,18 @@ static int find_assignment_token(struct SL_Code *code, const char *var_name) {
     if (strcmp(token, var_name) == 0 && strcmp(next_token, "=") == 0) {
       return i;
     }
+  }
+  return -1;
+}
+
+static int find_token_by_name(struct SL_Code *code, const char *name) {
+  if (code->code == NULL || name == NULL)
+    return -1;
+
+  for (int i = 0; i < code->token_count; i++) {
+    char *token = code->code[i];
+    if (token != NULL && strcmp(token, name) == 0)
+      return i;
   }
   return -1;
 }
@@ -2764,8 +2785,9 @@ break;
 
       int func_idx = is_has_func(*code, func_name);
       if (func_idx == -1) {
+        int error_token = find_token_by_name(code, func_name);
         sl_vm_error(
-            code, (uint32_t)-1, "FUNCTION NOT FOUND!",
+            code, (uint32_t)error_token, "FUNCTION NOT FOUND!",
             "Expected: Create a function first (variables need a '$' prefix).");
       }
 
@@ -3554,8 +3576,8 @@ struct SL_Variable sl_call_function(struct SL_Code *code, int func_idx,
 
 struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
   if (code_s->types_set == 0)
-    sl_identifier_tokenizer(code_s->code, &code_s->types, &code_s->fixed_values,
-                            code_s->token_count);
+    sl_identifier_tokenizer(code_s, code_s->code, &code_s->types,
+                            &code_s->fixed_values, code_s->token_count);
 
   struct SL_Variable return_val = {0};
 
@@ -3766,8 +3788,8 @@ int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
   if (code->special_tokens == NULL)
     code->special_tokens = DEFAULT_SPECIAL_TOKENS;
 
-  int count =
-      sl_init_sl_lexer(code, SL_INIT, file_name, &code->code, code->special_tokens);
+  int count = sl_init_sl_lexer(code, SL_INIT, file_name, &code->code,
+                               code->special_tokens);
   if (count < 0) {
     fprintf(stderr,
             "Invalid count\nsl_init_sl_lexer() returned a negative value\n");
@@ -4025,7 +4047,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
       free(code_p.types);
       free(code_p.code);
       result.type = ERROR;
-      result.vals = "sl_init_sl_parser() failed\nCalled by: sl_dostr_sl_process()\n";
+      result.vals =
+          "sl_init_sl_parser() failed\nCalled by: sl_dostr_sl_process()\n";
       return result;
     }
 
