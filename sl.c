@@ -307,12 +307,13 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   return token_count;
 }
 
-static int sl_lex_file(size_t malloc_size, const char *restrict file_name,
+static int sl_lex_file(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
                        char ***bufout, char *special_tokens) {
   FILE *code_file = fopen(file_name, "r");
   if (code_file == NULL) {
     fprintf(stderr, "Failed to open file under the name \"%s\"\n", file_name);
-    exit(1);
+    sl_close_sl_process(code);
+    exit(EXIT_FAILURE);
   }
 
   char buf[4096];
@@ -483,7 +484,7 @@ static int sl_expand_imports(char ***tokens, int token_count,
 
       char **module_tokens = NULL;
       int total_module_tokens =
-          sl_lex_file(malloc_size, module_name, &module_tokens, special_tokens);
+          sl_lex_file(NULL, malloc_size, module_name, &module_tokens, special_tokens);
       total_module_tokens =
           sl_expand_imports(&module_tokens, total_module_tokens, malloc_size,
                             special_tokens, registry);
@@ -497,18 +498,19 @@ static int sl_expand_imports(char ***tokens, int token_count,
     free(module_name);
   }
 
+  sl_import_registry_free(registry);
   expanded_tokens[total_expanded] = NULL;
   free(source_tokens);
   *tokens = expanded_tokens;
   return total_expanded;
 }
 
-int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name,
+int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
                      char ***bufout, char *special_tokens) {
   struct SL_ImportRegistry registry = {0};
   sl_import_registry_add(&registry, file_name);
 
-  int token_count = sl_lex_file(malloc_size, file_name, bufout, special_tokens);
+  int token_count = sl_lex_file(code, malloc_size, file_name, bufout, special_tokens);
   token_count = sl_expand_imports(bufout, token_count, malloc_size,
                                   special_tokens, &registry);
 
@@ -645,8 +647,8 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
     /* convert word to base 10 integer */
     v.vali = (int)strtol(word, &endptr, 10);
     if (*(endptr) != '\0') {
-      fprintf(stderr, "Invalid characters in integer value: \"%s\"\n", endptr);
-      exit(1);
+      v.vals = "Invalid characters in integer value";
+      v.type = ERROR;
     }
   } break;
   case DOUBLE:
@@ -3765,7 +3767,7 @@ int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
     code->special_tokens = DEFAULT_SPECIAL_TOKENS;
 
   int count =
-      sl_init_sl_lexer(SL_INIT, file_name, &code->code, code->special_tokens);
+      sl_init_sl_lexer(code, SL_INIT, file_name, &code->code, code->special_tokens);
   if (count < 0) {
     fprintf(stderr,
             "Invalid count\nsl_init_sl_lexer() returned a negative value\n");
@@ -4019,8 +4021,12 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
     struct SL_Variable init = sl_init_sl_parser(&code_p);
     if (init.type == ERROR) {
-      fprintf(stderr, "sl_parser failed \n");
-      exit(-1);
+      free(code_p.fixed_values);
+      free(code_p.types);
+      free(code_p.code);
+      result.type == ERROR;
+      result.vals = "sl_init_sl_parser() failed\nCalled by: sl_dostr_sl_process()\n";
+      return result;
     }
 
     vm_loop(&code_p, 0);
@@ -4231,7 +4237,7 @@ void sl_run_process(struct SL_Code *code, char *file_name) {
   }
   sl_run_vm(code);
   if (sl_close_sl_process(code) != 0) {
-    fprintf(stderr, "sl_close_sl_process failed\n");
+    fprintf(stderr, "sl_close_sl_process() failed\n");
     return;
   }
   return;
