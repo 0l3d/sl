@@ -4021,8 +4021,12 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
     struct SL_Variable init = sl_init_sl_parser(&code_p);
     if (init.type == ERROR) {
-      fprintf(stderr, "sl_parser failed \n");
-      exit(EXIT_FAILURE);
+      free(code_p.fixed_values);
+      free(code_p.types);
+      free(code_p.code);
+      result.type == ERROR;
+      result.vals = "sl_init_sl_parser() failed\nCalled by: sl_dostr_sl_process()\n";
+      return result;
     }
 
     vm_loop(&code_p, 0);

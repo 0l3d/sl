@@ -4796,7 +4796,7 @@ struct SL_Variable errors_string_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
     char *raw_text = sl_string_getter(first_arg.vals);
-    printf("%s\n", raw_text);
+    fprintf(stderr, "%s\n", raw_text);
     free(raw_text);
   }
   return sl_copy_variable(first_arg);
@@ -4855,7 +4855,7 @@ struct SL_Variable errors_panic_fn(struct SL_Code *code,
   struct SL_Variable return_var = {0};
   if (first_arg.type == ERROR || first_arg.info == SL_RUNTIME_ERROR) {
     char *raw_text = sl_string_getter(first_arg.vals);
-    printf("Program panicked with error: %s\n", raw_text);
+    fprintf(stderr, "Program panicked with error: %s\n", raw_text);
     free(raw_text);
     exit(-1);
   }
@@ -11748,7 +11748,12 @@ static int use_library(const char *git, struct SL_Code *code) {
   int len = strlen(file);
   char *import_synt = malloc(8 + len); /* "import " = 7 */
   snprintf(import_synt, 8 + len, "import %s", file);
-  sl_dostr_sl_process(code, import_synt);
+  struct SL_Variable ret = sl_dostr_sl_process(code, import_synt);
+  if (ret.type == ERROR) {
+    char *raw_text = sl_string_getter(ret.vals);
+    fprintf(stderr, "error: %s", raw_text);
+    free(raw_text);
+  }
 
   free(dir);
   free(file);
