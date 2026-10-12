@@ -302,7 +302,7 @@ int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
 int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
                            int (*custom_splitterr)(struct SL_Code *,
                                                    int *current_token));
-int sl_init_sl_lexer(size_t malloc_size, const char *restrict file_name,
+int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size, const char *restrict file_name,
                      char ***bufout, char *special_tokens);
 struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code);
 int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
