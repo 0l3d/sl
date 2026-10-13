@@ -3161,6 +3161,32 @@ struct SL_Variable double_to_int_fn(struct SL_Code *code,
   return return_var;
 }
 
+struct SL_Variable str_to_double_fn(struct SL_Code *code,
+                                    struct SL_L_Function func,
+                                    struct SL_Function rfunc) {
+  if (func.total_arguments < 1) {
+    struct SL_Variable return_var = {0};
+    return_var.type = ERROR;
+    return_var.vals = "Error usage at types.str_to_double! Not enough arguments.";
+    return return_var;
+  }
+  struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
+  struct SL_Variable return_var = {0};
+  return_var.type = DOUBLE;
+  char *endptr = NULL;
+  char *raw_str = sl_string_getter(first_arg.vals);
+  double temp = strtod(raw_str, &endptr);
+  if (endptr == raw_str || *endptr != '\0') {
+    free(raw_str);
+    return_var.type = ERROR;
+    return_var.vals = "Invalid characters in double value";
+    return return_var;
+  }
+  free(raw_str);
+  return_var.valf = temp;
+  return return_var;
+}
+
 struct SL_Variable int_to_long_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
@@ -10569,6 +10595,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
       sl_add_func(code, "types.int_to_long", int_to_long_fn);
       sl_add_func(code, "types.long_to_int", long_to_int_fn);
       sl_add_func(code, "types.double_to_int", double_to_int_fn);
+	  sl_add_func(code, "types.str_to_double", str_to_double_fn);
 
       /* TYPE CHECK */
       sl_add_func(code, "types.is_int", is_int_fn);

@@ -132,6 +132,9 @@ Converts char to int ASCII value.
 types.char_to_str -> val | STRING (or ERROR)
 Converts char to string.
 
+types.double_to_int -> val | INTEGER (or ERROR)
+Converts double to int.
+
 types.to_lower -> val | STRING or CHAR (or ERROR)
 Converts string or char to lowercase.
 
@@ -200,6 +203,7 @@ use("types")
 
 # Conversions
 var num = types.str_to_int("123")
+var double_num = types.str_to_double("10.1")
 var str_num = types.int_to_str(123)
 var long_val = types.str_to_long("9223372036854775807")
 var str_long = types.long_to_str($long_val)
@@ -210,6 +214,8 @@ var ascii_val = types.char_to_int('A')
 var char_str = types.char_to_str('A')
 var lower = types.to_lower("HELLO")
 var upper = types.to_upper("hello")
+var int_val = types.double_to_int()
+var double_val $num + 0.0 # converting int to double.
 
 # Type checking
 var type_id = types.typeof($num)
@@ -462,6 +468,9 @@ Retrieves an element relative to the current iterator position.
 List.len -> list_var | INTEGER
 Returns the total number of elements in the list.
 
+List.clear -> list_var | INTEGER
+Clears all elements from a list, leaving it empty.
+
 -- USAGE OF ALL FUNCTIONS --
 use("list")
 
@@ -484,6 +493,7 @@ List.reverse($my_list)
 
 var cloned_list = List.copy($my_list)
 List.remove($my_list, 0)
+List.clear($cloned_list)
 
 # Iterating over list
 while List.iter($my_list) then
