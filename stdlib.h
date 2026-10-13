@@ -6024,8 +6024,8 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
   /* TODO invalid functions from now on */
   char *tok = smalloc(&return_var, tok_cap);
   if (return_var.type == ERROR) {
-    fprintf(stderr, "error in db_from_lists_fn(): %s\nfailed to allocate memory for body_cap\n", 
-            return_var.vals);
+    fprintf(stderr, "error in db_to_lists_fn(): %s\nfailed to allocate memory of size: %zu bytes\n", 
+            return_var.vals, tok_cap);
     /* we must free all memory allocated here before returning */
     return return_var;
   }
@@ -6135,8 +6135,14 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     char *raw_attr = collections.collections[collec_index].attrs[i];
     int assigned_var_len = strlen(assigned_var);
     int attr_len = strlen(raw_attr);
-    int total_len = assigned_var_len + attr_len;
-    char *full_attr_name = smalloc(total_len + 2);
+    size_t total_len = assigned_var_len + attr_len;
+    char *full_attr_name = smalloc(&return_var, total_len + 2);
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in collections_new_collection_fn(): %s\nfailed to allocate memory of size: %zu\n", 
+              return_var.vals, total_len);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
     snprintf(full_attr_name, total_len + 2, "%s.%s", assigned_var, raw_attr);
     struct SL_Variable var = {0};
     var.name = full_attr_name;
@@ -6155,8 +6161,14 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
       continue;
     int nargs = raw_func.total_arguments;
 
-    int total_len = strlen(assigned_var) + strlen(raw_func.name);
-    char *full_func_name = smalloc(total_len + 2);
+    size_t total_len = strlen(assigned_var) + strlen(raw_func.name);
+    char *full_func_name = smalloc(&return_var, total_len + 2);
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in collections_new_collection_fn(): %s\nfailed to allocate memory of size: %zu\n", 
+              return_var.vals, total_len);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
     snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
              raw_func.name);
 
