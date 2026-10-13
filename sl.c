@@ -188,7 +188,7 @@ char *sl_quote_string(const char *str) {
   for (const char *p = str; *(p += strcspn(p, "\"\\")) != '\0'; p++)
     escapes++;
 
-  char *result = smalloc(length + escapes + 3);
+  char *result = smalloc(NULL, length + escapes + 3);
 
   size_t j = 0;
   result[j++] = '"';
@@ -280,7 +280,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
       }
 
       int stringlen = p - string_start;
-      char *in_string_tokens = smalloc(stringlen + 1);
+      char *in_string_tokens = smalloc(NULL, stringlen + 1);
       strncpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
       (*bufout)[token_count++] = in_string_tokens;
@@ -303,7 +303,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
       }
 
       int stringlen = (int)(p - string_start);
-      char *in_string_tokens = smalloc(stringlen + 1);
+      char *in_string_tokens = smalloc(NULL, stringlen + 1);
       memcpy(in_string_tokens, string_start, stringlen);
       in_string_tokens[stringlen] = '\0';
 
@@ -312,7 +312,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
     } else {
       int custom_length = sl_match_custom_token(p);
       if (custom_length > 0) {
-        char *custom_word = smalloc(custom_length + 1);
+        char *custom_word = smalloc(NULL, custom_length + 1);
         memcpy(custom_word, p, custom_length);
         custom_word[custom_length] = '\0';
         (*bufout)[token_count++] = custom_word;
@@ -320,7 +320,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
         continue;
       }
       if ((*p == '>' && *(p + 1) == '>') || (*p == '<' && *(p + 1) == '<')) {
-        char *pot = smalloc(3);
+        char *pot = smalloc(NULL, 3);
         pot[0] = *p;
         pot[1] = *(p + 1);
         pot[2] = '\0';
@@ -339,7 +339,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
 
         int word_len = p - word_start;
 
-        char *word = smalloc(word_len + 1);
+        char *word = smalloc(NULL, word_len + 1);
         memcpy(word, word_start, word_len);
         word[word_len] = '\0';
 
@@ -347,7 +347,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
         continue;
       }
       if (lexer_special_tokens_ex(special_tokens, *p) > 0) {
-        char *pot = smalloc(2);
+        char *pot = smalloc(NULL, 2);
         pot[0] = *p;
         pot[1] = '\0';
         (*bufout)[token_count++] = pot;
@@ -360,7 +360,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
              sl_match_custom_token(p) == 0)
         p++;
       int word_len = p - word_start;
-      char *word = smalloc(word_len + 1);
+      char *word = smalloc(NULL, word_len + 1);
       strncpy(word, word_start, word_len);
       word[word_len] = '\0';
       (*bufout)[token_count++] = word;
@@ -388,7 +388,7 @@ static int sl_lex_file(struct SL_Code *code, size_t malloc_size,
   size_t total_allocations = 0;
 
   total_allocations += malloc_size;
-  code_string = smalloc(total_allocations);
+  code_string = smalloc(NULL, total_allocations);
   code_string[0] = '\0';
 
   while (fgets(buf, sizeof(buf), code_file)) {
@@ -434,7 +434,7 @@ static int sl_lex_file(struct SL_Code *code, size_t malloc_size,
   }
   fclose(code_file);
 
-  char **code_array = smalloc(1024 * sizeof(char *));
+  char **code_array = smalloc(NULL, 1024 * sizeof(char *));
   int count = sl_raw_lexer(code_string, &code_array, strlen(code_string),
                            special_tokens, 1024);
 
@@ -508,7 +508,7 @@ static int sl_expand_imports(char ***tokens, int token_count,
 
   int expanded_capacity = token_count + 1;
   int total_expanded = 0;
-  char **expanded_tokens = smalloc(expanded_capacity * sizeof(char *));
+  char **expanded_tokens = smalloc(NULL, expanded_capacity * sizeof(char *));
 
   for (int current_token = 0; current_token < token_count; current_token++) {
     if (identifier_tokenizer_converter(source_tokens[current_token]) !=
@@ -660,7 +660,7 @@ char *sl_string_getter(char *word) {
     return sl_bytes_copy(word, size + 1);
   }
 
-  char *our_word = smalloc(size);
+  char *our_word = smalloc(NULL, size);
   size_t end = size - (size_t)quote_len;
   size_t i = (size_t)quote_len;
   size_t j = 0;
@@ -1289,7 +1289,7 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
 
 char *get_raw_function_name(const char *word) {
   size_t len = strlen(word);
-  char *returning_name = smalloc(len + 1);
+  char *returning_name = smalloc(NULL, len + 1);
   int j = 0;
   for (int i = 0; i < len; i++) {
     if (word[i] == '(') {
@@ -1406,7 +1406,7 @@ void compile_sl_function_call(struct SL_Code *code, const char *name,
           sl_expression_solver(code, tokens, types, &current_token, commapos);
         } else {
           if (function.total_arguments <= how_much_go && function.vaargs == 1) {
-            char *function_name = smalloc(SL_INIT);
+            char *function_name = smalloc(NULL, SL_INIT);
             snprintf(function_name, SL_INIT, "%s_VA_ARGUMENT_%d", function.name,
                      vaargs_counter);
             vaargs_counter++;
@@ -2078,7 +2078,7 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   char *f_name = tokens[current++];
   size_t f_name_len = strlen(f_name);
   struct SL_Function function = {0};
-  function.name = smalloc(f_name_len + 1);
+  function.name = smalloc(NULL, f_name_len + 1);
   function.name[f_name_len] = '\0';
   strncpy(function.name, f_name, f_name_len);
   function.hash = sl_hash_string(function.name);
@@ -2087,7 +2087,8 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   int outer_frame_count = code_s->frame.total_vars;
   struct SL_Variable *outer_frame = NULL;
   if (outer_frame_count > 0) {
-    outer_frame = smalloc(outer_frame_count * sizeof(struct SL_Variable));
+    outer_frame = smalloc(NULL, outer_frame_count * sizeof(struct SL_Variable));
+    /* smalloc() could use outer_frame SL_Variable as error check */
     memcpy(outer_frame, code_s->frame.vars,
            outer_frame_count * sizeof(struct SL_Variable));
   }
@@ -2274,7 +2275,7 @@ void sl_begin_frame_scope(struct SL_Code *code, struct SL_FrameScope *scope) {
   scope->saved_outer_vars = NULL;
   if (scope->saved_outer_count > 0) {
     scope->saved_outer_vars =
-        smalloc(scope->saved_outer_count * sizeof(struct SL_Variable));
+        smalloc(NULL, scope->saved_outer_count * sizeof(struct SL_Variable));
     memcpy(scope->saved_outer_vars, code->frame.vars,
            scope->saved_outer_count * sizeof(struct SL_Variable));
   }
@@ -2811,7 +2812,7 @@ static size_t vm_append_quoted_content(char *out, size_t j, const char *quoted) 
 }
 
 static char *vm_concat_quoted(const char *left, const char *right) {
-  char *out = smalloc(2 * (strlen(left) + strlen(right)) + 3);
+  char *out = smalloc(NULL, 2 * (strlen(left) + strlen(right)) + 3);
   size_t j = 0;
   out[j++] = '"';
   j = vm_append_quoted_content(out, j, left);
@@ -4047,8 +4048,8 @@ int sl_add_custom_expr(struct SL_Code *code, char *expr_start,
   if (count == 0) {
     code->custom_expr_capacity += 128;
     code->custom_exprr =
-        smalloc(code->custom_expr_capacity * sizeof(custom_exprr));
-    code->custom_expr = smalloc(code->custom_expr_capacity * sizeof(char *));
+        smalloc(NULL, code->custom_expr_capacity * sizeof(custom_exprr));
+    code->custom_expr = smalloc(NULL, code->custom_expr_capacity * sizeof(char *));
   }
 
   if (count >= code->custom_expr_capacity) {
@@ -4072,9 +4073,9 @@ int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
   if (count == 0) {
     code->custom_keyword_capacity += 128;
     code->custom_keywordr =
-        smalloc(code->custom_keyword_capacity * sizeof(custom_keywordr));
+        smalloc(NULL, code->custom_keyword_capacity * sizeof(custom_keywordr));
     code->custom_keyword =
-        smalloc(code->custom_keyword_capacity * sizeof(char *));
+        smalloc(NULL, code->custom_keyword_capacity * sizeof(char *));
   }
 
   if (count >= code->custom_keyword_capacity) {
@@ -4099,9 +4100,9 @@ int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
   if (count == 0) {
     code->custom_splitter_capacity += 128;
     code->custom_splitterr =
-        smalloc(code->custom_splitter_capacity * sizeof(custom_splitterr));
+        smalloc(NULL, code->custom_splitter_capacity * sizeof(custom_splitterr));
     code->custom_splitter =
-        smalloc(code->custom_splitter_capacity * sizeof(char *));
+        smalloc(NULL, code->custom_splitter_capacity * sizeof(char *));
   }
 
   if (count >= code->custom_splitter_capacity) {
@@ -4747,7 +4748,7 @@ static char *sl_x_get_text(struct SL_X_Cursor *cursor, uint64_t *text_length) {
     return NULL;
   }
 
-  char *text = smalloc((size_t)length + 1);
+  char *text = smalloc(NULL, (size_t)length + 1);
   memcpy(text, cursor->data + cursor->position, (size_t)length);
   text[length] = '\0';
   cursor->position += (size_t)length;
@@ -5029,7 +5030,7 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
       header.header_size > total_size)
     goto corrupt;
 
-  header_bytes = smalloc((size_t)header.header_size);
+  header_bytes = smalloc(NULL, (size_t)header.header_size);
   if (!sl_x_read_at(file, total_size - header.header_size, header_bytes,
                     (size_t)header.header_size))
     goto corrupt;
@@ -5128,7 +5129,7 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
   }
 
   bytecode_len = (size_t)(header.bytecode_size / 4);
-  bytecode = smalloc((bytecode_len + SL_REALLOC_DEFAULT) * sizeof(uint32_t));
+  bytecode = smalloc(NULL, (bytecode_len + SL_REALLOC_DEFAULT) * sizeof(uint32_t));
   if (header.bytecode_size + 1 > scratch_capacity) {
     scratch_capacity = (size_t)header.bytecode_size + 1;
     scratch = srealloc(scratch, scratch_capacity);
