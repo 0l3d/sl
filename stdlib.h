@@ -717,7 +717,12 @@ struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
     return return_var;
   }
 
-  struct SL_DynCallback_Ctx *ctx = smalloc(sizeof(struct SL_DynCallback_Ctx));
+  struct SL_DynCallback_Ctx *ctx = smalloc(&return_var, sizeof(struct SL_DynCallback_Ctx));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in dyn_create_callback_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
 
   ctx->code = code;
 
@@ -1872,7 +1877,12 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
   dcReset(vm);
   int arg_count = func.total_arguments - 3;
   int alloc_capacity = arg_count > 0 ? arg_count : 4;
-  char **allocated_strings = smalloc(alloc_capacity * sizeof(char *));
+  char **allocated_strings = smalloc(&return_var, alloc_capacity * sizeof(char *));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in dyn_call_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
   int alloc_count = 0;
 
   for (int i = 3; i < func.total_arguments; i++) {
@@ -2278,7 +2288,12 @@ struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
   string[strcspn(string, "\n")] = '\0';
 
   return_var.type = STRING;
-  return_var.vals = smalloc(1024);
+  return_var.vals = smalloc(&return_var, 1024);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in input_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
 
   strncpy(return_var.vals, string, 1023);
   return_var.vals[1023] = '\0';
@@ -3080,7 +3095,12 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  char *tmp = smalloc(2);
+  char *tmp = smalloc(&return_var, 2);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in char_to_str_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    return return_var;
+  }
   tmp[0] = first_arg.valc;
   tmp[1] = '\0';
   return_var.vals = sl_quote_string(tmp);
@@ -3110,7 +3130,13 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
       temp /= 10;
     }
 
-  char *tmp = smalloc(digits + 1);
+  char *tmp = smalloc(&return_var, digits + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in int_to_str_fn(): %s\nfailed to allocate memory for digits\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   snprintf(tmp, digits + 1, "%ld", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
@@ -3266,7 +3292,13 @@ struct SL_Variable long_to_str_fn(struct SL_Code *code,
     return return_var;
   }
 
-  char *tmp = smalloc((size_t)size + 1);
+  char *tmp = smalloc(&return_var, (size_t)size + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in long_to_str_fn(): %s\nfailed to allocate memory for the string\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   snprintf(tmp, (size_t)size + 1, "%jd", first_arg.valh);
 
@@ -5852,18 +5884,23 @@ struct SL_Variable List_clear_fn(struct SL_Code *code,
 struct SL_Variable db_from_lists_fn(struct SL_Code *code,
                                     struct SL_L_Function func,
                                     struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
   if (func.total_arguments < 1) {
-    struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at db.from_lists! Not enough arguments.";
     return return_var;
   }
 
-  struct SL_Variable return_var = {0};
-
   size_t body_cap = 1024;
   size_t body_len = 0;
-  char *body = smalloc(body_cap);
+  char *body = smalloc(&return_var, body_cap);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in db_from_lists_fn(): %s\nfailed to allocate memory for body_cap\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   body[0] = '\0';
 
   for (int i = 0; i < func.total_arguments; i++) {
