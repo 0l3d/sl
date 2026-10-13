@@ -66,7 +66,7 @@ char *sl_bytes_copy(const char *bytes, size_t length) {
   if (bytes == NULL && length != 0)
     return NULL;
 
-  char *copy = smalloc(length);
+  char *copy = smalloc(NULL, length);
 
   if (copy == NULL && length != 0)
     return NULL;
@@ -115,7 +115,7 @@ struct SL_Function sl_copy_function(struct SL_Function function) {
 
   if (function.arguments != NULL && function.total_arguments > 0) {
     copy.arguments =
-        smalloc(function.total_arguments * sizeof(*copy.arguments));
+        smalloc(NULL, function.total_arguments * sizeof(*copy.arguments));
     for (int i = 0; i < function.total_arguments; i++) {
       copy.arguments[i] = sl_copy_variable(function.arguments[i]);
     }
@@ -2120,7 +2120,8 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
             function.arguments, arg_capacity * sizeof(struct SL_Variable));
       }
       size_t len = strlen(tokens[current]);
-      function.arguments[j].name = smalloc(len + 1);
+      function.arguments[j].name = smalloc(NULL, len + 1);
+      /* smalloc() could use outer_frame SL_Variable as error check */
       strncpy(function.arguments[j].name, tokens[current], len);
       function.arguments[j].name[len] = '\0';
       function.arguments[j].hash = sl_hash_string(function.arguments[j].name);
@@ -3150,7 +3151,16 @@ break;
         char *left_str = sl_string_getter(left.vals);
         char *right_str = sl_string_getter(right.vals);
         size_t len = strlen(left_str) + strlen(right_str);
-        char *joined = smalloc(len + 1);
+        char *joined = smalloc(&result, len + 1);
+        if (result.type == ERROR) {
+          /* free everything on failure */
+          free(left_str);
+          free(right_str);
+          sl_free_variable(&left);
+          sl_free_variable(&right);
+          fprintf(stderr, "error: in vm_loop(): %s", result.vals);
+          exit(EXIT_FAILURE);
+        }
         strcpy(joined, left_str);
         strcat(joined, right_str);
         result.vals = sl_quote_string(joined);
@@ -4298,7 +4308,11 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   global_loop_stack = (SL_LoopStack){0};
   current_assignment = NULL;
 
-  code_p.code = smalloc(1024 * sizeof(char *));
+  code_p.code = smalloc(&result, 1024 * sizeof(char *));
+  if (result.type == ERROR) {
+    fprintf(stderr, "error in sl_dostr_sl_process(): %s\n");
+    exit(EXIT_FAILURE);	/* malloc failed */
+  }
   lexing_code = &code_p;
   int count = sl_raw_lexer(code, &code_p.code, strlen(code),
                            code_p.special_tokens, 1024);
