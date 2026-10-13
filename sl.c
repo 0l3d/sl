@@ -727,7 +727,11 @@ struct SL_Variable sl_word_to_var_converter(char *word) {
     v.valf = strtod(word, NULL);
     break;
   case STRING:
-    v.vals = strdup(word);
+    v.vals = sstrdup(&v, word);
+    if (v.type == ERROR) {
+      fprintf(stderr, "error: in sl_word_to_var_converter(): %s\n", v.vals);
+      exit(EXIT_FAILURE);
+    }
     break;
   case BOOLEAN:
     if (word[0] == 'f')
@@ -4535,6 +4539,22 @@ void *scalloc(size_t how_much, size_t size) {
     exit(EXIT_FAILURE);
   }
   return ptr;
+}
+
+char *sstrdup(struct SL_Variable *error, const char *restrict str) {
+  void *new_str = strdup(str);
+  if (new_str == NULL) {
+    fprintf(stderr, "sstrdup(): strdup() failed: %s\n",
+            strerror(errno));
+    if (error == NULL) {
+      exit(EXIT_FAILURE);
+    } else {
+      error->type = ERROR;
+      error->vals = "sstrdup() failure: strdup() returned NULL\n";
+      return NULL;
+    }
+  }
+  return new_str;
 }
 
 void *srealloc(void *pptr, size_t size) {
