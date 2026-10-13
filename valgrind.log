@@ -1,0 +1,848 @@
+==2932== Memcheck, a memory error detector
+==2932== Copyright (C) 2002-2024, and GNU GPL'd, by Julian Seward et al.
+==2932== Using Valgrind-3.25.1 and LibVEX; rerun with -h for copyright info
+==2932== Command: ./sl -r output.slx
+==2932== Parent PID: 1469
+==2932== 
+==2932== 
+==2932== Process terminating with default action of signal 2 (SIGINT)
+==2932==    at 0x4B2EB0D: internal_syscall_cancel (sysdep-cancel.h:44)
+==2932==    by 0x4B2EB0D: syscall_cancel (sysdep-cancel.h:79)
+==2932==    by 0x4B2EB0D: read (read.c:26)
+==2932==    by 0x4AAC157: _IO_file_underflow@@GLIBC_2.2.5 (fileops.c:569)
+==2932==    by 0x4AAE8B2: _IO_default_uflow (genops.c:388)
+==2932==    by 0x4A9FF4A: _IO_getline_info (iogetline.c:60)
+==2932==    by 0x4A9EB6B: fgets (iofgets.c:53)
+==2932==    by 0x4014E09: input_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400DA3B: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== HEAP SUMMARY:
+==2932==     in use at exit: 1,234,938 bytes in 155 blocks
+==2932==   total heap usage: 189 allocs, 34 frees, 1,782,794 bytes allocated
+==2932== 
+==2932== 2 bytes in 1 blocks are still reachable in loss record 1 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4003779: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 2 bytes in 1 blocks are still reachable in loss record 2 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x40037DB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 3 bytes in 1 blocks are still reachable in loss record 3 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4017503: sl_add_custom_token.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x400373A: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 7 bytes in 1 blocks are still reachable in loss record 4 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4006EA9: sl_string_getter (in /home/user/n/sl/sl)
+==2932==    by 0x400A634: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 8 bytes in 1 blocks are still reachable in loss record 5 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x400A702: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 8 bytes in 2 blocks are still reachable in loss record 6 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007404: sl_add_raw_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4018F6B: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 7 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x402DC30: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 8 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x402DC5C: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 9 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x402DC88: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 10 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403213F: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 11 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403216B: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 12 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032197: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 13 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40321AD: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 9 bytes in 1 blocks are still reachable in loss record 14 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032289: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 15 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x40186BA: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 16 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032155: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 17 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032181: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 18 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40321C3: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 19 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40321D9: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 20 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40321EF: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 21 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403221B: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 10 bytes in 1 blocks are still reachable in loss record 22 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032231: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 11 bytes in 1 blocks are still reachable in loss record 23 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x402DC72: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 11 bytes in 1 blocks are still reachable in loss record 24 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032070: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 11 bytes in 1 blocks are still reachable in loss record 25 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032273: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 11 bytes in 1 blocks are still reachable in loss record 26 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030616: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 12 bytes in 1 blocks are still reachable in loss record 27 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4012346: sl_x_get_variable (in /home/user/n/sl/sl)
+==2932==    by 0x4018CB9: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 12 bytes in 1 blocks are still reachable in loss record 28 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403202E: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 12 bytes in 1 blocks are still reachable in loss record 29 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403225D: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 12 bytes in 1 blocks are still reachable in loss record 30 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030780: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 31 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x402DC46: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 32 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4031FEC: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 33 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032002: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 34 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032205: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 35 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030550: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 36 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40305BE: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 37 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40305EA: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 38 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030600: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 13 bytes in 1 blocks are still reachable in loss record 39 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030796: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 14 bytes in 1 blocks are still reachable in loss record 40 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032247: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 14 bytes in 1 blocks are still reachable in loss record 41 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030566: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 14 bytes in 1 blocks are still reachable in loss record 42 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40305A8: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 14 bytes in 1 blocks are still reachable in loss record 43 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030754: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 14 bytes in 1 blocks are still reachable in loss record 44 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403076A: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 45 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4031FD6: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 46 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032018: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 47 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032086: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 48 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403062C: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 49 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030642: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 50 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030658: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 51 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403066E: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 52 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030684: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 53 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403069A: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 54 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40306B0: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 55 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40306DC: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 15 bytes in 1 blocks are still reachable in loss record 56 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40306F2: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 57 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4003834: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 58 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403205A: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 59 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40320DE: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 60 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403057C: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 61 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030592: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 1 blocks are still reachable in loss record 62 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40306C6: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 16 bytes in 2 blocks are still reachable in loss record 63 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4003871: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 17 bytes in 1 blocks are still reachable in loss record 64 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40320B2: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 17 bytes in 1 blocks are still reachable in loss record 65 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40320C8: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 17 bytes in 1 blocks are still reachable in loss record 66 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030474: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 17 bytes in 1 blocks are still reachable in loss record 67 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40304CC: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 68 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403048A: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 69 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40304A0: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 70 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40304B6: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 71 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40304E2: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 72 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40304F8: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 73 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403050E: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 18 bytes in 1 blocks are still reachable in loss record 74 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4030524: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 19 bytes in 1 blocks are still reachable in loss record 75 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4032044: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 19 bytes in 1 blocks are still reachable in loss record 76 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403209C: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 20 bytes in 1 blocks are still reachable in loss record 77 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x403053A: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 24 bytes in 1 blocks are still reachable in loss record 78 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x40036BF: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 25 bytes in 1 blocks are still reachable in loss record 79 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4007845: sl_add_func.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40305D4: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 42 bytes in 7 blocks are still reachable in loss record 80 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4012346: sl_x_get_variable (in /home/user/n/sl/sl)
+==2932==    by 0x40182A8: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 56 bytes in 1 blocks are still reachable in loss record 81 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011E3E: scalloc.constprop.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40181E9: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 56 bytes in 1 blocks are still reachable in loss record 82 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4018C65: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 80 bytes in 2 blocks are still reachable in loss record 83 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4ACC33F: strdup (strdup.c:42)
+==2932==    by 0x4008DBB: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400DA3B: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 434 bytes in 45 blocks are still reachable in loss record 84 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x40120EB: sl_x_get_variable (in /home/user/n/sl/sl)
+==2932==    by 0x4018A50: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 512 bytes in 1 blocks are still reachable in loss record 85 of 102
+==2932==    at 0x48D6F4F: realloc (vg_replace_malloc.c:1801)
+==2932==    by 0x4017587: sl_add_custom_token.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x400373A: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 86 of 102
+==2932==    at 0x48D6F4F: realloc (vg_replace_malloc.c:1801)
+==2932==    by 0x4017553: sl_add_custom_token.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x400373A: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 87 of 102
+==2932==    at 0x48D6F4F: realloc (vg_replace_malloc.c:1801)
+==2932==    by 0x40175BB: sl_add_custom_token.isra.0 (in /home/user/n/sl/sl)
+==2932==    by 0x400373A: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 88 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4003EE6: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 89 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4003EFF: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 90 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4003E17: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 91 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4003E30: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 92 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4A9E097: _IO_file_doallocate (filedoalloc.c:91)
+==2932==    by 0x4AAE7C5: _IO_doallocbuf (genops.c:373)
+==2932==    by 0x4AAE7C5: _IO_doallocbuf (genops.c:368)
+==2932==    by 0x4AAC588: _IO_file_overflow@@GLIBC_2.2.5 (fileops.c:797)
+==2932==    by 0x4AAD27F: _IO_new_file_xsputn (fileops.c:1323)
+==2932==    by 0x4AAD27F: _IO_file_xsputn@@GLIBC_2.2.5 (fileops.c:1276)
+==2932==    by 0x4A9F92A: fwrite (iofwrite.c:44)
+==2932==    by 0x4014707: print_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400DA3B: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 1,024 bytes in 1 blocks are still reachable in loss record 93 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x4A9E097: _IO_file_doallocate (filedoalloc.c:91)
+==2932==    by 0x4AAE7C5: _IO_doallocbuf (genops.c:373)
+==2932==    by 0x4AAE7C5: _IO_doallocbuf (genops.c:368)
+==2932==    by 0x4AAC20E: _IO_file_underflow@@GLIBC_2.2.5 (fileops.c:538)
+==2932==    by 0x4AAE8B2: _IO_default_uflow (genops.c:388)
+==2932==    by 0x4A9FF4A: _IO_getline_info (iogetline.c:60)
+==2932==    by 0x4A9EB6B: fgets (iofgets.c:53)
+==2932==    by 0x4014E09: input_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400DA3B: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 5,104 bytes in 1 blocks are still reachable in loss record 94 of 102
+==2932==    at 0x48CF8A8: malloc (vg_replace_malloc.c:446)
+==2932==    by 0x401620E: smalloc (in /home/user/n/sl/sl)
+==2932==    by 0x4018AE3: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 6,384 bytes in 1 blocks are still reachable in loss record 95 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011E3E: scalloc.constprop.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40181FA: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 32,768 bytes in 1 blocks are still reachable in loss record 96 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011328: sl_init_sl_process (in /home/user/n/sl/sl)
+==2932==    by 0x400370B: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 65,536 bytes in 1 blocks are still reachable in loss record 97 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011360: sl_init_sl_process (in /home/user/n/sl/sl)
+==2932==    by 0x400370B: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 131,072 bytes in 1 blocks are still reachable in loss record 98 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4032122: use_fn (in /home/user/n/sl/sl)
+==2932==    by 0x4008CB2: vm_call_native (in /home/user/n/sl/sl)
+==2932==    by 0x400BCFD: vm_loop.lto_priv.0 (in /home/user/n/sl/sl)
+==2932==    by 0x4004003: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 229,376 bytes in 1 blocks are still reachable in loss record 99 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x401130C: sl_init_sl_process (in /home/user/n/sl/sl)
+==2932==    by 0x400370B: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 229,376 bytes in 1 blocks are still reachable in loss record 100 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011344: sl_init_sl_process (in /home/user/n/sl/sl)
+==2932==    by 0x400370B: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 229,768 bytes in 1 blocks are still reachable in loss record 101 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x4011E3E: scalloc.constprop.0 (in /home/user/n/sl/sl)
+==2932==    by 0x40181AB: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== 295,128 bytes in 1 blocks are still reachable in loss record 102 of 102
+==2932==    at 0x48D6D13: calloc (vg_replace_malloc.c:1675)
+==2932==    by 0x40181BC: sl_load_slx (in /home/user/n/sl/sl)
+==2932==    by 0x4003AAB: main (in /home/user/n/sl/sl)
+==2932== 
+==2932== LEAK SUMMARY:
+==2932==    definitely lost: 0 bytes in 0 blocks
+==2932==    indirectly lost: 0 bytes in 0 blocks
+==2932==      possibly lost: 0 bytes in 0 blocks
+==2932==    still reachable: 1,234,938 bytes in 155 blocks
+==2932==         suppressed: 0 bytes in 0 blocks
+==2932== 
+==2932== ERROR SUMMARY: 0 errors from 0 contexts (suppressed: 0 from 0)
