@@ -608,7 +608,7 @@ static char sl_universal_callback_handler(DCCallback *cb, DCArgs *args,
   }
 
   struct SL_Variable *script_args =
-      smalloc(sizeof(struct SL_Variable) * (arg_count > 0 ? arg_count : 1));
+      smalloc(NULL, sizeof(struct SL_Variable) * (arg_count > 0 ? arg_count : 1));
 
   for (int i = 0; i < arg_count; i++) {
     memset(&script_args[i], 0, sizeof(struct SL_Variable));
@@ -789,7 +789,7 @@ struct SL_Variable dyn_free_callback_fn(struct SL_Code *code,
 }
 
 static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
-  struct SL_DynStruct *s = smalloc(sizeof(*s));
+  struct SL_DynStruct *s = smalloc(NULL, sizeof(*s));
 
   s->aggr = NULL;
   s->data = NULL;
@@ -797,12 +797,12 @@ static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
   s->mode = mode;
 
   if (mode == SL_DYN_STRUCT_PTR) {
-    s->data = smalloc(sizeof(void *));
+    s->data = smalloc(NULL, sizeof(void *));
 
     *(void **)s->data = NULL;
 
   } else if (mode == SL_DYN_STRUCT_REF) {
-    s->data = smalloc(size);
+    s->data = smalloc(NULL, size);
     memset(s->data, 0, size);
   }
 
@@ -821,7 +821,7 @@ static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
     return 1;
   if (s->size == 0)
     return 0;
-  s->data = smalloc(s->size);
+  s->data = smalloc(NULL, s->size);
   memset(s->data, 0, s->size);
   return 1;
 }
@@ -5736,7 +5736,8 @@ struct SL_Variable List_copy_fn(struct SL_Code *code, struct SL_L_Function func,
   dest_list->size = src_list->size;
 
   if (src_list->size > 0) {
-    dest_list->vars = (struct SL_Variable *)smalloc(src_list->size *
+    /* TODO handle smalloc() fail with SL_Variable return_var */
+    dest_list->vars = (struct SL_Variable *)smalloc(NULL, src_list->size *
                                                     sizeof(struct SL_Variable));
 
     for (int i = 0; i < src_list->size; i++) {
@@ -6020,7 +6021,14 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 
   size_t tok_cap = 256;
   size_t tok_len = 0;
-  char *tok = smalloc(tok_cap);
+  /* TODO invalid functions from now on */
+  char *tok = smalloc(&return_var, tok_cap);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in db_from_lists_fn(): %s\nfailed to allocate memory for body_cap\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   while (*p != '\0') {
     if (*p == '\\') {
@@ -11872,7 +11880,7 @@ void close_sl_stdlib();
 
 void init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv) {
   srand(time(NULL));
-  arguments = smalloc(argc * sizeof(char *));
+  arguments = smalloc(NULL, argc * sizeof(char *));
   for (int i = 0; i < argc; i++) {
     arguments[i] = strdup(argv[i]);
   }
