@@ -328,7 +328,7 @@ int create_new_list(int capacity, int fixed) {
     int new_capacity = LISTS_capacity * 2;
 
     struct SL_List *tmp =
-        srealloc(LISTS, new_capacity * sizeof(struct SL_List));
+        srealloc(NULL, LISTS, new_capacity * sizeof(struct SL_List));
 
     memset(tmp + LISTS_capacity, 0,
            (new_capacity - LISTS_capacity) * sizeof(struct SL_List));
@@ -380,7 +380,7 @@ int list_push(struct SL_List *list, struct SL_Variable value) {
     int new_capacity = (list->capacity == 0) ? 8 : list->capacity * 2;
 
     list->vars =
-        srealloc(list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
+        srealloc(NULL, list->vars, (size_t)new_capacity * sizeof(struct SL_Variable));
 
     list->capacity = new_capacity;
   }
@@ -565,7 +565,7 @@ struct SL_Variable sl_run_callback_function(struct SL_Code *code,
   struct SL_L_Function lfunc = {0};
 
   int safe_alloc_count = (arg_count > 0) ? arg_count : 1;
-  lfunc.argument_indexes = scalloc(safe_alloc_count, sizeof(int));
+  lfunc.argument_indexes = scalloc(NULL, safe_alloc_count, sizeof(int));
   lfunc.starting_index = code->total_vars;
 
   for (int i = 0; i < arg_count; i++) {
@@ -1964,7 +1964,9 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
       if (alloc_count >= alloc_capacity) {
         alloc_capacity *= 2;
         allocated_strings =
-            srealloc(allocated_strings, alloc_capacity * sizeof(char *));
+            srealloc(&return_var, allocated_strings, alloc_capacity * sizeof(char *));
+		if (return_var.type == ERROR) 
+			return return_var;
       }
 
       allocated_strings[alloc_count++] = str;
@@ -5937,7 +5939,9 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
     size_t n_len = strlen(name);
     if (body_len + n_len + 2 >= body_cap) {
       body_cap = body_cap * 2 + n_len + 2;
-      body = srealloc(body, body_cap);
+      body = srealloc(&return_var, body, body_cap);
+	  if (return_var.type == ERROR) 
+		  return return_var;
     }
     strcpy(body + body_len, name);
     body_len += n_len;
@@ -5974,7 +5978,9 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
       size_t is_len = strlen(item_str);
       if (body_len + is_len + 2 >= body_cap) {
         body_cap = body_cap * 2 + is_len + 2;
-        body = srealloc(body, body_cap);
+        body = srealloc(&return_var, body, body_cap);
+		if (return_var.type == ERROR)
+			return return_var;
       }
       body[body_len++] = '/';
       strcpy(body + body_len, item_str);
@@ -5984,7 +5990,9 @@ struct SL_Variable db_from_lists_fn(struct SL_Code *code,
     if (i < func.total_arguments - 1) {
       if (body_len + 2 >= body_cap) {
         body_cap *= 2;
-        body = srealloc(body, body_cap);
+        body = srealloc(&return_var, body, body_cap);
+		if (return_var.type == ERROR)
+			return return_var;
       }
       body[body_len++] = '\\';
       body[body_len] = '\0';
@@ -6075,7 +6083,9 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
     } else {
       if (tok_len + 1 >= tok_cap) {
         tok_cap *= 2;
-        tok = srealloc(tok, tok_cap);
+        tok = srealloc(&return_var, tok, tok_cap);
+		if (return_var.type == ERROR)
+			return return_var;
       }
       tok[tok_len++] = *p;
       p++;
@@ -6309,7 +6319,7 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
   if (collections.size >= collections.capacity) {
     collections.capacity *= 2;
     collections.collections =
-        srealloc(collections.collections,
+        srealloc(NULL, collections.collections,
                  collections.capacity * sizeof(struct SL_Collection));
   }
 
@@ -6813,7 +6823,9 @@ struct SL_Variable net_new_fd_win_fn(struct SL_Code *code,
 
   if (fd_list_size >= fd_list_capacity) {
     fd_list_capacity = (fd_list_capacity == 0) ? 4 : fd_list_capacity * 2;
-    fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+    fd_list = srealloc(&return_var, fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+	if (return_var.type == ERROR)
+			return return_var;
   }
   int id = fd_list_size++;
   fd_list[id].fd = smalloc(&return_var, sizeof(fd_set));
@@ -7470,7 +7482,9 @@ struct SL_Variable net_new_fd_posix_fn(struct SL_Code *code,
 
   if (fd_list_size >= fd_list_capacity) {
     fd_list_capacity *= 2;
-    fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+    fd_list = srealloc(&return_var, fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
+	if (return_var.type == ERROR)
+			return return_var;
   }
   int id = fd_list_size++;
   fd_list[id].fd = smalloc(&return_var, sizeof(fd_set));

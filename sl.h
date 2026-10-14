@@ -346,8 +346,8 @@ void sl_free_variable(struct SL_Variable *var);
 void sl_free_function(struct SL_Function *func);
 /* Safe Memory Allocation Functions */
 void *smalloc(struct SL_Variable *error, size_t size);
-void *scalloc(size_t how_much, size_t size);
-void *srealloc(void *pptr, size_t size);
+void *scalloc(struct SL_Variable *error,size_t how_much, size_t size);
+void *srealloc(struct SL_Variable *error, void *pptr, size_t size);
 char *sstrdup(struct SL_Variable *error, const char *restrict str);
 /* Safe Memory Allocation Functions */
 char *sl_quote_string(const char *str);
