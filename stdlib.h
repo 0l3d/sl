@@ -3860,7 +3860,14 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
     }
   }
 
-  char *buffer = smalloc(total_size);
+  char *buffer = smalloc(&return_var, total_size);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in types_pack_fn(): %s\n"
+            "failed to allocate memory for the type size\n",
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   size_t offset = 0;
 
@@ -5736,9 +5743,14 @@ struct SL_Variable List_copy_fn(struct SL_Code *code, struct SL_L_Function func,
   dest_list->size = src_list->size;
 
   if (src_list->size > 0) {
-    /* TODO handle smalloc() fail with SL_Variable return_var */
-    dest_list->vars = (struct SL_Variable *)smalloc(NULL, src_list->size *
+    dest_list->vars = (struct SL_Variable *)smalloc(&return_var, src_list->size *
                                                     sizeof(struct SL_Variable));
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in List_copy_fn(): %s\n",
+              return_var.vals);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
 
     for (int i = 0; i < src_list->size; i++) {
       dest_list->vars[i] = sl_copy_variable(src_list->vars[i]);
@@ -6021,7 +6033,6 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 
   size_t tok_cap = 256;
   size_t tok_len = 0;
-  /* TODO invalid functions from now on */
   char *tok = smalloc(&return_var, tok_cap);
   if (return_var.type == ERROR) {
     fprintf(stderr, "error in db_to_lists_fn(): %s\nfailed to allocate memory of size: %zu bytes\n", 
@@ -9300,7 +9311,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
   size_t text_len = strlen(text);
   size_t total_len = (size_t)prefix_len + text_len;
 
-  char *output = malloc(total_len + 1);
+  char *output = smalloc(NULL, total_len + 1);
 
   if (output == NULL) {
     free(text);
