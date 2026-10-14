@@ -6233,7 +6233,7 @@ struct SL_Variable collections_set_attr_fn(struct SL_Code *code,
   if (return_var.type == ERROR) {
     fprintf(stderr, "error in collections_set_attr_fn(): %s\n"
             "failed to allocate memory for full_var_name\n"
-	    "size of buffer: %zu\n",
+	    "size of buffer: %d\n",
             return_var.vals, total_size + 2);
     /* we must free all memory allocated here before returning */
     return return_var;

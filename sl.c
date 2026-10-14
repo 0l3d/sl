@@ -4311,7 +4311,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
   code_p.code = smalloc(&result, 1024 * sizeof(char *));
   if (result.type == ERROR) {
-    fprintf(stderr, "error in sl_dostr_sl_process(): %s\n");
+    fprintf(stderr, "error in sl_dostr_sl_process(): %s\n", strerror(errno));
     exit(EXIT_FAILURE);	/* malloc failed */
   }
   lexing_code = &code_p;
@@ -4518,7 +4518,7 @@ void *smalloc(struct SL_Variable *error, size_t size) {
 	    "Invalid allocation size passed to smalloc() function\n"
 	    "size is 0\n";
     if (error == NULL) {
-      fprintf(stderr, msg);
+      fprintf(stderr, "%s", msg);
       exit(EXIT_FAILURE);
     } else {
       error->vals = msg;
