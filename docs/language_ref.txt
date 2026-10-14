@@ -185,14 +185,7 @@ In the later steps I'll continue with the examples using the variable we allocat
   
 Safe Memory Allocation functions check for errors while allocating memory and if they cannot allocate it, they return an operating system dependent error message and terminate the program. (This does not mean you dont need to call free later. Safe functions are __not__ garbage collectors)  
   
-Their usage is no different from the original versions, but an ``s`` is added to the beginning.(the ``s`` stands for ``safe``)  
------------------------
-/* Safe Memory Allocation Functions */
-void *smalloc(size_t size);
-void *scalloc(size_t how_much, size_t size);
-void *srealloc(void *pptr, size_t size);
-/* Safe Memory Allocation Functions */
------ 
+For more info PROJECT_TREE/sl.h or lib/sl.h
 
 ++++ For more API Info and Structure infos
 
