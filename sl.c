@@ -4512,79 +4512,66 @@ int sl_close_sl_process(struct SL_Code *code) {
   return 0;
 }
 
+static void *sl_alloc_fail(struct SL_Variable *error, const char *msg,
+                           size_t bytes) {
+  if (error == NULL) {
+    fprintf(stderr, "%s", msg);
+    exit(EXIT_FAILURE);
+  }
+  error->vals = (char *)msg;
+  error->type = ERROR;
+  error->length = bytes;
+  error->info = errno;
+  return NULL;
+}
+
 void *smalloc(struct SL_Variable *error, size_t size) {
-  if (size <= 0) {
-    char *msg =
-	    "Invalid allocation size passed to smalloc() function\n"
-	    "size is 0\n";
-    if (error == NULL) {
-      fprintf(stderr, "%s", msg);
-      exit(EXIT_FAILURE);
-    } else {
-      error->vals = msg;
-      error->type = ERROR;
-      return NULL;	/* error.type must be checked after calling smalloc() */
-    }
+  if (size == 0) {
+    return sl_alloc_fail(
+        error, "smalloc(): invalid allocation size, size is 0\n", size);
   }
   void *ptr = malloc(size);
   if (ptr == NULL) {
-    fprintf(stderr, "smalloc(): malloc(%zu) failed: %s\n", size,
-            strerror(errno));
-    if (error == NULL) {
-      exit(EXIT_FAILURE);
-    } else {
-      error->vals = "malloc() returned NULL (it failed to allocate memory)";
-      error->type = ERROR;
-      return NULL;	/* error.type must be checked after calling smalloc() */
-    }
+    return sl_alloc_fail(error, "smalloc(): malloc() failed\n", size);
   }
   return ptr;
 }
 
-void *scalloc(size_t how_much, size_t size) {
-  if (size <= 0) {
-    fprintf(stderr, "Invalid allocation size passed to scalloc() function\n");
-    fprintf(stderr, "size is 0\n");
-    exit(EXIT_FAILURE);
+void *scalloc(struct SL_Variable *error, size_t how_much, size_t size) {
+  if (how_much == 0 || size == 0) {
+    return sl_alloc_fail(
+        error, "scalloc(): invalid allocation size, size is 0\n", size);
   }
   void *ptr = calloc(how_much, size);
   if (ptr == NULL) {
-    fprintf(stderr, "scalloc(): calloc(%zu) failed: %s\n", size,
-            strerror(errno));
-    exit(EXIT_FAILURE);
+    return sl_alloc_fail(error, "scalloc(): calloc() failed\n",
+                         how_much * size);
+  }
+  return ptr;
+}
+
+void *srealloc(struct SL_Variable *error, void *pptr, size_t size) {
+  if (size == 0) {
+    return sl_alloc_fail(
+        error, "srealloc(): invalid allocation size, size is 0\n", size);
+  }
+  void *ptr = realloc(pptr, size);
+  if (ptr == NULL) {
+    return sl_alloc_fail(error, "srealloc(): realloc() failed\n", size);
   }
   return ptr;
 }
 
 char *sstrdup(struct SL_Variable *error, const char *restrict str) {
-  void *new_str = strdup(str);
+  if (str == NULL) {
+    return sl_alloc_fail(error, "sstrdup(): str is NULL\n", 0);
+  }
+  char *new_str = strdup(str);
   if (new_str == NULL) {
-    fprintf(stderr, "sstrdup(): strdup() failed: %s\n",
-            strerror(errno));
-    if (error == NULL) {
-      exit(EXIT_FAILURE);
-    } else {
-      error->type = ERROR;
-      error->vals = "sstrdup() failure: strdup() returned NULL\n";
-      return NULL;
-    }
+    return sl_alloc_fail(error, "sstrdup(): strdup() failed\n",
+                         strlen(str) + 1);
   }
   return new_str;
-}
-
-void *srealloc(void *pptr, size_t size) {
-  if (size <= 0) {
-    fprintf(stderr, "Invalid allocation size passed to srealloc() function\n");
-    fprintf(stderr, "size is 0\n");
-    exit(EXIT_FAILURE);
-  }
-  void *ptr = realloc(pptr, size);
-  if (ptr == NULL) {
-    fprintf(stderr, "srealloc(): realloc(%zu) failed: %s\n", size,
-            strerror(errno));
-    exit(EXIT_FAILURE);
-  }
-  return ptr;
 }
 
 void sl_run_process(struct SL_Code *code, char *file_name) {
