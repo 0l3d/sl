@@ -608,7 +608,7 @@ static char sl_universal_callback_handler(DCCallback *cb, DCArgs *args,
   }
 
   struct SL_Variable *script_args =
-      smalloc(sizeof(struct SL_Variable) * (arg_count > 0 ? arg_count : 1));
+      smalloc(NULL, sizeof(struct SL_Variable) * (arg_count > 0 ? arg_count : 1));
 
   for (int i = 0; i < arg_count; i++) {
     memset(&script_args[i], 0, sizeof(struct SL_Variable));
@@ -717,7 +717,12 @@ struct SL_Variable dyn_create_callback_fn(struct SL_Code *code,
     return return_var;
   }
 
-  struct SL_DynCallback_Ctx *ctx = smalloc(sizeof(struct SL_DynCallback_Ctx));
+  struct SL_DynCallback_Ctx *ctx = smalloc(&return_var, sizeof(struct SL_DynCallback_Ctx));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in dyn_create_callback_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
 
   ctx->code = code;
 
@@ -784,7 +789,7 @@ struct SL_Variable dyn_free_callback_fn(struct SL_Code *code,
 }
 
 static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
-  struct SL_DynStruct *s = smalloc(sizeof(*s));
+  struct SL_DynStruct *s = smalloc(NULL, sizeof(*s));
 
   s->aggr = NULL;
   s->data = NULL;
@@ -792,12 +797,12 @@ static struct SL_DynStruct *sl_dynstruct_alloc(size_t size, int mode) {
   s->mode = mode;
 
   if (mode == SL_DYN_STRUCT_PTR) {
-    s->data = smalloc(sizeof(void *));
+    s->data = smalloc(NULL, sizeof(void *));
 
     *(void **)s->data = NULL;
 
   } else if (mode == SL_DYN_STRUCT_REF) {
-    s->data = smalloc(size);
+    s->data = smalloc(NULL, size);
     memset(s->data, 0, size);
   }
 
@@ -816,7 +821,7 @@ static int sl_dynstruct_ensure_buffer(struct SL_DynStruct *s) {
     return 1;
   if (s->size == 0)
     return 0;
-  s->data = smalloc(s->size);
+  s->data = smalloc(NULL, s->size);
   memset(s->data, 0, s->size);
   return 1;
 }
@@ -1872,7 +1877,12 @@ struct SL_Variable dyn_call_fn(struct SL_Code *code, struct SL_L_Function func,
   dcReset(vm);
   int arg_count = func.total_arguments - 3;
   int alloc_capacity = arg_count > 0 ? arg_count : 4;
-  char **allocated_strings = smalloc(alloc_capacity * sizeof(char *));
+  char **allocated_strings = smalloc(&return_var, alloc_capacity * sizeof(char *));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in dyn_call_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
   int alloc_count = 0;
 
   for (int i = 3; i < func.total_arguments; i++) {
@@ -2278,7 +2288,12 @@ struct SL_Variable input_fn(struct SL_Code *code, struct SL_L_Function func,
   string[strcspn(string, "\n")] = '\0';
 
   return_var.type = STRING;
-  return_var.vals = smalloc(1024);
+  return_var.vals = smalloc(&return_var, 1024);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in input_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    exit(EXIT_FAILURE);
+  }
 
   strncpy(return_var.vals, string, 1023);
   return_var.vals[1023] = '\0';
@@ -3080,7 +3095,12 @@ struct SL_Variable char_to_str_fn(struct SL_Code *code,
   }
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
   struct SL_Variable return_var = {0};
-  char *tmp = smalloc(2);
+  char *tmp = smalloc(&return_var, 2);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in char_to_str_fn(): %s\n", return_var.vals);
+    /* we must free all memory allocated here before exiting */
+    return return_var;
+  }
   tmp[0] = first_arg.valc;
   tmp[1] = '\0';
   return_var.vals = sl_quote_string(tmp);
@@ -3110,7 +3130,13 @@ struct SL_Variable int_to_str_fn(struct SL_Code *code,
       temp /= 10;
     }
 
-  char *tmp = smalloc(digits + 1);
+  char *tmp = smalloc(&return_var, digits + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in int_to_str_fn(): %s\nfailed to allocate memory for digits\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   snprintf(tmp, digits + 1, "%ld", first_arg.vali);
   return_var.vals = sl_quote_string(tmp);
   free(tmp);
@@ -3266,7 +3292,13 @@ struct SL_Variable long_to_str_fn(struct SL_Code *code,
     return return_var;
   }
 
-  char *tmp = smalloc((size_t)size + 1);
+  char *tmp = smalloc(&return_var, (size_t)size + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in long_to_str_fn(): %s\nfailed to allocate memory for the string\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   snprintf(tmp, (size_t)size + 1, "%jd", first_arg.valh);
 
@@ -3828,7 +3860,14 @@ struct SL_Variable types_pack_fn(struct SL_Code *code,
     }
   }
 
-  char *buffer = smalloc(total_size);
+  char *buffer = smalloc(&return_var, total_size);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in types_pack_fn(): %s\n"
+            "failed to allocate memory for the type size\n",
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   size_t offset = 0;
 
@@ -5673,15 +5712,14 @@ struct SL_Variable List_sort_fn(struct SL_Code *code, struct SL_L_Function func,
 
 struct SL_Variable List_copy_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
   if (func.total_arguments < 1) {
-    struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at List.copy! Not enough arguments.";
     return return_var;
   }
 
   struct SL_Variable first_arg = sl_get_argument(*code, func, 0);
-  struct SL_Variable return_var = {0};
 
   if (first_arg.info != SL_LIST) {
     return_var.type = ERROR;
@@ -5704,8 +5742,14 @@ struct SL_Variable List_copy_fn(struct SL_Code *code, struct SL_L_Function func,
   dest_list->size = src_list->size;
 
   if (src_list->size > 0) {
-    dest_list->vars = (struct SL_Variable *)smalloc(src_list->size *
+    dest_list->vars = (struct SL_Variable *)smalloc(&return_var, src_list->size *
                                                     sizeof(struct SL_Variable));
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in List_copy_fn(): %s\n",
+              return_var.vals);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
 
     for (int i = 0; i < src_list->size; i++) {
       dest_list->vars[i] = sl_copy_variable(src_list->vars[i]);
@@ -5852,18 +5896,23 @@ struct SL_Variable List_clear_fn(struct SL_Code *code,
 struct SL_Variable db_from_lists_fn(struct SL_Code *code,
                                     struct SL_L_Function func,
                                     struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+
   if (func.total_arguments < 1) {
-    struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at db.from_lists! Not enough arguments.";
     return return_var;
   }
 
-  struct SL_Variable return_var = {0};
-
   size_t body_cap = 1024;
   size_t body_len = 0;
-  char *body = smalloc(body_cap);
+  char *body = smalloc(&return_var, body_cap);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in db_from_lists_fn(): %s\nfailed to allocate memory for body_cap\n", 
+            return_var.vals);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   body[0] = '\0';
 
   for (int i = 0; i < func.total_arguments; i++) {
@@ -5983,7 +6032,13 @@ struct SL_Variable db_to_lists_fn(struct SL_Code *code,
 
   size_t tok_cap = 256;
   size_t tok_len = 0;
-  char *tok = smalloc(tok_cap);
+  char *tok = smalloc(&return_var, tok_cap);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in db_to_lists_fn(): %s\nfailed to allocate memory of size: %zu bytes\n", 
+            return_var.vals, tok_cap);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   while (*p != '\0') {
     if (*p == '\\') {
@@ -6090,8 +6145,14 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
     char *raw_attr = collections.collections[collec_index].attrs[i];
     int assigned_var_len = strlen(assigned_var);
     int attr_len = strlen(raw_attr);
-    int total_len = assigned_var_len + attr_len;
-    char *full_attr_name = smalloc(total_len + 2);
+    size_t total_len = assigned_var_len + attr_len;
+    char *full_attr_name = smalloc(&return_var, total_len + 2);
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in collections_new_collection_fn(): %s\nfailed to allocate memory of size: %zu\n", 
+              return_var.vals, total_len);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
     snprintf(full_attr_name, total_len + 2, "%s.%s", assigned_var, raw_attr);
     struct SL_Variable var = {0};
     var.name = full_attr_name;
@@ -6110,8 +6171,14 @@ struct SL_Variable collections_new_collection_fn(struct SL_Code *code,
       continue;
     int nargs = raw_func.total_arguments;
 
-    int total_len = strlen(assigned_var) + strlen(raw_func.name);
-    char *full_func_name = smalloc(total_len + 2);
+    size_t total_len = strlen(assigned_var) + strlen(raw_func.name);
+    char *full_func_name = smalloc(&return_var, total_len + 2);
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in collections_new_collection_fn(): %s\nfailed to allocate memory of size: %zu\n", 
+              return_var.vals, total_len);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
     snprintf(full_func_name, total_len + 2, "%s:%s", assigned_var,
              raw_func.name);
 
@@ -6162,7 +6229,15 @@ struct SL_Variable collections_set_attr_fn(struct SL_Code *code,
   char *attr_name_r = sl_string_getter(attr_name.vals);
 
   int total_size = strlen(attr_name_r) + strlen(self_n);
-  char *full_var_name = smalloc(total_size + 2);
+  char *full_var_name = smalloc(&return_var, total_size + 2);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in collections_set_attr_fn(): %s\n"
+            "failed to allocate memory for full_var_name\n"
+	    "size of buffer: %zu\n",
+            return_var.vals, total_size + 2);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
   struct SL_Variable var = {0};
   var = attr_val;
@@ -6190,8 +6265,14 @@ struct SL_Variable collections_get_attr_fn(struct SL_Code *code,
   char *self_n = sl_string_getter(self.vals);
   char *attr_name_r = sl_string_getter(attr_name.vals);
 
-  int total_size = strlen(attr_name_r) + strlen(self_n);
-  char *full_var_name = smalloc(total_size + 2);
+  size_t total_size = strlen(attr_name_r) + strlen(self_n);
+  char *full_var_name = smalloc(&return_var, total_size + 2);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in collections_get_attr_fn(): %s\nfailed to allocate memory of size %zu\n", 
+            return_var.vals, total_size + 2);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   snprintf(full_var_name, total_size + 2, "%s.%s", self_n, attr_name_r);
   struct SL_Variable *ref_var = sl_get_var(code, full_var_name);
   return_var = sl_copy_variable(*ref_var);
@@ -6286,8 +6367,15 @@ struct SL_Variable collections_create_collection_fn(struct SL_Code *code,
     }
     free(raw_str - 2);
   }
-  int total_len = strlen(raw_name) + strlen(":new");
-  char *collection_new_name = smalloc(total_len + 1);
+  size_t total_len = strlen(raw_name) + strlen(":new");
+  char *collection_new_name = smalloc(&return_var, total_len + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in collections_create_collection_fn(): %s\n"
+            "failed to allocate memory of size: %zu for collection_new_name\n", 
+            return_var.vals, total_len);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   snprintf(collection_new_name, total_len + 1, "%s:new", raw_name);
   sl_add_func(code, collection_new_name, collections_new_collection_fn);
   free(raw_name);
@@ -6316,8 +6404,14 @@ struct SL_Variable enums_create_enum_fn(struct SL_Code *code,
     struct SL_Variable item = sl_get_argument(*code, func, i);
     char *raw_name = sl_string_getter(item.vals);
     struct SL_Variable var = {0};
-    int len = strlen(raw_name) + 2;
-    char *name = smalloc(len);
+    size_t len = strlen(raw_name) + 2;
+    char *name = smalloc(&return_var, len);
+    if (return_var.type == ERROR) {
+      fprintf(stderr, "error in enums_create_enum_fn(): %s\nfailed to allocate memory for the name buffer of size %zu\n", 
+              return_var.vals, len);
+      /* we must free all memory allocated here before returning */
+      return return_var;
+    }
     snprintf(name, len, "%s;", raw_name);
     var.name = name;
     var.hash = sl_hash_string(name);
@@ -6550,7 +6644,13 @@ struct SL_Variable net_recv_win_fn(struct SL_Code *code,
     }
   }
 
-  char *buffer = smalloc(buffer_size);
+  char *buffer = smalloc(&return_var, buffer_size);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in net_recv_win_fn(): %s\nfailed to allocate memory for buffer of size %zu\n", 
+            return_var.vals, buffer_size);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   int read_size = 0;
 
   if (gotflag == 1)
@@ -6716,7 +6816,13 @@ struct SL_Variable net_new_fd_win_fn(struct SL_Code *code,
     fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
   }
   int id = fd_list_size++;
-  fd_list[id].fd = smalloc(sizeof(fd_set));
+  fd_list[id].fd = smalloc(&return_var, sizeof(fd_set));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in net_new_fd_win_fn(): %s\nfailed to allocate memory of size %zu\n", 
+            return_var.vals, sizeof(fd_set));
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   FD_ZERO((fd_set *)fd_list[id].fd);
   fd_list[id].is_set = 1;
   return_var.type = INTEGER;
@@ -7243,7 +7349,13 @@ struct SL_Variable net_recv_posix_fn(struct SL_Code *code,
       third_arg = sl_get_argument(*code, func, 2);
     }
   }
-  char *buffer = smalloc(buffer_size);
+  char *buffer = smalloc(&return_var, buffer_size);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in net_recv_posix_fn(): %s\nfailed to allocate buffer of size %d\n", 
+            return_var.vals, buffer_size);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   int read_size = 0;
   if (gotflag == 1)
     read_size = recv(first_arg.vali, buffer, buffer_size, third_arg.vali);
@@ -7361,7 +7473,13 @@ struct SL_Variable net_new_fd_posix_fn(struct SL_Code *code,
     fd_list = srealloc(fd_list, fd_list_capacity * sizeof(struct SL_FD_List));
   }
   int id = fd_list_size++;
-  fd_list[id].fd = smalloc(sizeof(fd_set));
+  fd_list[id].fd = smalloc(&return_var, sizeof(fd_set));
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in net_new_fd_posix_fn(): %s\nfailed to allocate memory for fd_list[id].fd, size %zu\n", 
+            return_var.vals, sizeof(fd_set));
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
   FD_ZERO(fd_list[id].fd);
   fd_list[id].is_set = 1;
   return_var.type = INTEGER;
@@ -9243,7 +9361,7 @@ struct SL_Variable console_write_at_fn(struct SL_Code *code,
   size_t text_len = strlen(text);
   size_t total_len = (size_t)prefix_len + text_len;
 
-  char *output = malloc(total_len + 1);
+  char *output = smalloc(NULL, total_len + 1);
 
   if (output == NULL) {
     free(text);
@@ -9355,7 +9473,13 @@ struct SL_Variable console_fill_rect_fn(struct SL_Code *code,
     total_size += (size_t)cursor_len + row_size;
   }
 
-  char *output = smalloc(total_size + 1);
+  char *output = smalloc(&return_var, total_size + 1);
+  if (return_var.type == ERROR) {
+    fprintf(stderr, "error in console_fill_rect_fn(): %s\nfailed to allocate output string of size %zu\n", 
+            return_var.vals, total_size + 1);
+    /* we must free all memory allocated here before returning */
+    return return_var;
+  }
 
   size_t offset = 0;
 
@@ -11835,7 +11959,7 @@ void close_sl_stdlib();
 
 void init_sl_stdlib(struct SL_Code *sl_code, int argc, char **argv) {
   srand(time(NULL));
-  arguments = smalloc(argc * sizeof(char *));
+  arguments = smalloc(NULL, argc * sizeof(char *));
   for (int i = 0; i < argc; i++) {
     arguments[i] = strdup(argv[i]);
   }
