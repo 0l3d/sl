@@ -1,11 +1,11 @@
 #include "sl.h"
 #include <ctype.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <inttypes.h>
 
 #if defined(__GNUC__)
 #define SL_UNLIKELY(condition) __builtin_expect(!!(condition), 0)
@@ -18,8 +18,9 @@
 static SL_COLD_FUNCTION void stack_grow(struct SL_Code *code) {
   code->obj.stack_capacity =
       (code->obj.stack_capacity == 0) ? SL_INIT : code->obj.stack_capacity * 2;
-  code->obj.stack = srealloc(NULL, code->obj.stack, code->obj.stack_capacity *
-                                                  sizeof(struct SL_Variable));
+  code->obj.stack =
+      srealloc(NULL, code->obj.stack,
+               code->obj.stack_capacity * sizeof(struct SL_Variable));
 }
 
 static SL_COLD_FUNCTION void stack_underflow(void) {
@@ -42,8 +43,8 @@ struct SL_Variable pop(struct SL_Code *code) {
 void emit(struct SL_Code *code, uint32_t value) {
   if (code->bytecode_len >= code->bytecode_capacity) {
     code->bytecode_capacity += SL_REALLOC_DEFAULT;
-    code->bytecode =
-        srealloc(NULL,code->bytecode, code->bytecode_capacity * sizeof(uint32_t));
+    code->bytecode = srealloc(NULL, code->bytecode,
+                              code->bytecode_capacity * sizeof(uint32_t));
   }
   code->bytecode[code->bytecode_len++] = value;
 }
@@ -56,10 +57,43 @@ static void frame_reserve(struct SL_Code *code, size_t needed) {
   while (new_cap < needed)
     new_cap *= 2;
   code->frame.vars =
-      srealloc(NULL,code->frame.vars, new_cap * sizeof(struct SL_Variable));
+      srealloc(NULL, code->frame.vars, new_cap * sizeof(struct SL_Variable));
   memset(code->frame.vars + old_cap, 0,
          (new_cap - old_cap) * sizeof(struct SL_Variable));
   code->frame.total_vars_capacity = (int)new_cap;
+}
+
+static struct SL_FrameScope **g_scopes = NULL;
+static int g_scope_n = 0;
+static int g_scope_cap = 0;
+static int g_scope_floor = 0;
+
+static void scope_push(struct SL_FrameScope *scope) {
+  if (g_scope_n >= g_scope_cap) {
+    g_scope_cap = (g_scope_cap == 0) ? 16 : g_scope_cap * 2;
+    g_scopes =
+        srealloc(NULL, g_scopes, (size_t)g_scope_cap * sizeof(*g_scopes));
+  }
+  g_scopes[g_scope_n++] = scope;
+}
+
+static void scope_pop(void) {
+  if (g_scope_n > 0)
+    g_scope_n--;
+}
+
+static int find_outer_local(const char *name, unsigned long hash, int *depth) {
+  for (int k = g_scope_n - 1; k >= g_scope_floor; k--) {
+    struct SL_FrameScope *s = g_scopes[k];
+    for (int i = s->saved_outer_count - 1; i >= 0; i--) {
+      struct SL_Variable *v = &s->saved_outer_vars[i];
+      if (v->name && v->hash == hash && strcmp(v->name, name) == 0) {
+        *depth = g_scope_n - k;
+        return i;
+      }
+    }
+  }
+  return -1;
 }
 
 char *sl_bytes_copy(const char *bytes, size_t length) {
@@ -260,7 +294,7 @@ int sl_raw_lexer(char *bufin, char ***bufout, size_t max_count,
   while (*p != '\0') {
     if (token_count + 2 >= size_s) {
       size_s *= 2;
-      (*bufout) = srealloc(NULL,*bufout, size_s * sizeof(char *));
+      (*bufout) = srealloc(NULL, *bufout, size_s * sizeof(char *));
     }
     if (*p == '#') {
       break;
@@ -425,7 +459,7 @@ static int sl_lex_file(struct SL_Code *code, size_t malloc_size,
     size_t len = strlen(code_string);
     if (len + index + 2 > total_allocations) {
       total_allocations += malloc_size;
-      code_string = srealloc(NULL,code_string, total_allocations);
+      code_string = srealloc(NULL, code_string, total_allocations);
     }
 
     memcpy(code_string + len, buf, index);
@@ -466,8 +500,9 @@ static void sl_import_registry_add(struct SL_ImportRegistry *registry,
   if (registry->total_modules >= registry->modules_capacity) {
     registry->modules_capacity =
         (registry->modules_capacity == 0) ? 16 : registry->modules_capacity * 2;
-    registry->module_names = srealloc(NULL,
-        registry->module_names, registry->modules_capacity * sizeof(char *));
+    registry->module_names =
+        srealloc(NULL, registry->module_names,
+                 registry->modules_capacity * sizeof(char *));
   }
   registry->module_names[registry->total_modules++] = strdup(module_name);
 }
@@ -486,7 +521,7 @@ static void sl_token_list_append(char ***tokens, int *total_tokens,
                                  int *tokens_capacity, char *token) {
   if (*total_tokens + 1 >= *tokens_capacity) {
     *tokens_capacity = *tokens_capacity * 2;
-    *tokens = srealloc(NULL,*tokens, *tokens_capacity * sizeof(char *));
+    *tokens = srealloc(NULL, *tokens, *tokens_capacity * sizeof(char *));
   }
   (*tokens)[(*total_tokens)++] = token;
 }
@@ -533,7 +568,7 @@ static int sl_expand_imports(char ***tokens, int token_count,
       size_t old_length = strlen(module_name);
       size_t part_length = strlen(source_tokens[last_name_token + 2]);
 
-      module_name = srealloc(NULL,module_name, old_length + part_length + 2);
+      module_name = srealloc(NULL, module_name, old_length + part_length + 2);
       module_name[old_length] = '/';
       memcpy(module_name + old_length + 1, source_tokens[last_name_token + 2],
              part_length + 1);
@@ -895,7 +930,7 @@ int sl_add_raw_func(struct SL_Code *code, struct SL_Function *function) {
         code->total_size_f == 0 ? SL_INIT : code->total_size_f * 2;
 
     code->funcs =
-        srealloc(NULL,code->funcs, code->total_size_f * sizeof(*code->funcs));
+        srealloc(NULL, code->funcs, code->total_size_f * sizeof(*code->funcs));
   }
 
   int has_func = is_has_func(*code, function->name);
@@ -916,8 +951,8 @@ int sl_add_func(struct SL_Code *code, char *name,
   if (code->total_funcs >= code->total_size_f) {
     code->total_size_f =
         (code->total_size_f == 0) ? SL_INIT : code->total_size_f * 2;
-    code->funcs =
-        srealloc(NULL,code->funcs, code->total_size_f * sizeof(struct SL_Function));
+    code->funcs = srealloc(NULL, code->funcs,
+                           code->total_size_f * sizeof(struct SL_Function));
   }
 
   code->funcs[code->total_funcs].name = strdup(name);
@@ -941,8 +976,8 @@ int sl_add_var(struct SL_Code *code, struct SL_Variable var) {
   if (code->total_vars >= code->total_size_v) {
     code->total_size_v =
         (code->total_size_v == 0) ? SL_INIT : code->total_size_v * 2;
-    code->vars =
-        srealloc(NULL,code->vars, code->total_size_v * sizeof(struct SL_Variable));
+    code->vars = srealloc(NULL, code->vars,
+                          code->total_size_v * sizeof(struct SL_Variable));
   }
   unsigned long hashe = sl_hash_string(var.name);
   int index = getvar_index_from_sl(*code, var.name, hashe);
@@ -1263,8 +1298,8 @@ expression_parser_splitter(struct SL_Code code, char *expression[],
 
     int custom_index =
         sl_custom_operator_index(&code, expression[current_token]);
-    int op_prec = prec_priority(op, op_type, optype) *
-                  SL_BUILTIN_PRECEDENCE_SCALE;
+    int op_prec =
+        prec_priority(op, op_type, optype) * SL_BUILTIN_PRECEDENCE_SCALE;
     if (optype == 0 && strlen(expression[current_token]) > 1) {
       op_prec = 0;
     }
@@ -1481,6 +1516,14 @@ static void resolve_variable(struct SL_Code *code_s, char *expression[],
       emit(code_s, OPCODE_LOAD_LOCAL_VAR);
       emit(code_s, (uint32_t)index);
     } else {
+      int depth;
+      int oidx = find_outer_local(var.vals + 1, var.hash, &depth);
+      if (oidx != -1) {
+        emit(code_s, OPCODE_LOAD_OUTER_LOCAL);
+        emit(code_s, (uint32_t)depth);
+        emit(code_s, (uint32_t)oidx);
+        return;
+      }
       int index = getvar_index_from_sl(*code_s, var.vals + 1, var.hash);
       if (index != -1) {
         emit(code_s, OPCODE_LOAD_VAR);
@@ -1803,8 +1846,9 @@ void variable_parser(struct SL_Code *code_s, enum TokenTypes *types,
         if (code_s->total_vars >= code_s->total_size_v) {
           code_s->total_size_v =
               (code_s->total_size_v == 0) ? 1024 : code_s->total_size_v * 2;
-          code_s->vars = srealloc(NULL,code_s->vars, code_s->total_size_v *
-                                                    sizeof(struct SL_Variable));
+          code_s->vars =
+              srealloc(NULL, code_s->vars,
+                       code_s->total_size_v * sizeof(struct SL_Variable));
         }
 
         memset(&code_s->vars[index], 0, sizeof(struct SL_Variable));
@@ -1876,6 +1920,18 @@ void assignment_parser(struct SL_Code *code_s, char *tokens[],
       sl_expression_solver(code_s, tokens, types, &lexpr_start, max_tokens);
       emit(code_s, OPCODE_STORE_LOCAL_VAR);
       emit(code_s, (uint32_t)lidx);
+      *current_token = max_tokens;
+      continue;
+    }
+
+    int depth;
+    int oidx = find_outer_local(var_name, hashe, &depth);
+    if (oidx != -1) {
+      int e = last_pos + 1;
+      sl_expression_solver(code_s, tokens, types, &e, max_tokens);
+      emit(code_s, OPCODE_STORE_OUTER_LOCAL);
+      emit(code_s, (uint32_t)depth);
+      emit(code_s, (uint32_t)oidx);
       *current_token = max_tokens;
       continue;
     }
@@ -2096,7 +2152,8 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   if (tokens[current][0] == '-' && tokens[++current][0] == '>') {
     current++;
     int arg_capacity = 8;
-    function.arguments = scalloc(NULL, arg_capacity, sizeof(struct SL_Variable));
+    function.arguments =
+        scalloc(NULL, arg_capacity, sizeof(struct SL_Variable));
     if (tokens[current][0] == ',')
       return function;
     while (types[current] != T_THEN) {
@@ -2117,8 +2174,9 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
       int j = function.total_arguments;
       if (j >= arg_capacity) {
         arg_capacity *= 2;
-        function.arguments = srealloc(NULL,
-            function.arguments, arg_capacity * sizeof(struct SL_Variable));
+        function.arguments =
+            srealloc(NULL, function.arguments,
+                     arg_capacity * sizeof(struct SL_Variable));
       }
       size_t len = strlen(tokens[current]);
       function.arguments[j].name = smalloc(NULL, len + 1);
@@ -2151,7 +2209,7 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   }
   if (code_s->total_funcs >= code_s->total_size_f - 1) {
     code_s->total_size_f *= 2;
-    code_s->funcs = srealloc(NULL,code_s->funcs,
+    code_s->funcs = srealloc(NULL, code_s->funcs,
                              code_s->total_size_f * sizeof(struct SL_Function));
   }
   int func_index = code_s->total_funcs++;
@@ -2168,7 +2226,10 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
     code_s->token_count = end_pos;
     code_s->scope_depth++;
 
+    int saved_floor = g_scope_floor;
+    g_scope_floor = g_scope_n;
     sl_init_sl_parser(code_s);
+    g_scope_floor = saved_floor;
     code_s->scope_depth--;
 
     code_s->starting_token = old_start;
@@ -2226,7 +2287,7 @@ int sl_add_constant(struct SL_Code *code, struct SL_Variable constant) {
                                        ? 64
                                        : code->constant_pool_capacity * 2;
     code->constant_pool =
-        srealloc(NULL,code->constant_pool,
+        srealloc(NULL, code->constant_pool,
                  code->constant_pool_capacity * sizeof(struct SL_Variable));
   }
   code->constant_pool[code->constant_pool_len] = constant;
@@ -2280,10 +2341,12 @@ void sl_begin_frame_scope(struct SL_Code *code, struct SL_FrameScope *scope) {
            scope->saved_outer_count * sizeof(struct SL_Variable));
   }
   code->frame.total_vars = 0;
+  scope_push(scope);
   code->scope_depth++;
 }
 
 int sl_end_frame_scope(struct SL_Code *code, struct SL_FrameScope *scope) {
+  scope_pop();
   code->scope_depth--;
 
   int frame_size = code->frame.total_vars;
@@ -2312,7 +2375,7 @@ void sl_loop_begin(struct SL_Code *code) {
   } else if (global_loop_stack.depth >= global_loop_stack.capacity) {
     global_loop_stack.capacity *= 2;
     global_loop_stack.contexts =
-        srealloc(NULL,global_loop_stack.contexts,
+        srealloc(NULL, global_loop_stack.contexts,
                  global_loop_stack.capacity * sizeof(SL_LoopContext));
   }
 
@@ -2321,7 +2384,8 @@ void sl_loop_begin(struct SL_Code *code) {
   context->start_pc = (uint32_t)code->bytecode_len;
   context->break_count = 0;
   context->break_capacity = 16;
-  context->break_patches = scalloc(NULL, context->break_capacity, sizeof(size_t));
+  context->break_patches =
+      scalloc(NULL, context->break_capacity, sizeof(size_t));
 }
 
 uint32_t sl_loop_start_pc(void) {
@@ -2517,7 +2581,7 @@ static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
                                         ? SL_INIT
                                         : code->obj.call_frame_capacity * 2;
     code->obj.call_frames =
-        srealloc(NULL,code->obj.call_frames,
+        srealloc(NULL, code->obj.call_frames,
                  code->obj.call_frame_capacity * sizeof(struct SL_CallFrame));
   }
   code->obj.call_frames[code->obj.call_frame_size++] =
@@ -2550,8 +2614,9 @@ static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
 
   if (code->obj.call_stack_size >= code->obj.call_stack_capacity) {
     code->obj.call_stack_capacity *= 2;
-    code->obj.call_stack = srealloc(NULL,
-        code->obj.call_stack, code->obj.call_stack_capacity * sizeof(size_t));
+    code->obj.call_stack =
+        srealloc(NULL, code->obj.call_stack,
+                 code->obj.call_stack_capacity * sizeof(size_t));
   }
   code->obj.call_stack[code->obj.call_stack_size++] = *pc;
   *pc = (size_t)code->funcs[func_idx].entry_pc;
@@ -2712,7 +2777,7 @@ static inline void vm_collapse_pair_to_boolean(struct SL_Code *code,
 #define VM_FAST_NUMERIC(DOUBLE_EXPR, INTEGER_EXPR)                             \
   {                                                                            \
     struct SL_Variable *lhs, *rhs;                                             \
-    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                       \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                         \
       if (lhs->type == DOUBLE) {                                               \
         vm_collapse_pair_to_double(code, (DOUBLE_EXPR));                       \
         break;                                                                 \
@@ -2734,8 +2799,8 @@ static inline void vm_collapse_pair_to_boolean(struct SL_Code *code,
 #define VM_FAST_MODULO                                                         \
   {                                                                            \
     struct SL_Variable *lhs, *rhs;                                             \
-    if (vm_top_pair_plain_matched(code, &lhs, &rhs) &&                       \
-        lhs->type == INTEGER && rhs->vali != 0) {                              \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs) && lhs->type == INTEGER && \
+        rhs->vali != 0) {                                                      \
       vm_collapse_pair_to_integer(code, lhs->vali % rhs->vali);                \
       break;                                                                   \
     }                                                                          \
@@ -2744,7 +2809,7 @@ static inline void vm_collapse_pair_to_boolean(struct SL_Code *code,
 #define VM_FAST_COMPARISON(OP)                                                 \
   {                                                                            \
     struct SL_Variable *lhs, *rhs;                                             \
-    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                       \
+    if (vm_top_pair_plain_matched(code, &lhs, &rhs)) {                         \
       if (lhs->type == DOUBLE) {                                               \
         vm_collapse_pair_to_boolean(code, lhs->valf OP rhs->valf);             \
         break;                                                                 \
@@ -2756,9 +2821,8 @@ static inline void vm_collapse_pair_to_boolean(struct SL_Code *code,
     }                                                                          \
   }
 
-static struct SL_Variable vm_call_native(struct SL_Code *code,
-                                         uint32_t func_idx,
-                                         uint32_t arg_count) {
+static struct SL_Variable
+vm_call_native(struct SL_Code *code, uint32_t func_idx, uint32_t arg_count) {
   int starting_index = code->total_vars;
   int starting_index_func = code->total_funcs;
   if (code->total_vars + arg_count >= code->total_size_v) {
@@ -2767,8 +2831,8 @@ static struct SL_Variable vm_call_native(struct SL_Code *code,
     while (code->total_vars + arg_count >= code->total_size_v) {
       code->total_size_v *= 2;
     }
-    code->vars =
-        srealloc(NULL,code->vars, code->total_size_v * sizeof(struct SL_Variable));
+    code->vars = srealloc(NULL, code->vars,
+                          code->total_size_v * sizeof(struct SL_Variable));
   }
 
   for (int i = (int)arg_count - 1; i >= 0; i--) {
@@ -2796,7 +2860,8 @@ static struct SL_Variable vm_call_native(struct SL_Code *code,
   return result;
 }
 
-static size_t vm_append_quoted_content(char *out, size_t j, const char *quoted) {
+static size_t vm_append_quoted_content(char *out, size_t j,
+                                       const char *quoted) {
   size_t end = strlen(quoted) - 1;
   for (size_t i = 1; i < end; i++) {
     char ch = quoted[i];
@@ -2834,8 +2899,8 @@ static int vm_resolve_function_constant(struct SL_Code *code,
       strcmp(code->funcs[cached].name, name_constant->vals) == 0)
     return cached;
 
-  int found = is_has_func_hashed_p(code, name_constant->vals,
-                                   name_constant->hash);
+  int found =
+      is_has_func_hashed_p(code, name_constant->vals, name_constant->hash);
   if (found != -1)
     name_constant->cache_index = found + 1;
   return found;
@@ -2870,7 +2935,7 @@ break;
 
     case OPCODE_LOAD_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
-      vm_push_variable_value(code, &code->vars[var_idx]);  
+      vm_push_variable_value(code, &code->vars[var_idx]);
       break;
     }
 
@@ -2907,7 +2972,7 @@ break;
     case OPCODE_LOAD_LOCAL_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
       size_t actual_idx = code->current_frame_base + var_idx;
-      vm_push_variable_value(code, &code->frame.vars[actual_idx]); 
+      vm_push_variable_value(code, &code->frame.vars[actual_idx]);
       break;
     }
 
@@ -2924,6 +2989,31 @@ break;
       break;
     }
 
+    case OPCODE_LOAD_OUTER_LOCAL: {
+      uint32_t depth = code->bytecode[pc++];
+      uint32_t idx = code->bytecode[pc++];
+      size_t base =
+          code->obj.call_frames[code->obj.call_frame_size - depth].frame_base;
+      vm_push_variable_value(code, &code->frame.vars[base + idx]);
+      break;
+    }
+
+    case OPCODE_STORE_OUTER_LOCAL: {
+      uint32_t depth = code->bytecode[pc++];
+      uint32_t idx = code->bytecode[pc++];
+      size_t base =
+          code->obj.call_frames[code->obj.call_frame_size - depth].frame_base;
+      size_t actual = base + idx;
+      struct SL_Variable value = pop(code);
+      sl_free_variable(&code->frame.vars[actual]);
+      if (value.name != NULL) {
+        free(value.name);
+        value.name = NULL;
+      }
+      code->frame.vars[actual] = value;
+      break;
+    }
+
     case OPCODE_FUNC_CALL: {
       uint32_t func_idx = code->bytecode[pc++];
       uint32_t arg_count = code->bytecode[pc++];
@@ -2933,7 +3023,7 @@ break;
 
     case OPCODE_PUSH_POOL_CONST: {
       uint32_t pool_index = code->bytecode[pc++];
-      vm_push_variable_value(code, &code->constant_pool[pool_index]); 
+      vm_push_variable_value(code, &code->constant_pool[pool_index]);
       break;
     }
 
@@ -2958,9 +3048,9 @@ break;
         code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0)
                                             ? SL_INIT
                                             : code->obj.call_frame_capacity * 2;
-        code->obj.call_frames =
-            srealloc(NULL,code->obj.call_frames, code->obj.call_frame_capacity *
-                                                sizeof(struct SL_CallFrame));
+        code->obj.call_frames = srealloc(NULL, code->obj.call_frames,
+                                         code->obj.call_frame_capacity *
+                                             sizeof(struct SL_CallFrame));
       }
       code->obj.call_frames[code->obj.call_frame_size++] =
           (struct SL_CallFrame){.frame_base = code->current_frame_base,
@@ -2974,7 +3064,7 @@ break;
       if (code->obj.call_stack_size >= code->obj.call_stack_capacity) {
         code->obj.call_stack_capacity *= 2;
         code->obj.call_stack =
-            srealloc(NULL,code->obj.call_stack,
+            srealloc(NULL, code->obj.call_stack,
                      code->obj.call_stack_capacity * sizeof(size_t));
       }
       code->obj.call_stack[code->obj.call_stack_size++] = pc;
@@ -3049,7 +3139,12 @@ break;
       int real_idx =
           getvar_index_from_sl(*code, var_name + 1, name_constant->hash);
       if (real_idx == -1) {
-        sl_vm_error(code, (uint32_t)-1, "VARIABLE NOT FOUND!",
+        static char error_message[128];
+        snprintf(error_message, sizeof(error_message),
+                 "VARIABLE NOT FOUND! (%s)", var_name);
+
+        int error_token = find_token_by_name(code, var_name);
+        sl_vm_error(code, (uint32_t)error_token, error_message,
                     "Expected: Define a variable first.");
       }
       push(code, copy_value_without_name(code->vars[real_idx]));
@@ -3749,6 +3844,17 @@ static void disassemble_instruction(struct SL_Code *code, size_t *pc) {
     break;
   }
 
+  case OPCODE_LOAD_OUTER_LOCAL:
+  case OPCODE_STORE_OUTER_LOCAL: {
+    uint32_t depth = read_disassembly_operand(code, pc);
+    uint32_t slot = read_disassembly_operand(code, pc);
+    printf("%-24s [outer depth=%u local#%u]\n",
+           opcode == OPCODE_LOAD_OUTER_LOCAL ? "LOAD_OUTER_LOCAL"
+                                             : "STORE_OUTER_LOCAL",
+           depth, slot);
+    break;
+  }
+
   default:
     printf("UNKNOWN                  0x%02X\n", opcode);
     break;
@@ -3883,7 +3989,7 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
       if (curr->break_count >= curr->break_capacity) {
         curr->break_capacity *= 2;
-        curr->break_patches = srealloc(NULL,curr->break_patches,
+        curr->break_patches = srealloc(NULL, curr->break_patches,
                                        curr->break_capacity * sizeof(size_t));
       }
 
@@ -3954,32 +4060,34 @@ struct SL_Variable sl_init_sl_parser(struct SL_Code *code_s) {
 
 struct SL_Code sl_init_sl_process() {
   struct SL_Code code;
-  code.bytecode = scalloc(NULL,SL_INIT, sizeof(uint32_t));
+  code.bytecode = scalloc(NULL, SL_INIT, sizeof(uint32_t));
   code.bytecode_capacity = SL_INIT;
   code.bytecode_len = 0;
 
   code.obj.stack_capacity = SL_INIT;
   code.obj.stack_size = 0;
-  code.obj.stack = scalloc(NULL,code.obj.stack_capacity, sizeof(struct SL_Variable));
+  code.obj.stack =
+      scalloc(NULL, code.obj.stack_capacity, sizeof(struct SL_Variable));
 
   code.obj.call_stack_capacity = SL_INIT;
   code.obj.call_stack_size = 0;
-  code.obj.call_stack = scalloc(NULL,code.obj.call_stack_capacity, sizeof(size_t));
+  code.obj.call_stack =
+      scalloc(NULL, code.obj.call_stack_capacity, sizeof(size_t));
 
   code.frame.total_vars_capacity = SL_INIT;
   code.frame.total_vars = 0;
   code.frame.vars =
-      scalloc(NULL,code.frame.total_vars_capacity, sizeof(struct SL_Variable));
+      scalloc(NULL, code.frame.total_vars_capacity, sizeof(struct SL_Variable));
 
   code.obj.call_frame_capacity = SL_INIT;
   code.obj.call_frame_size = 0;
   code.obj.call_frames =
-      scalloc(NULL,code.obj.call_frame_capacity, sizeof(struct SL_CallFrame));
+      scalloc(NULL, code.obj.call_frame_capacity, sizeof(struct SL_CallFrame));
   code.current_frame_base = 0;
 
-  code.funcs = scalloc(NULL,SL_INIT, sizeof(struct SL_Function));
+  code.funcs = scalloc(NULL, SL_INIT, sizeof(struct SL_Function));
   code.total_size_f = SL_INIT;
-  code.vars = scalloc(NULL,SL_INIT, sizeof(struct SL_Variable));
+  code.vars = scalloc(NULL, SL_INIT, sizeof(struct SL_Variable));
   code.total_size_v = SL_INIT;
   code.total_funcs = 0;
   code.total_vars = 0;
@@ -4023,8 +4131,8 @@ int sl_open_sl_process(struct SL_Code *code, const char *restrict file_name) {
     return -1;
   }
 
-  code->types = scalloc(NULL,count, sizeof(enum TokenTypes));
-  code->fixed_values = scalloc(NULL,count, sizeof(struct SL_Variable));
+  code->types = scalloc(NULL, count, sizeof(enum TokenTypes));
+  code->fixed_values = scalloc(NULL, count, sizeof(struct SL_Variable));
   code->types_set = 0;
   if (count <= 0) {
     fprintf(stderr, "sl_lexer failed\n");
@@ -4049,14 +4157,16 @@ int sl_add_custom_expr(struct SL_Code *code, char *expr_start,
     code->custom_expr_capacity += 128;
     code->custom_exprr =
         smalloc(NULL, code->custom_expr_capacity * sizeof(custom_exprr));
-    code->custom_expr = smalloc(NULL, code->custom_expr_capacity * sizeof(char *));
+    code->custom_expr =
+        smalloc(NULL, code->custom_expr_capacity * sizeof(char *));
   }
 
   if (count >= code->custom_expr_capacity) {
     code->custom_expr_capacity += 128;
-    code->custom_exprr = srealloc(NULL,
-        code->custom_exprr, code->custom_expr_capacity * sizeof(custom_exprr));
-    code->custom_expr = srealloc(NULL,code->custom_expr,
+    code->custom_exprr =
+        srealloc(NULL, code->custom_exprr,
+                 code->custom_expr_capacity * sizeof(custom_exprr));
+    code->custom_expr = srealloc(NULL, code->custom_expr,
                                  code->custom_expr_capacity * sizeof(char *));
   }
   code->custom_expr[count] = strdup(expr_start);
@@ -4081,10 +4191,11 @@ int sl_add_custom_keyword(struct SL_Code *code, char *keyword_name,
   if (count >= code->custom_keyword_capacity) {
     code->custom_keyword_capacity += 128;
     code->custom_keywordr =
-        srealloc(NULL,code->custom_keywordr,
+        srealloc(NULL, code->custom_keywordr,
                  code->custom_keyword_capacity * sizeof(custom_keywordr));
-    code->custom_keyword = srealloc(NULL,
-        code->custom_keyword, code->custom_keyword_capacity * sizeof(char *));
+    code->custom_keyword =
+        srealloc(NULL, code->custom_keyword,
+                 code->custom_keyword_capacity * sizeof(char *));
   }
   code->custom_keyword[count] = strdup(keyword_name);
   code->custom_keywordr[count] = custom_keywordr;
@@ -4099,8 +4210,8 @@ int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
 
   if (count == 0) {
     code->custom_splitter_capacity += 128;
-    code->custom_splitterr =
-        smalloc(NULL, code->custom_splitter_capacity * sizeof(custom_splitterr));
+    code->custom_splitterr = smalloc(NULL, code->custom_splitter_capacity *
+                                               sizeof(custom_splitterr));
     code->custom_splitter =
         smalloc(NULL, code->custom_splitter_capacity * sizeof(char *));
   }
@@ -4108,10 +4219,11 @@ int sl_add_custom_splitter(struct SL_Code *code, char *splitter_name,
   if (count >= code->custom_splitter_capacity) {
     code->custom_splitter_capacity += 128;
     code->custom_splitterr =
-        srealloc(NULL,code->custom_splitterr,
+        srealloc(NULL, code->custom_splitterr,
                  code->custom_splitter_capacity * sizeof(custom_splitterr));
-    code->custom_splitter = srealloc(NULL,
-        code->custom_splitter, code->custom_splitter_capacity * sizeof(char *));
+    code->custom_splitter =
+        srealloc(NULL, code->custom_splitter,
+                 code->custom_splitter_capacity * sizeof(char *));
   }
   code->custom_splitter[count] = strdup(splitter_name);
   code->custom_splitterr[count] = custom_splitterr;
@@ -4225,13 +4337,14 @@ int sl_add_custom_token(struct SL_Code *code, char *token_name, int precedence,
 
   if (code->custom_token_count >= code->custom_token_capacity) {
     code->custom_token_capacity += 128;
-    code->custom_token = srealloc(NULL,
-        code->custom_token, code->custom_token_capacity * sizeof(char *));
+    code->custom_token = srealloc(NULL, code->custom_token,
+                                  code->custom_token_capacity * sizeof(char *));
     code->custom_token_precedence =
-        srealloc(NULL,code->custom_token_precedence,
+        srealloc(NULL, code->custom_token_precedence,
                  code->custom_token_capacity * sizeof(int));
-    code->custom_tokenr = srealloc(NULL,
-        code->custom_tokenr, code->custom_token_capacity * sizeof(custom_tokenr));
+    code->custom_tokenr =
+        srealloc(NULL, code->custom_tokenr,
+                 code->custom_token_capacity * sizeof(custom_tokenr));
   }
 
   index = code->custom_token_count;
@@ -4275,7 +4388,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
       continue;
     if (code_p.total_funcs >= code_p.total_size_f) {
       code_p.total_size_f *= 2;
-      code_p.funcs = srealloc(NULL,code_p.funcs,
+      code_p.funcs = srealloc(NULL, code_p.funcs,
                               code_p.total_size_f * sizeof(struct SL_Function));
     }
     code_p.funcs[code_p.total_funcs++] = sl_copy_function(code_s->funcs[i]);
@@ -4284,7 +4397,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   for (int i = 0; i < code_s->total_vars; i++) {
     if (code_p.total_vars >= code_p.total_size_v) {
       code_p.total_size_v *= 2;
-      code_p.vars = srealloc(NULL,code_p.vars,
+      code_p.vars = srealloc(NULL, code_p.vars,
                              code_p.total_size_v * sizeof(struct SL_Variable));
     }
     code_p.vars[code_p.total_vars++] = sl_copy_variable(code_s->vars[i]);
@@ -4312,7 +4425,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
   code_p.code = smalloc(&result, 1024 * sizeof(char *));
   if (result.type == ERROR) {
     fprintf(stderr, "error in sl_dostr_sl_process(): %s\n", strerror(errno));
-    exit(EXIT_FAILURE);	/* malloc failed */
+    exit(EXIT_FAILURE); /* malloc failed */
   }
   lexing_code = &code_p;
   int count = sl_raw_lexer(code, &code_p.code, strlen(code),
@@ -4326,8 +4439,8 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
   if (count > 0) {
     code_p.token_count = count;
-    code_p.types = scalloc(NULL,count, sizeof(enum TokenTypes));
-    code_p.fixed_values = scalloc(NULL,count, sizeof(struct SL_Variable));
+    code_p.types = scalloc(NULL, count, sizeof(enum TokenTypes));
+    code_p.fixed_values = scalloc(NULL, count, sizeof(struct SL_Variable));
     code_p.types_set = 0;
 
     struct SL_Variable init = sl_init_sl_parser(&code_p);
@@ -4508,6 +4621,13 @@ int sl_close_sl_process(struct SL_Code *code) {
   free(code->custom_tokenr);
   code->custom_tokenr = NULL;
   code->custom_token_capacity = 0;
+
+  if (g_scope_n == 0) {
+    free(g_scopes);
+    g_scopes = NULL;
+    g_scope_cap = 0;
+    g_scope_floor = 0;
+  }
 
   return 0;
 }
@@ -4873,8 +4993,10 @@ int sl_save_slx(struct SL_Code *code, const char *file_name) {
   header.total_funcs = (uint64_t)slx_file.total_funcs;
   header.total_fixeds = (uint64_t)slx_file.total_fixeds;
   header.total_constants = (uint64_t)slx_file.total_constants;
-  header.var_sizes = scalloc(NULL,(size_t)header.total_vars + 1, sizeof(uint64_t));
-  header.func_sizes = scalloc(NULL, (size_t)header.total_funcs + 1, sizeof(uint64_t));
+  header.var_sizes =
+      scalloc(NULL, (size_t)header.total_vars + 1, sizeof(uint64_t));
+  header.func_sizes =
+      scalloc(NULL, (size_t)header.total_funcs + 1, sizeof(uint64_t));
   header.fixed_sizes =
       scalloc(NULL, (size_t)header.total_fixeds + 1, sizeof(uint64_t));
   header.constant_sizes =
@@ -4958,7 +5080,7 @@ static int sl_x_read_item(FILE *file, uint64_t item_size,
                           struct SL_X_Cursor *cursor) {
   if (item_size + 1 > *scratch_capacity) {
     *scratch_capacity = (size_t)item_size + 1;
-    *scratch = srealloc(NULL,*scratch, *scratch_capacity);
+    *scratch = srealloc(NULL, *scratch, *scratch_capacity);
   }
   if (item_size > 0 && fread(*scratch, 1, (size_t)item_size, file) != item_size)
     return 0;
@@ -5046,8 +5168,10 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
       header.header_size)
     goto corrupt;
 
-  header.var_sizes = scalloc(NULL, (size_t)header.total_vars + 1, sizeof(uint64_t));
-  header.func_sizes = scalloc(NULL, (size_t)header.total_funcs + 1, sizeof(uint64_t));
+  header.var_sizes =
+      scalloc(NULL, (size_t)header.total_vars + 1, sizeof(uint64_t));
+  header.func_sizes =
+      scalloc(NULL, (size_t)header.total_funcs + 1, sizeof(uint64_t));
   header.fixed_sizes =
       scalloc(NULL, (size_t)header.total_fixeds + 1, sizeof(uint64_t));
   header.constant_sizes =
@@ -5067,12 +5191,14 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
   funcs_capacity = (int)header.total_funcs + SL_INIT;
   constants_capacity =
       (int)header.total_constants + SL_X_CONSTANT_EXTRA_CAPACITY;
-  slx_file.vars = scalloc(NULL, (size_t)vars_capacity, sizeof(struct SL_Variable));
-  slx_file.funcs = scalloc(NULL, (size_t)funcs_capacity, sizeof(struct SL_Function));
-  slx_file.fixeds =
-      scalloc(NULL,(size_t)header.total_fixeds + 1, sizeof(struct SL_Variable));
+  slx_file.vars =
+      scalloc(NULL, (size_t)vars_capacity, sizeof(struct SL_Variable));
+  slx_file.funcs =
+      scalloc(NULL, (size_t)funcs_capacity, sizeof(struct SL_Function));
+  slx_file.fixeds = scalloc(NULL, (size_t)header.total_fixeds + 1,
+                            sizeof(struct SL_Variable));
   slx_file.constants =
-      scalloc(NULL,(size_t)constants_capacity, sizeof(struct SL_Variable));
+      scalloc(NULL, (size_t)constants_capacity, sizeof(struct SL_Variable));
   slx_file.total_vars = (int)header.total_vars;
   slx_file.total_funcs = (int)header.total_funcs;
   slx_file.total_fixeds = (int)header.total_fixeds;
@@ -5116,10 +5242,11 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
   }
 
   bytecode_len = (size_t)(header.bytecode_size / 4);
-  bytecode = smalloc(NULL, (bytecode_len + SL_REALLOC_DEFAULT) * sizeof(uint32_t));
+  bytecode =
+      smalloc(NULL, (bytecode_len + SL_REALLOC_DEFAULT) * sizeof(uint32_t));
   if (header.bytecode_size + 1 > scratch_capacity) {
     scratch_capacity = (size_t)header.bytecode_size + 1;
-    scratch = srealloc(NULL,scratch, scratch_capacity);
+    scratch = srealloc(NULL, scratch, scratch_capacity);
   }
   if (!sl_x_read_at(file, 0, scratch, (size_t)header.bytecode_size))
     goto corrupt;
