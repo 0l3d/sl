@@ -2218,6 +2218,11 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
   if (current == then_pos) {
     int starting = ++current;
     int end_pos = sl_find_end(tokens, types, starting, max_tokens, 0);
+    if (end_pos == -1) {
+        sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
+                      "END NOT FOUND ON DEF BLOCK",
+                      "Expected: def <name> then <code> end");
+    }
 
     int old_start = code_s->starting_token;
     int old_count = code_s->token_count;
