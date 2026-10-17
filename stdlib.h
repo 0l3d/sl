@@ -44,6 +44,9 @@
 #include <ws2tcpip.h>
 #endif
 #include <windows.h>
+#ifdef ERROR
+#undef ERROR
+#endif
 #undef CHAR
 #undef LONG
 #undef BOOLEAN
