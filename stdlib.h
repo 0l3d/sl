@@ -2842,6 +2842,32 @@ struct SL_Variable time_now_fn(struct SL_Code *code, struct SL_L_Function func,
   return return_var;
 }
 
+struct SL_Variable time_ticks_fn(struct SL_Code *code, struct SL_L_Function func,
+                                 struct SL_Function rfunc) {
+  struct SL_Variable return_var = {0};
+  return_var.type = DOUBLE;
+#ifdef _WIN32
+  static LARGE_INTEGER freq = {0};
+  LARGE_INTEGER cnt;
+  if (freq.QuadPart == 0)
+    QueryPerformanceFrequency(&freq);
+  QueryPerformanceCounter(&cnt);
+  return_var.valf = (double)cnt.QuadPart * 1000.0 / (double)freq.QuadPart;
+#else
+#if defined(CLOCK_MONOTONIC)
+  struct timespec ts;
+  if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+    return_var.valf = ts.tv_sec * 1000.0 + ts.tv_nsec / 1e6;
+    return return_var;
+  }
+#endif
+  struct timeval tv;
+  gettimeofday(&tv, NULL);
+  return_var.valf = tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
+#endif
+  return return_var;
+}
+
 struct SL_Variable time_string_fn(struct SL_Code *code,
                                   struct SL_L_Function func,
                                   struct SL_Function rfunc) {
@@ -11880,6 +11906,7 @@ struct SL_Variable use_fn(struct SL_Code *code, struct SL_L_Function func,
         break;
       used_time = 1;
       sl_add_func(code, "time.now", time_now_fn);
+      sl_add_func(code, "time.ticks", time_ticks_fn);
       sl_add_func(code, "time.string", time_string_fn);
       sl_add_func(code, "time.clock", time_clock_fn);
       sl_add_func(code, "time.sleep", time_sleep_fn);

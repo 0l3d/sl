@@ -1230,6 +1230,9 @@ Calculates difference in seconds between two timestamps (t1 - t2).
 time.parse -> date_str | INTEGER (or ERROR)
 Parses date string formatted as 'YYYY-MM-DD HH:MM:SS' into a Unix timestamp integer.
 
+time.ticks -> NONE | DOUBLE
+Returns a monotonic millisecond counter. Only differences between two calls are meaningful.
+
 -- USAGE OF ALL FUNCTIONS --
 use("time")
 
@@ -1249,6 +1252,11 @@ var s = time.second()
 # Time parsing and difference calculation
 var past_ts = time.parse("2026-01-01 00:00:00")
 var elapsed = time.diff($ts, $past_ts)
+
+# Measure elapsed milliseconds
+var start = time.ticks()
+var took = time.ticks() - $start
+
 : : : TIME : : : : : : : -
 -------------------------------------------------------
 : ::: : : 
