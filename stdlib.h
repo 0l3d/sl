@@ -8236,12 +8236,39 @@ struct SL_Variable console_get_event_win_fn(struct SL_Code *code,
                                             struct SL_Function rfunc) {
 
   DWORD events_read = 0;
+  DWORD pending = 0;
   struct SL_Variable return_var = {0};
-  if (!ReadConsoleInput(hStdIn, irInBuf, 1, &events_read)) {
-    return_var.type = ERROR;
-    return_var.vals = "Failed to get event";
-    return return_var;
+
+  for (;;) {
+    if (!GetNumberOfConsoleInputEvents(hStdIn, &pending)) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to query event count";
+      return return_var;
+    }
+    if (pending == 0) {
+      memset(&irInBuf[0], 0, sizeof(irInBuf[0]));
+      return_var.type = INTEGER;
+      return_var.vali = SL_UNDEFINED_EVENT;
+      return return_var;
+    }
+    if (!ReadConsoleInput(hStdIn, irInBuf, 1, &events_read) ||
+        events_read != 1) {
+      return_var.type = ERROR;
+      return_var.vals = "Failed to get event";
+      return return_var;
+    }
+    if (irInBuf[0].EventType == KEY_EVENT) {
+      KEY_EVENT_RECORD *ke = &irInBuf[0].Event.KeyEvent;
+      if (!ke->bKeyDown)
+        continue;
+      if (ke->wVirtualKeyCode == VK_SHIFT || ke->wVirtualKeyCode == VK_CONTROL ||
+          ke->wVirtualKeyCode == VK_MENU || ke->wVirtualKeyCode == VK_CAPITAL ||
+          ke->wVirtualKeyCode == VK_LWIN || ke->wVirtualKeyCode == VK_RWIN)
+        continue;
+    }
+    break;
   }
+
 
   switch (irInBuf[0].EventType) {
   case KEY_EVENT:
@@ -8577,6 +8604,20 @@ int posix_last_mouse_type = 0;
 int posix_last_mouse_x = 0;
 int posix_last_mouse_y = 0;
 
+#define SL_POSIX_ESC_TIMEOUT_MS 10
+
+static int sl_posix_read_byte(char *c, int timeout_ms) {
+  fd_set rfds;
+  struct timeval tv;
+  FD_ZERO(&rfds);
+  FD_SET(STDIN_FILENO, &rfds);
+  tv.tv_sec = timeout_ms / 1000;
+  tv.tv_usec = (timeout_ms % 1000) * 1000;
+  if (select(STDIN_FILENO + 1, &rfds, NULL, NULL, &tv) <= 0)
+    return 0;
+  return read(STDIN_FILENO, c, 1) == 1;
+}
+
 void disableRawMode() {
   const char *restore = "\x1b[?1003l\x1b[?1006l\x1b[?25h";
   write(STDOUT_FILENO, restore, strlen(restore));
@@ -8609,7 +8650,7 @@ struct SL_Variable console_raw_mode_posix_fn(struct SL_Code *code,
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
     raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1;
+    raw.c_cc[VTIME] = 0;
 
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1) {
       return_var.type = ERROR;
@@ -8946,6 +8987,11 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
   char c;
   int nread = read(STDIN_FILENO, &c, 1);
 
+  posix_last_event_type = SL_UNDEFINED_EVENT;
+  posix_last_key_pressed = 0;
+  posix_last_key_code = 0;
+  posix_last_key_mod = SL_MOD_NONE;
+
   if (nread != 1) {
     return_var.type = INTEGER;
     return_var.vali = SL_UNDEFINED_EVENT;
@@ -8954,7 +9000,7 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
 
   if (c == '\x1b') {
     char seq[3];
-    if (read(STDIN_FILENO, &seq[0], 1) != 1) {
+    if (!sl_posix_read_byte(&seq[0], SL_POSIX_ESC_TIMEOUT_MS)) {
       posix_last_event_type = SL_KEY_EVENT;
       posix_last_key_code = SL_KEY_ESCAPE;
       posix_last_key_pressed = 1;
@@ -8964,7 +9010,7 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
       return_var.vali = posix_last_event_type;
       return return_var;
     }
-    if (read(STDIN_FILENO, &seq[1], 1) != 1) {
+    if (!sl_posix_read_byte(&seq[1], SL_POSIX_ESC_TIMEOUT_MS)) {
       return_var.type = INTEGER;
       return_var.vali = SL_UNDEFINED_EVENT;
       return return_var;
@@ -8972,12 +9018,14 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
 
     if (seq[0] == '[') {
       if ((seq[1] >= '0' && seq[1] <= '9') || seq[1] == '<') {
-        char ext[32];
+        char ext[33];
         ext[0] = seq[1];
         int i = 1;
         while (i < 31) {
-          if (read(STDIN_FILENO, &ext[i], 1) != 1)
+          if (!sl_posix_read_byte(&ext[i], SL_POSIX_ESC_TIMEOUT_MS)) {
+            ext[i] = '\0';
             break;
+          }
           if (ext[i] == '~' || ext[i] == 'M' || ext[i] == 'm' ||
               (ext[i] >= 'A' && ext[i] <= 'Z'))
             break;
@@ -9114,6 +9162,24 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
       posix_last_key_pressed = 1;
       posix_last_key_mod = SL_MOD_NONE;
       switch (seq[1]) {
+      case 'A':
+        posix_last_key_code = SL_KEY_UP;
+        break;
+      case 'B':
+        posix_last_key_code = SL_KEY_DOWN;
+        break;
+      case 'C':
+        posix_last_key_code = SL_KEY_RIGHT;
+        break;
+      case 'D':
+        posix_last_key_code = SL_KEY_LEFT;
+        break;
+      case 'H':
+        posix_last_key_code = SL_KEY_HOME;
+        break;
+      case 'F':
+        posix_last_key_code = SL_KEY_END;
+        break;
       case 'P':
         posix_last_key_code = SL_KEY_F1;
         break;
@@ -9125,6 +9191,10 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
         break;
       case 'S':
         posix_last_key_code = SL_KEY_F4;
+        break;
+      default:
+        posix_last_event_type = SL_UNDEFINED_EVENT;
+        posix_last_key_pressed = 0;
         break;
       }
     }
