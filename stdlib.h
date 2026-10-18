@@ -58,6 +58,7 @@
 #include <sys/select.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/time.h>
 
 #ifdef ENABLE_NET
 #include <arpa/inet.h>
