@@ -47,7 +47,8 @@ Here are a few of them:
 - `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary. 
 - `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.  
 - `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.  
-- `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.  
+- `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
+- `pong.sl`: A two-player Pong game in the terminal.
   
 ## Platform compatibility 
   
