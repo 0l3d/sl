@@ -180,6 +180,7 @@ ifeq ($(DIST_SHARED),1)
 	$(CC) $(SHARED_LDFLAGS) -o $(DIST_LIB_DIR)/$(SHARED_FILE) $(SHARED_OBJECT) $(LDFLAGS)
 	$(STRIP_CMD) $(DIST_LIB_DIR)/$(SHARED_FILE)
 	cp sl.h $(DIST_LIB_DIR)/sl.h
+	cp stdlib.h $(DIST_LIB_DIR)/stdlib.h
 endif
 	$(ARCHIVE_CMD)
 

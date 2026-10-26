@@ -191,7 +191,7 @@ For more info PROJECT_TREE/sl.h or lib/sl.h
 
 Check the PROJECT_TREE/sl.h or lib/sl.h
 The shared library contains only the core (sl.c). The standard library is not part of it, so
-include your own stdlib.h in your program as described below.
+include your own stdlib.h in your program as described above.
  
 ++++ Raw Lexer
 Although you will most likely not need to use it, in some cases you may need to tokenize something yourself (for example, when writing HTML inside a multi-line string or using your own custom macro like expressions inside a multi-line string). In such cases, you can use SLs built-in tokenizer.  
