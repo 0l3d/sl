@@ -1960,30 +1960,21 @@ void assignment_parser(struct SL_Code *code_s, char *tokens[],
 
 int sl_then_finder(char *tokens[], enum TokenTypes *types, int current_token,
                    int max_tokens, int *then_pos) {
-  int start_pos = 0;
   int depth = 0;
+  *then_pos = -1;
+
   while (current_token < max_tokens) {
     if (tokens[current_token][0] == '(')
       depth++;
-    if (tokens[current_token][0] == ')')
+    else if (tokens[current_token][0] == ')')
       depth--;
-    if (depth > 0) {
-      current_token++;
-      continue;
-    }
-
-    if (types[current_token] == T_THEN && depth == 0) {
-      start_pos = current_token;
-      break;
+    else if (depth <= 0 && types[current_token] == T_THEN) {
+      *then_pos = current_token;
+      return 0;
     }
     current_token++;
   }
-  *then_pos = start_pos;
-
-  if (start_pos == 0) {
-    return -1;
-  }
-  return 0;
+  return -1;
 }
 
 void sl_if_parser(struct SL_Code *code_s, enum TokenTypes *types,
@@ -2127,7 +2118,10 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
                                     enum TokenTypes *types, int *current_token,
                                     int max_tokens) {
   int then_pos;
-  sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos);
+  if (sl_then_finder(tokens, types, *current_token, max_tokens, &then_pos) == -1)
+    sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
+                      "'then' NOT FOUND ON 'def' usage.",
+                      "Expected: def <name> then <code> end");
 
   int current = *current_token;
 
@@ -2425,18 +2419,25 @@ void sl_emit_call_function(struct SL_Code *code, int function_index,
 int sl_find_end(char **tokens, enum TokenTypes *types, int start,
                 int max_tokens, int branch) {
   int depth = 0;
+  int elif_then = 0;
 
   for (int i = start; i < max_tokens; i++) {
-    if (types[i] == T_IF || types[i] == T_DEF || types[i] == T_WHILE) {
-      depth++;
+    if (types[i] == T_ELIF) {
+      if (branch == 1 && depth == 0)
+        return i;
+      elif_then = 1;
+    } else if (types[i] == T_ELSE) {
+      if (branch == 1 && depth == 0)
+        return i;
+    } else if (types[i] == T_THEN) {
+      if (elif_then)
+        elif_then = 0;
+      else
+        depth++;
     } else if (types[i] == T_END) {
       if (depth == 0)
         return i;
-
       depth--;
-    } else if (branch == 1 && depth == 0 &&
-               (types[i] == T_ELSE || types[i] == T_ELIF)) {
-      return i;
     }
   }
 
