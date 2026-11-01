@@ -173,6 +173,32 @@ static void pipe_token_handler(struct SL_Code *code, int first_token,
                       "Expected: <value> |> <function>");
   }
 
+  char *stage = code->code[stage_token];
+
+  if (stage[0] == '{') {
+    int closing_brace = find_closing_brace(code->code, stage_token, end_token);
+    if (closing_brace == -1 || closing_brace + 1 != end_token) {
+      sl_throw_an_error(*code, code->code, stage_token, end_token,
+                        "UNEXPECTED PIPE BLOCK USAGE",
+                        "Expected: <value> |> $variable |> { ... }");
+    }
+    sl_compile_expression(code, first_token, operator_token);
+    compile_block_as_value(code, stage_token + 1, closing_brace);
+    return;
+  }
+
+  if (stage[0] == '$' && stage_token + 1 == end_token) {
+    sl_compile_expression(code, first_token, operator_token);
+    if (sl_get_var(code, stage + 1) == NULL) {
+      struct SL_Variable fresh = {0};
+      fresh.name = stage + 1;
+      sl_add_var(code, fresh);
+    }
+    sl_emit(code, OPCODE_STORE_VAR);
+    sl_emit(code, (uint32_t)(sl_get_var(code, stage + 1) - code->vars));
+    return;
+  }
+
   int stage_end = stage_token + 1;
   int closing_parenthesis = -1;
   if (stage_end < end_token && code->code[stage_end][0] == '(') {
