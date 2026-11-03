@@ -21,6 +21,19 @@ make
 
 ./sl # for usage string.
 ```
+
+## Available releases
+
+*(Pre-built binaries are provided, so you don't need to build from source using GitHub. You are also free to modify the source code and build it for your own platform, if supported. For the best experience, it is recommended to build from the source code included in the official releases rather than the latest development code, as each release represents a tested and working version.)*
+
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/0l3d/sl/releases)
+[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=F0F0F0)](https://github.com/0l3d/sl/releases)
+[![Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11&logoColor=white)](https://github.com/0l3d/sl/releases)
+[![FreeBSD](https://img.shields.io/badge/FreeBSD-AB2B28?logo=freebsd&logoColor=white)](https://github.com/0l3d/sl/releases)
+[![OpenBSD](https://img.shields.io/badge/OpenBSD-F2CA30?logo=openbsd&logoColor=black)](https://github.com/0l3d/sl/releases)
+[![NetBSD](https://img.shields.io/badge/NetBSD-FF6600?logo=netbsd&logoColor=white)](https://github.com/0l3d/sl/releases)
+  
+# Extra
   
 You can edit SL files with basic syntax highlighting without using an external editor:  
 ```
