@@ -526,9 +526,38 @@ static void sl_token_list_append(char ***tokens, int *total_tokens,
   (*tokens)[(*total_tokens)++] = token;
 }
 
+static char *sl_dir_of(const char *path) {
+  const char *last = NULL;
+  for (const char *p = path; *p; p++)
+    if (*p == '/' || *p == '\\')
+      last = p;
+
+  if (last == NULL)
+    return strdup(".");
+  if (last == path)
+    return strdup("/");
+
+  size_t length = (size_t)(last - path);
+  char *dir = smalloc(NULL, length + 1);
+  memcpy(dir, path, length);
+  dir[length] = '\0';
+  return dir;
+}
+
+static char *sl_import_full_path(const char *base_dir, const char *name) {
+  size_t base_length = strlen(base_dir);
+  size_t name_length = strlen(name);
+  char *full_path = smalloc(NULL, base_length + name_length + 2);
+  memcpy(full_path, base_dir, base_length);
+  full_path[base_length] = '/';
+  memcpy(full_path + base_length + 1, name, name_length + 1);
+  return full_path;
+}
+
 static int sl_expand_imports(char ***tokens, int token_count,
                              size_t malloc_size, char *special_tokens,
-                             struct SL_ImportRegistry *registry) {
+                             struct SL_ImportRegistry *registry,
+                             const char *base_dir) {
   char **source_tokens = *tokens;
 
   int has_import = 0;
@@ -580,15 +609,18 @@ static int sl_expand_imports(char ***tokens, int token_count,
     }
     current_token = last_name_token;
 
-    if (!sl_import_registry_has(registry, module_name)) {
-      sl_import_registry_add(registry, module_name);
+    char *full_path = sl_import_full_path(base_dir, module_name);
+    if (!sl_import_registry_has(registry, full_path)) {
+      sl_import_registry_add(registry, full_path);
 
       char **module_tokens = NULL;
-      int total_module_tokens = sl_lex_file(NULL, malloc_size, module_name,
+      int total_module_tokens = sl_lex_file(NULL, malloc_size, full_path,
                                             &module_tokens, special_tokens);
+      char *module_dir = sl_dir_of(full_path);
       total_module_tokens =
           sl_expand_imports(&module_tokens, total_module_tokens, malloc_size,
-                            special_tokens, registry);
+                            special_tokens, registry, module_dir);
+      free(module_dir);
 
       for (int i = 0; i < total_module_tokens; i++) {
         sl_token_list_append(&expanded_tokens, &total_expanded,
@@ -596,10 +628,10 @@ static int sl_expand_imports(char ***tokens, int token_count,
       }
       free(module_tokens);
     }
+    free(full_path);
     free(module_name);
   }
 
-  sl_import_registry_free(registry);
   expanded_tokens[total_expanded] = NULL;
   free(source_tokens);
   *tokens = expanded_tokens;
@@ -615,8 +647,10 @@ int sl_init_sl_lexer(struct SL_Code *code, size_t malloc_size,
   lexing_code = code;
   int token_count =
       sl_lex_file(code, malloc_size, file_name, bufout, special_tokens);
+  char *base_dir = sl_dir_of(file_name);
   token_count = sl_expand_imports(bufout, token_count, malloc_size,
-                                  special_tokens, &registry);
+                                  special_tokens, &registry, base_dir);
+  free(base_dir);
   lexing_code = NULL;
 
   sl_import_registry_free(&registry);
@@ -4439,7 +4473,7 @@ struct SL_Variable sl_dostr_sl_process(struct SL_Code *code_s, char *code) {
 
   struct SL_ImportRegistry registry = {0};
   count = sl_expand_imports(&code_p.code, count, SL_INIT, code_p.special_tokens,
-                            &registry);
+                            &registry, ".");
   sl_import_registry_free(&registry);
   lexing_code = NULL;
 
