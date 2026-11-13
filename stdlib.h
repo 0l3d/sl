@@ -4099,7 +4099,7 @@ struct SL_Variable byte_set_fn(struct SL_Code *code, struct SL_L_Function func,
 
 struct SL_Variable byte_size_fn(struct SL_Code *code, struct SL_L_Function func,
                                 struct SL_Function rfunc) {
-  if (func.total_arguments < 3) {
+  if (func.total_arguments < 1) {
     struct SL_Variable return_var = {0};
     return_var.type = ERROR;
     return_var.vals = "Error usage at byte.size! Not enough arguments.";

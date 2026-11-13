@@ -40,6 +40,7 @@ struct SL_Variable {
   int scope_lifetime;
   size_t length;
   int info;
+  int token_pos;
   union {
     long vali;
     double valf;

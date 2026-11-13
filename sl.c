@@ -1573,8 +1573,10 @@ static void resolve_variable(struct SL_Code *code_s, char *expression[],
         emit(code_s, OPCODE_LOAD_VAR);
         emit(code_s, (uint32_t)index);
       } else {
-        int name_pool_index = sl_add_constant(code_s, sl_copy_variable(var));
-        emit(code_s, OPCODE_LOAD_DYNAMIC_ADDED_VAR);
+		struct SL_Variable name_var = sl_copy_variable(var);
+		name_var.token_pos = *current_token;
+		int name_pool_index = sl_add_constant(code_s, name_var);
+		emit(code_s, OPCODE_LOAD_DYNAMIC_ADDED_VAR);
         emit(code_s, (uint32_t)name_pool_index);
 
         *current_token = max_tokens;
@@ -1613,8 +1615,10 @@ static void resolve_variable(struct SL_Code *code_s, char *expression[],
         }
       }
 
-      int name_pool_index = sl_add_constant(code_s, sl_copy_variable(var));
-      emit(code_s, OPCODE_CALL_DYNAMIC_LINKED_FUNC);
+	  struct SL_Variable name_var = sl_copy_variable(var);
+	  name_var.token_pos = *current_token;
+	  int name_pool_index = sl_add_constant(code_s, name_var);
+	  emit(code_s, OPCODE_CALL_DYNAMIC_LINKED_FUNC);
       emit(code_s, (uint32_t)name_pool_index);
       emit(code_s, (uint32_t)arg_count);
 
@@ -3197,7 +3201,7 @@ break;
 
       int func_idx = vm_resolve_function_constant(code, name_const_idx);
       if (func_idx == -1) {
-        int error_token = find_token_by_name(code, func_name);
+        int error_token = code->constant_pool[name_const_idx].token_pos;
         sl_vm_error(
             code, (uint32_t)error_token, "FUNCTION NOT FOUND!",
             "Expected: Create a function first (variables need a '$' prefix).");
@@ -3228,7 +3232,7 @@ break;
         snprintf(error_message, sizeof(error_message),
                  "VARIABLE NOT FOUND! (%s)", var_name);
 
-        int error_token = find_token_by_name(code, var_name);
+        int error_token = name_constant->token_pos;
         sl_vm_error(code, (uint32_t)error_token, error_message,
                     "Expected: Define a variable first.");
       }
