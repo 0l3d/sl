@@ -1437,6 +1437,7 @@ void sl_clean_local_scope(struct SL_Code *code, int starting_var_index,
 void compile_sl_function_call(struct SL_Code *code, const char *name,
                               char **tokens, enum TokenTypes *types,
                               int current_token, int max_tokens) {
+  int call_token = current_token;
   int function_number = -1;
   char *rawfunc = get_raw_function_name(name);
   unsigned long hash = sl_hash_string(name);
@@ -1486,6 +1487,10 @@ void compile_sl_function_call(struct SL_Code *code, const char *name,
                 sl_hash_string(function_name);
             free(function_name);
           } else {
+			if (how_much_go >= function.total_arguments)
+              sl_throw_an_error(*code, tokens, call_token, max_tokens,
+                                "TOO MANY ARGUMENTS!",
+                                "Expected: remove the extra arguments or declare '...'.");
             sl_expression_solver(code, tokens, types, &current_token, commapos);
             code->frame.vars[code->frame.total_vars].name = NULL;
 
@@ -1502,20 +1507,25 @@ void compile_sl_function_call(struct SL_Code *code, const char *name,
       }
     }
   } else if (function.total_arguments == 0) {
-    while (current_token < max_tokens) {
-      if (current_token != max_tokens - 1 &&
-          tokens[current_token + 1][0] == '(' &&
-          tokens[current_token + 2][0] == ')') {
-        current_token += 2;
-        break;
-      }
-    }
+	if (tokens[current_token + 1] && tokens[current_token + 2] &&
+        tokens[current_token + 2][0] != ')')
+		sl_throw_an_error(*code, tokens, call_token, max_tokens,
+                        "TOO MANY ARGUMENTS!",
+                        "Expected: this function takes no arguments.");
   }
   if (function.linked_function == 1) {
     emit(code, OPCODE_CALL_LINKED_FUNC);
     emit(code, (uint32_t)function_number);
     emit(code, (uint32_t)how_much_go);
   } else {
+	if (how_much_go < function.total_arguments)
+		sl_throw_an_error(*code, tokens, call_token, max_tokens,
+                      "NOT ENOUGH ARGUMENTS!",
+                      "Expected: pass all the arguments declared with 'def'.");
+	if (!function.vaargs && how_much_go > function.total_arguments)
+		sl_throw_an_error(*code, tokens, call_token, max_tokens,
+                      "TOO MANY ARGUMENTS!",
+                      "Expected: remove the extra arguments or declare '...'.");
     emit(code, OPCODE_FUNC_CALL);
     emit(code, (uint32_t)function_number);
     emit(code, (uint32_t)how_much_go);
@@ -2186,7 +2196,7 @@ struct SL_Function sl_define_parser(struct SL_Code *code_s, char *tokens[],
       return function;
     while (types[current] != T_THEN) {
       if (strcmp(tokens[current], "...") == 0) {
-        if (!types[current + 1] || types[current + 1] == T_THEN)
+        if (!types[current + 1] || types[current + 1] != T_THEN)
           sl_throw_an_error(*code_s, tokens, *current_token, max_tokens,
                             "EXPECTED 'then' AFTER '...'",
                             "Expected: def <function_name> -> <argument_name>, "
@@ -2614,8 +2624,31 @@ static void sl_vm_error(struct SL_Code *code, uint32_t token_idx,
   exit(-1);
 }
 
+static int find_token_by_name(struct SL_Code *code, const char *name);
+
 static void vm_enter_function(struct SL_Code *code, uint32_t func_idx,
                               uint32_t arg_count, size_t *pc) {
+  {
+    struct SL_Function *fn = &code->funcs[func_idx];
+    int expected = fn->total_arguments;
+
+    if ((int)arg_count < expected) {
+      static char msg[160];
+      snprintf(msg, sizeof(msg),
+               "NOT ENOUGH ARGUMENTS for '%s': expected %s%d, got %u",
+               fn->name, fn->vaargs ? "at least " : "", expected, arg_count);
+      sl_vm_error(code, (uint32_t)find_token_by_name(code, fn->name), msg,
+                  "Expected: pass all the arguments declared with 'def'.");
+    }
+    if (!fn->vaargs && (int)arg_count > expected) {
+      static char msg[160];
+      snprintf(msg, sizeof(msg),
+               "TOO MANY ARGUMENTS for '%s': expected %d, got %u",
+               fn->name, expected, arg_count);
+      sl_vm_error(code, (uint32_t)find_token_by_name(code, fn->name), msg,
+                  "Expected: remove the extra arguments or declare '...'.");
+    }
+  }
   if (code->obj.call_frame_size >= code->obj.call_frame_capacity) {
     code->obj.call_frame_capacity = (code->obj.call_frame_capacity == 0)
                                         ? SL_INIT
@@ -2959,6 +2992,18 @@ static inline void vm_push_variable_value(struct SL_Code *code,
   } else if (source->type == BYTES && source->vals != NULL) {
     slot->vals = sl_bytes_copy(source->vals, source->length);
   }
+}
+
+static void vm_check_zero_divisor(struct SL_Code *code) {
+  if (code->obj.stack_size < 1)
+    return;
+  struct SL_Variable *r = &code->obj.stack[code->obj.stack_size - 1];
+  int zero = (r->type == INTEGER && r->vali == 0) ||
+             (r->type == DOUBLE && r->valf == 0) ||
+             (r->type == LONG && r->valh == 0);
+  if (zero)
+    sl_vm_error(code, (uint32_t)-1, "DIVISION BY ZERO!",
+                "Expected: a non-zero divisor.");
 }
 
 static void vm_loop(struct SL_Code *code, size_t pc) {
@@ -3375,6 +3420,7 @@ break;
     }
 
     case OPCODE_DIV: {
+	  vm_check_zero_divisor(code);
       VM_FAST_DIVISION
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
@@ -3409,6 +3455,7 @@ break;
     }
 
     case OPCODE_MOD: {
+	  vm_check_zero_divisor(code);
       VM_FAST_MODULO
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);

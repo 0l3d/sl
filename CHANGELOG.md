@@ -2,4 +2,6 @@
 Release name follows the 2.0.x release family.  
   
 ## Release Notes
-- Bug Fixes and Relative path for import keyword.
+- More error messages for VM.
+- Division by zero error message.
+- Bug fixes.
