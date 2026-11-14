@@ -175,6 +175,8 @@ struct SL_Code {
   int constant_pool_len;
   int constant_pool_capacity;
   int disassemble;
+  int *pc_tokens;
+  int emit_token;
 };
 
 /* Virtual Machine */

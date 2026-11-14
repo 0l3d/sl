@@ -45,7 +45,12 @@ void emit(struct SL_Code *code, uint32_t value) {
     code->bytecode_capacity += SL_REALLOC_DEFAULT;
     code->bytecode = srealloc(NULL, code->bytecode,
                               code->bytecode_capacity * sizeof(uint32_t));
+    if (code->pc_tokens != NULL)
+      code->pc_tokens = srealloc(NULL, code->pc_tokens,
+                                 code->bytecode_capacity * sizeof(int));
   }
+  if (code->pc_tokens != NULL)
+    code->pc_tokens[code->bytecode_len] = code->emit_token;
   code->bytecode[code->bytecode_len++] = value;
 }
 
@@ -1666,8 +1671,11 @@ static int try_emit_increment(struct SL_Code *code_s, char *expression[],
     return 0;
   }
 
+  int inc_saved = code_s->emit_token;
+  code_s->emit_token = current_token;
   emit(code_s, is_plus ? OPCODE_INC_VAR : OPCODE_DEC_VAR);
   emit(code_s, (uint32_t)variable_index);
+  code_s->emit_token = inc_saved;
   return 1;
 }
 
@@ -1729,8 +1737,11 @@ void sl_expression_solver(struct SL_Code *code_s, char *expression[],
   }
 
   if (tree.custom_index != -1) {
+    int custom_saved = code_s->emit_token;
+    code_s->emit_token = tree.op_pos;
     code_s->custom_tokenr[tree.custom_index](code_s, *current_token,
                                              tree.op_pos, max_tokens);
+    code_s->emit_token = custom_saved;
     *current_token = max_tokens;
     return;
   }
@@ -1745,7 +1756,10 @@ void sl_expression_solver(struct SL_Code *code_s, char *expression[],
   sl_expression_solver(code_s, expression, types, &right_pos_start,
                        right_pos_end);
 
+  int saved_token = code_s->emit_token;
+  code_s->emit_token = tree.op_pos;
   expression_solver(code_s, tree.op, tree.op_type, tree.is_op_type);
+  code_s->emit_token = saved_token;
 
   *current_token = max_tokens;
   return;
@@ -2727,8 +2741,10 @@ static const char *vm_type_name(enum SL_Types type) {
   return "UNKNOWN";
 }
 
+static uint32_t vm_token_at(struct SL_Code *code, size_t pc);
+
 static void vm_prepare_operands(struct SL_Code *code, struct SL_Variable *left,
-                                struct SL_Variable *right) {
+                                struct SL_Variable *right, size_t pc) {
   if (left->type == DOUBLE && right->type == INTEGER) {
     right->valf = (double)right->vali;
     right->type = DOUBLE;
@@ -2745,13 +2761,14 @@ static void vm_prepare_operands(struct SL_Code *code, struct SL_Variable *left,
   snprintf(error_message, sizeof(error_message),
            "Type mismatch: cannot operate between %s and %s",
            vm_type_name(left->type), vm_type_name(right->type));
-  sl_vm_error(code, (uint32_t)-1, error_message,
+  sl_vm_error(code, vm_token_at(code, pc), error_message,
               "Ensure that the variables you are trying to operate on "
               "(String and Integer) are compatible with each other.");
 }
 
 static void vm_push_stepped_variable(struct SL_Code *code, uint32_t var_idx,
-                                     int step, const char *opcode_name) {
+                                     int step, const char *opcode_name,
+                                     size_t pc) {
   struct SL_Variable variable = code->vars[var_idx];
 
   if (variable.type == INTEGER) {
@@ -2763,7 +2780,7 @@ static void vm_push_stepped_variable(struct SL_Code *code, uint32_t var_idx,
     snprintf(error_message, sizeof(error_message),
              "Type mismatch: %s expects INTEGER or DOUBLE, got %s", opcode_name,
              vm_type_name(variable.type));
-    sl_vm_error(code, (uint32_t)-1, error_message,
+    sl_vm_error(code, vm_token_at(code, pc), error_message,
                 "Ensure that the variable you are incrementing or "
                 "decrementing is a number.");
   }
@@ -2998,7 +3015,13 @@ static inline void vm_push_variable_value(struct SL_Code *code,
   }
 }
 
-static void vm_check_zero_divisor(struct SL_Code *code) {
+static uint32_t vm_token_at(struct SL_Code *code, size_t pc) {
+  if (code->pc_tokens == NULL || pc >= code->bytecode_len)
+    return (uint32_t)-1;
+  return (uint32_t)code->pc_tokens[pc];
+}
+
+static void vm_check_zero_divisor(struct SL_Code *code, size_t pc) {
   if (code->obj.stack_size < 1)
     return;
   struct SL_Variable *r = &code->obj.stack[code->obj.stack_size - 1];
@@ -3006,7 +3029,7 @@ static void vm_check_zero_divisor(struct SL_Code *code) {
              (r->type == DOUBLE && r->valf == 0) ||
              (r->type == LONG && r->valh == 0);
   if (zero)
-    sl_vm_error(code, (uint32_t)-1, "DIVISION BY ZERO!",
+    sl_vm_error(code, vm_token_at(code, pc), "DIVISION BY ZERO!",
                 "Expected: a non-zero divisor.");
 }
 
@@ -3021,7 +3044,6 @@ uint32_t const_idx = code->bytecode[pc++];
 push(code, copy_value_without_name(code->fixed_values[const_idx]));
 break;
 } OLD USAGE -> 3151 */
-
     case OPCODE_LOAD_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
       vm_push_variable_value(code, &code->vars[var_idx]);
@@ -3030,13 +3052,13 @@ break;
 
     case OPCODE_INC_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
-      vm_push_stepped_variable(code, var_idx, 1, "INC");
+      vm_push_stepped_variable(code, var_idx, 1, "INC", pc - 2);
       break;
     }
 
     case OPCODE_DEC_VAR: {
       uint32_t var_idx = code->bytecode[pc++];
-      vm_push_stepped_variable(code, var_idx, -1, "DEC");
+      vm_push_stepped_variable(code, var_idx, -1, "DEC", pc - 2);
       break;
     }
 
@@ -3311,7 +3333,7 @@ break;
       VM_FAST_ARITHMETIC(+)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
 
       result.type = left.type;
@@ -3367,7 +3389,7 @@ break;
       VM_FAST_ARITHMETIC(-)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
 
       result.type = left.type;
@@ -3397,7 +3419,7 @@ break;
       VM_FAST_ARITHMETIC(*)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
 
       result.type = left.type;
@@ -3424,11 +3446,11 @@ break;
     }
 
     case OPCODE_DIV: {
-	  vm_check_zero_divisor(code);
+	  vm_check_zero_divisor(code, pc - 1);
       VM_FAST_DIVISION
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
 
       result.type = left.type;
@@ -3459,11 +3481,11 @@ break;
     }
 
     case OPCODE_MOD: {
-	  vm_check_zero_divisor(code);
+	  vm_check_zero_divisor(code, pc - 1);
       VM_FAST_MODULO
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3480,7 +3502,7 @@ break;
     case OPCODE_BAND: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3496,7 +3518,7 @@ break;
     case OPCODE_BOR: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3512,7 +3534,7 @@ break;
     case OPCODE_XOR: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3528,7 +3550,7 @@ break;
     case OPCODE_SHR: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3544,7 +3566,7 @@ break;
     case OPCODE_SHL: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {0};
       result.type = left.type;
       if (left.type == INTEGER)
@@ -3562,7 +3584,7 @@ break;
       VM_FAST_COMPARISON(>)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali > right.vali;
@@ -3580,7 +3602,7 @@ break;
       VM_FAST_COMPARISON(<)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali < right.vali;
@@ -3598,7 +3620,7 @@ break;
       VM_FAST_COMPARISON(==)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali == right.vali;
@@ -3627,7 +3649,7 @@ break;
       VM_FAST_COMPARISON(!=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali != right.vali;
@@ -3656,7 +3678,7 @@ break;
       VM_FAST_COMPARISON(>=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali >= right.vali;
@@ -3674,7 +3696,7 @@ break;
       VM_FAST_COMPARISON(<=)
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali <= right.vali;
@@ -3691,7 +3713,7 @@ break;
     case OPCODE_LAND: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali && right.vali;
@@ -3706,7 +3728,7 @@ break;
     case OPCODE_LOR: {
       struct SL_Variable right = pop(code);
       struct SL_Variable left = pop(code);
-      vm_prepare_operands(code, &left, &right);
+      vm_prepare_operands(code, &left, &right, pc - 1);
       struct SL_Variable result = {.type = BOOLEAN};
       if (left.type == INTEGER)
         result.valb = left.vali || right.vali;
@@ -4207,6 +4229,8 @@ struct SL_Code sl_init_sl_process() {
   code.constant_pool_len = 0;
   code.constant_pool_capacity = 0;
   code.disassemble = 0;
+  code.pc_tokens = scalloc(NULL, SL_INIT, sizeof(int));
+  code.emit_token = -1;
   return code;
 }
 
@@ -4588,6 +4612,8 @@ int sl_close_sl_process(struct SL_Code *code) {
 
   if (code->bytecode != NULL) {
     free(code->bytecode);
+    free(code->pc_tokens);
+    code->pc_tokens = NULL;
     code->bytecode = NULL;
     code->bytecode_len = 0;
   }
@@ -5364,6 +5390,8 @@ int sl_load_slx(struct SL_Code *code, const char *file_name) {
   }
 
   free(code->bytecode);
+  free(code->pc_tokens);
+  code->pc_tokens = NULL;
   code->bytecode = bytecode;
   code->bytecode_len = bytecode_len;
   code->bytecode_capacity = bytecode_len + SL_REALLOC_DEFAULT;
