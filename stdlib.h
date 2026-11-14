@@ -454,6 +454,18 @@ void list_garbage_collector(struct SL_Code code) {
     }
   }
 
+  for (int i = 0; i < code.frame.total_vars; i++) {
+    if (code.frame.vars[i].info == SL_LIST) {
+      mark_list(code.frame.vars[i].vali);
+    }
+  }
+
+  for (size_t i = 0; i < code.obj.stack_size; i++) {
+    if (code.obj.stack[i].info == SL_LIST) {
+      mark_list(code.obj.stack[i].vali);
+    }
+  }
+
   for (int i = 0; i < LISTS_count; i++) {
     if (LISTS[i].still_reachable == 0) {
       list_free(i);
