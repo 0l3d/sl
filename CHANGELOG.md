@@ -3,4 +3,4 @@ Release name follows the 2.0.x release family.
   
 ## Release Notes
 - Several stdlib fixes.
-- More intelligent errors.
+- Extra editor features.

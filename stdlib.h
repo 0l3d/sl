@@ -8645,6 +8645,20 @@ int posix_last_mouse_y = 0;
 
 #define SL_POSIX_ESC_TIMEOUT_MS 10
 
+static int sl_posix_decode_mod(int xterm_mod) {
+  int m = xterm_mod - 1;
+  int mods = SL_MOD_NONE;
+  if (m < 0)
+    return mods;
+  if (m & 1)
+    mods |= SL_MOD_SHIFT;
+  if (m & 2)
+    mods |= SL_MOD_ALT;
+  if (m & 4)
+    mods |= SL_MOD_CTRL;
+  return mods;
+}
+
 static int sl_posix_read_byte(char *c, int timeout_ms) {
   fd_set rfds;
   struct timeval tv;
@@ -9109,7 +9123,10 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
             return return_var;
           }
 
-          if (*endptr != '\0' && *endptr != '~') {
+          if (*endptr == ';') {
+            posix_last_key_mod =
+                sl_posix_decode_mod((int)strtol(endptr + 1, NULL, 10));
+          } else if (*endptr != '\0' && *endptr != '~') {
             return_var.type = INTEGER;
             return_var.vali = SL_UNDEFINED_EVENT;
             return return_var;
@@ -9165,6 +9182,49 @@ struct SL_Variable console_get_event_posix_fn(struct SL_Code *code,
             break;
           case 24:
             posix_last_key_code = SL_KEY_F12;
+            break;
+          }
+        } else if (ext[i] >= 'A' && ext[i] <= 'Z' && ext[0] != '<') {
+          int num = 1;
+          int modv = 1;
+          sscanf(ext, "%d;%d", &num, &modv);
+          posix_last_event_type = SL_KEY_EVENT;
+          posix_last_key_pressed = 1;
+          posix_last_key_mod = sl_posix_decode_mod(modv);
+          switch (ext[i]) {
+          case 'A':
+            posix_last_key_code = SL_KEY_UP;
+            break;
+          case 'B':
+            posix_last_key_code = SL_KEY_DOWN;
+            break;
+          case 'C':
+            posix_last_key_code = SL_KEY_RIGHT;
+            break;
+          case 'D':
+            posix_last_key_code = SL_KEY_LEFT;
+            break;
+          case 'H':
+            posix_last_key_code = SL_KEY_HOME;
+            break;
+          case 'F':
+            posix_last_key_code = SL_KEY_END;
+            break;
+          case 'P':
+            posix_last_key_code = SL_KEY_F1;
+            break;
+          case 'Q':
+            posix_last_key_code = SL_KEY_F2;
+            break;
+          case 'R':
+            posix_last_key_code = SL_KEY_F3;
+            break;
+          case 'S':
+            posix_last_key_code = SL_KEY_F4;
+            break;
+          default:
+            posix_last_event_type = SL_UNDEFINED_EVENT;
+            posix_last_key_pressed = 0;
             break;
           }
         }

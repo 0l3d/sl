@@ -12,7 +12,13 @@ var indicator_foreground = $COLOR_BLACK
 
 # Keyword color
 var keyword_highlighting = $COLOR_MAGENTA
+
+# Variable ($name) color
 var variable_highlighting = $COLOR_YELLOW
+
+# Selection colors
+var selection_background = $COLOR_WHITE
+var selection_foreground = $COLOR_BLACK
 
 # Page DOWN/UP Size 
 var scroll = 20
@@ -30,6 +36,7 @@ var background_color_enabled = false
 
 var file_name = sys.get_arg(2)
 var sl_runtime = sys.get_arg(0)
+var highlight_vars = false
 if errors.bool($file_name) then
     $file_name = "test.sl"
 end
@@ -40,6 +47,7 @@ if $enable_highlighting then
     if not(errors.bool($ext)) then
         var exts = List.get($ext, List.len($ext) - 1)
         if $exts equ "sl" or $exts equ "SL" then
+            $highlight_vars = true
             List.push(
             $sl_highlighting,
             "var",
@@ -136,12 +144,32 @@ var rendering_end_line = $rendering_start_line + $total_renderable
 var actual_y = $rendering_start_line + $cursor_y
 var actual_x = 0
 
+var view_x = 0
+var view_col = 0
+var scr_x = 0
+var need_full = false
+var sel_on = false
+var sel_drawn = false
+var sel_ay = 0
+var sel_ax = 0
+var sel_sy = 0
+var sel_sx = 0
+var sel_ey = 0
+var sel_ex = 0
+var clip = List.new()
+var search_mode = false
+var search_buf = ""
+var search_query = ""
+
 def render_indicator then
     console.cursor_position(0, $screen_height)
     console.clear_line()
     console.background_color($indicator_background)
     console.foreground_color($indicator_foreground)
 
+    if $search_mode then
+        io.print(" SEARCH: ", $search_buf, "_  | Enter: find next | Esc: cancel")
+    else
     io.print(
         "CURSOR x:",
         $cursor_x,
@@ -155,6 +183,7 @@ def render_indicator then
         time.string("%H:%M"),
 		" | F2 for Help "
     )
+    end
 
     console.reset_color()
 end
@@ -198,6 +227,162 @@ def update_cursor_x then
     $cursor_x = $cx
 end
 
+def str_part -> s, a, b then
+    if $b > $a then
+        var r = string.slice($s, $a, $b)
+        if errors.bool($r) then
+            return ""
+        end
+        return $r
+    end
+    return ""
+end
+
+def col_at -> n then
+    var cx = 0
+    var i = 0
+    var buf_len = string.len($buffer)
+    if errors.bool($buf_len) then
+        $buf_len = 0
+    end
+    var limit = $n
+    if $limit > $buf_len then
+        $limit = $buf_len
+    end
+    while $i < $limit then
+        var c = string.char_at($buffer, $i)
+        var cs = types.char_to_str($c)
+        if $cs equ "\t" then
+            var next_tab_stop = $cx + 4
+            var remainder = $next_tab_stop % 8
+            if $remainder neq 0 then
+                $cx = $next_tab_stop + (8 - $remainder)
+            else
+                $cx = $next_tab_stop
+            end
+        else
+            $cx = $cx + 1
+        end
+        $i = $i + 1
+    end
+    return $cx
+end
+
+def cur_line then
+    var l = List.get($lines, $rendering_start_line + $cursor_y)
+    if errors.bool($l) then
+        return ""
+    end
+    return $l
+end
+
+def set_line -> idx, text then
+    if errors.bool(List.set($lines, $idx, $text)) then
+        List.push($lines, $text)
+    end
+    return 0
+end
+
+def goto_pos -> y, x then
+    if $y < $rendering_start_line or $y eqg $rendering_start_line + $total_renderable then
+        var st = $y - ($total_renderable / 2)
+        if $st < 0 then
+            $st = 0
+        end
+        $rendering_start_line = $st
+        $rendering_end_line = $st + $total_renderable
+    end
+    $cursor_y = $y - $rendering_start_line
+    $actual_x = $x
+    $buffer = cur_line()
+    update_cursor_x()
+    $need_full = true
+    return 0
+end
+
+def fix_hscroll then
+    $buffer = cur_line()
+    update_cursor_x()
+    var old_view = $view_x
+    if $actual_x < $view_x then
+        $view_x = $actual_x - 10
+        if $view_x < 0 then
+            $view_x = 0
+        end
+    end
+    var diff = $cursor_x - col_at($view_x)
+    if $diff eqg $screen_width then
+        $view_x = $actual_x - $screen_width + 11
+        if $view_x > $actual_x then
+            $view_x = $actual_x
+        end
+        if $view_x < 0 then
+            $view_x = 0
+        end
+        $diff = $cursor_x - col_at($view_x)
+        while $diff eqg $screen_width and $view_x < $actual_x then
+            $view_x = $view_x + 1
+            $diff = $cursor_x - col_at($view_x)
+        end
+    end
+    $view_col = col_at($view_x)
+    $scr_x = $cursor_x - $view_col
+    if $old_view neq $view_x then
+        $smellslikeyouchangedsomethingspirit = 2
+    end
+    return 0
+end
+
+def sel_normalize then
+    if $sel_on then
+        var cy = $rendering_start_line + $cursor_y
+        var anchor_first = false
+        if $sel_ay < $cy then
+            $anchor_first = true
+        elif $sel_ay equ $cy then
+            if $sel_ax < $actual_x then
+                $anchor_first = true
+            end
+        end
+        if $anchor_first then
+            $sel_sy = $sel_ay
+            $sel_sx = $sel_ax
+            $sel_ey = $cy
+            $sel_ex = $actual_x
+        else
+            $sel_sy = $cy
+            $sel_sx = $actual_x
+            $sel_ey = $sel_ay
+            $sel_ex = $sel_ax
+        end
+        if $sel_sy equ $sel_ey and $sel_sx equ $sel_ex then
+            $sel_on = false
+        end
+    end
+    return 0
+end
+
+def tok_kind -> tok then
+    if $highlight_vars then
+        if types.char_to_int(string.char_at($tok, 0)) equ 36 then
+            return 2
+        end
+    end
+    if types.is_int(List.find($sl_highlighting, $tok)) then
+        return 1
+    end
+    return 0
+end
+
+def set_token_color -> kind then
+    if $kind equ 2 then
+        console.foreground_color($variable_highlighting)
+    else
+        console.foreground_color($keyword_highlighting)
+    end
+    return 0
+end
+
 def render_highlighted -> str then 
     var string_indexer = 0 
     var string_len = string.len($str)
@@ -216,12 +401,13 @@ def render_highlighted -> str then
 
         if $is_delimiter then
             if string.len($temp_buffer) > 0 then
-                if types.is_int(List.find($sl_highlighting, $temp_buffer)) then
+                var tk = tok_kind($temp_buffer)
+                if $tk > 0 then
                     if string.len($print_buffer) > 0 then
                         io.print($print_buffer)
                         $print_buffer = ""
                     end
-                    console.foreground_color($keyword_highlighting)
+                    set_token_color($tk)
                     io.print($temp_buffer)
                     
                     console.reset_color()
@@ -243,12 +429,13 @@ def render_highlighted -> str then
     end
     
     if string.len($temp_buffer) > 0 then
-        if types.is_int(List.find($sl_highlighting, $temp_buffer)) then
+        var tk = tok_kind($temp_buffer)
+        if $tk > 0 then
             if string.len($print_buffer) > 0 then
                 io.print($print_buffer)
                 $print_buffer = ""
             end
-            console.foreground_color($keyword_highlighting)
+            set_token_color($tk)
             io.print($temp_buffer)
             console.reset_color()
             if $background_color_enabled then
@@ -264,6 +451,59 @@ def render_highlighted -> str then
     end
 end
 
+def out_text -> s then
+    if string.len($s) > 0 then
+        if $enable_highlighting then
+            render_highlighted($s)
+        else
+            io.print($s)
+        end
+    end
+    return 0
+end
+
+def draw_line -> line, y then
+    var n = string.len($line)
+    var a = 0
+    var b = 0
+    if $sel_on then
+        if $y eqg $sel_sy and $y eql $sel_ey then
+            if $y equ $sel_sy then
+                $a = $sel_sx
+            end
+            if $y equ $sel_ey then
+                $b = $sel_ex
+            else
+                $b = $n
+            end
+        end
+    end
+    if $b > $a then
+        var s1 = $a
+        if $s1 < $view_x then
+            $s1 = $view_x
+        end
+        var s2 = $b
+        if $s2 < $view_x then
+            $s2 = $view_x
+        end
+        out_text(str_part($line, $view_x, $a))
+        if $b > $s1 then
+            console.background_color($selection_background)
+            console.foreground_color($selection_foreground)
+            io.print(str_part($line, $s1, $b))
+            console.reset_color()
+            if $background_color_enabled then
+                console.background_color($background_color)
+            end
+        end
+        out_text(str_part($line, $s2, $n))
+    else
+        out_text(str_part($line, $view_x, $n))
+    end
+    return 0
+end
+
 def line_renderer -> all then
     var i = $rendering_start_line
     var screen_y = 0
@@ -277,11 +517,7 @@ def line_renderer -> all then
             console.clear_line()             
             var line = List.get($lines, $i)
             if not(errors.bool($line)) then
-                if $enable_highlighting then 
-                    render_highlighted($line) 
-                else 
-                    io.print($line)
-                end
+                draw_line($line, $i)
             end
             
             
@@ -295,11 +531,7 @@ def line_renderer -> all then
         console.clear_line()         
         var line = List.get($lines, $actual_y)
         if not(errors.bool($line)) then
-            if $enable_highlighting then 
-                render_highlighted($line) 
-            else 
-                io.print($line)
-            end
+            draw_line($line, $actual_y)
         end
     end
 end
@@ -308,6 +540,14 @@ def render_screen then
     console.begin_update()
     
     console.cursor_visibility(false)
+
+    fix_hscroll()
+    sel_normalize()
+    if $sel_on or $sel_drawn or $need_full then
+        $smellslikeyouchangedsomethingspirit = 2
+    end
+    $sel_drawn = $sel_on
+    $need_full = false
     
     if $smellslikeyouchangedsomethingspirit > 0 then
         line_renderer($smellslikeyouchangedsomethingspirit)
@@ -316,8 +556,8 @@ def render_screen then
 
     render_indicator()
     
-    if $cursor_x < $screen_width and $cursor_y < $screen_height then
-        console.cursor_position($cursor_x, $cursor_y)
+    if $scr_x < $screen_width and $cursor_y < $screen_height then
+        console.cursor_position($scr_x, $cursor_y)
     else
         console.cursor_position(0, $screen_height - 1)
     end
@@ -567,6 +807,222 @@ def ascii_entered_middle -> charkey, length then
 end
 
 
+def insert_line_at -> idx, text then
+    List.push($lines, "")
+    var i = List.len($lines) - 1
+    while $i > $idx then
+        var prev_val = List.get($lines, $i - 1)
+        List.set($lines, $i, $prev_val)
+        $i = $i - 1
+    end
+    List.set($lines, $idx, $text)
+    return 0
+end
+
+def sel_delete then
+    sel_normalize()
+    if $sel_on then
+        var first_line = List.get($lines, $sel_sy)
+        var last_line = List.get($lines, $sel_ey)
+        if errors.bool($first_line) then
+            $first_line = ""
+        end
+        if errors.bool($last_line) then
+            $last_line = ""
+        end
+        var left_part = str_part($first_line, 0, $sel_sx)
+        var right_part = str_part($last_line, $sel_ex, string.len($last_line))
+        set_line($sel_sy, $left_part + $right_part)
+        var k = $sel_ey
+        while $k > $sel_sy then
+            List.remove($lines, $k)
+            $k = $k - 1
+        end
+        $sel_on = false
+        goto_pos($sel_sy, $sel_sx)
+    end
+    return 0
+end
+
+def sel_copy then
+    sel_normalize()
+    if $sel_on then
+        $clip = List.new()
+        var y = $sel_sy
+        while $y eql $sel_ey then
+            var l = List.get($lines, $y)
+            if errors.bool($l) then
+                $l = ""
+            end
+            var a = 0
+            var b = string.len($l)
+            if $y equ $sel_sy then
+                $a = $sel_sx
+            end
+            if $y equ $sel_ey then
+                $b = $sel_ex
+            end
+            List.push($clip, str_part($l, $a, $b))
+            $y = $y + 1
+        end
+        $status_message = "Copied " + types.int_to_str(List.len($clip)) + " line(s) to editor buffer."
+    else
+        $status_message = "Nothing selected."
+    end
+    return 0
+end
+
+def clip_paste then
+    var n = List.len($clip)
+    if $n equ 0 then
+        $status_message = "Editor buffer is empty."
+        return 0
+    end
+    if $sel_on then
+        sel_delete()
+    end
+    var cy = $rendering_start_line + $cursor_y
+    var cur = cur_line()
+    var left_part = str_part($cur, 0, $actual_x)
+    var right_part = str_part($cur, $actual_x, string.len($cur))
+    var first_piece = List.get($clip, 0)
+    if $n equ 1 then
+        set_line($cy, $left_part + $first_piece + $right_part)
+        goto_pos($cy, $actual_x + string.len($first_piece))
+    else
+        set_line($cy, $left_part + $first_piece)
+        var k = 1
+        while $k < $n then
+            var piece = List.get($clip, $k)
+            if $k equ $n - 1 then
+                insert_line_at($cy + $k, $piece + $right_part)
+            else
+                insert_line_at($cy + $k, $piece)
+            end
+            $k = $k + 1
+        end
+        goto_pos($cy + $n - 1, string.len(List.get($clip, $n - 1)))
+    end
+    $need_full = true
+    $status_message = "Pasted."
+    return 0
+end
+
+def find_in_line -> line, query, start_x then
+    var ll = string.len($line)
+    var ql = string.len($query)
+    if $ql equ 0 or $ql > $ll then
+        return 0 - 1
+    end
+    var i = $start_x
+    while $i + $ql eql $ll then
+        var j = 0
+        var same = true
+        while $j < $ql and $same then
+            if types.char_to_int(string.char_at($line, $i + $j)) neq types.char_to_int(string.char_at($query, $j)) then
+                $same = false
+            end
+            $j = $j + 1
+        end
+        if $same then
+            return $i
+        end
+        $i = $i + 1
+    end
+    return 0 - 1
+end
+
+def search_next then
+    var total = List.len($lines)
+    var y = $rendering_start_line + $cursor_y
+    var start_x = $actual_x + 1
+    if $sel_on then
+        $start_x = $actual_x
+    end
+    var n = 0
+    while $n eql $total then
+        var l = List.get($lines, $y)
+        if not(errors.bool($l)) then
+            var hit = find_in_line($l, $search_query, $start_x)
+            if $hit eqg 0 then
+                goto_pos($y, $hit + string.len($search_query))
+                $sel_ay = $y
+                $sel_ax = $hit
+                $sel_on = true
+                $status_message = "Found: " + $search_query
+                return 0
+            end
+        end
+        $y = $y + 1
+        if $y eqg $total then
+            $y = 0
+        end
+        $start_x = 0
+        $n = $n + 1
+    end
+    $status_message = "Not found: " + $search_query
+    return 0
+end
+
+def search_open then
+    $search_mode = true
+    $search_buf = ""
+    return 0
+end
+
+def search_cancel then
+    $search_mode = false
+    $status_message = "Search cancelled."
+    return 0
+end
+
+def search_commit then
+    $search_mode = false
+    if string.len($search_buf) > 0 then
+        $search_query = $search_buf
+    end
+    if string.len($search_query) equ 0 then
+        $status_message = "Search cancelled."
+    else
+        search_next()
+    end
+    return 0
+end
+
+def search_backspace then
+    var n = string.len($search_buf)
+    if $n > 0 then
+        $search_buf = str_part($search_buf, 0, $n - 1)
+    end
+    return 0
+end
+
+def search_key -> ckey, mod then
+    if types.is_char($ckey) then
+        var code = types.char_to_int($ckey)
+        if $code equ 13 or $code equ 10 then
+            search_commit()
+        elif $code equ 27 then
+            search_cancel()
+        elif $code equ 8 or $code equ 127 then
+            search_backspace()
+        elif $code equ 102 and $mod equ $MOD_CTRL then
+            search_cancel()
+        elif $code eqg 32 and $mod neq $MOD_CTRL then
+            $search_buf = $search_buf + types.char_to_str($ckey)
+        end
+    else
+        if $ckey equ $KEY_ENTER or $ckey equ $KEY_F3 then
+            search_commit()
+        elif $ckey equ $KEY_BACKSPACE then
+            search_backspace()
+        elif $ckey equ $KEY_ESCAPE then
+            search_cancel()
+        end
+    end
+    return 0
+end
+
 def change_window_reset then 
 	console.reset_scroll_area()
 	console.leave_alt_screen()
@@ -588,6 +1044,13 @@ def editor_help then
 	io.print("\n", 
 	"CTRL + S -> Save \n",
 	"CTRL + Q -> Quit \n",
+	"CTRL + F -> Search (Enter: find next, Esc: cancel) \n",
+	"F3 -> Find next \n",
+	"SHIFT + ARROWS / HOME / END / PAGE -> Select \n",
+	"CTRL + C -> Copy selection (editor buffer) \n",
+	"CTRL + X -> Cut selection \n",
+	"CTRL + V or F4 -> Paste \n",
+	"BACKSPACE -> Delete selection \n",
 	"F6 -> Run Code \n",
 	"PRESS ENTER TO BACK TO THE EDITOR.\n")
 	io.flush()
@@ -626,13 +1089,42 @@ while true then
             var ckey = console.key_event.get_key()
             var mod = console.key_event.get_mod()
 
-            if types.is_char($ckey) then
+            if types.is_int($ckey) then
+                if $search_mode equ false then
+                    if $ckey equ $KEY_LEFT or $ckey equ $KEY_RIGHT or $ckey equ $KEY_UP or $ckey equ $KEY_DOWN or $ckey equ $KEY_HOME or $ckey equ $KEY_END or $ckey equ $KEY_PAGE_UP or $ckey equ $KEY_PAGE_DOWN then
+                        if $mod equ $MOD_SHIFT then
+                            if $sel_on equ false then
+                                $sel_on = true
+                                $sel_ay = $actual_y
+                                $sel_ax = $actual_x
+                            end
+                        else
+                            $sel_on = false
+                        end
+                    end
+                end
+            end
+
+            if $search_mode then
+                search_key($ckey, $mod)
+            elif types.is_char($ckey) then
                 if $ckey equ 'q' and $mod equ $MOD_CTRL then
                     console.reset_scroll_area()
                     console.autowrap(true)
                     console.leave_alt_screen()
                     console.raw_mode(false)
                     break
+                elif $ckey equ 'f' and $mod equ $MOD_CTRL then
+                    search_open()
+                elif $ckey equ 'c' and $mod equ $MOD_CTRL then
+                    sel_copy()
+                elif $ckey equ 'x' and $mod equ $MOD_CTRL then
+                    sel_copy()
+                    if $sel_on then
+                        sel_delete()
+                    end
+                elif $ckey equ 'v' and $mod equ $MOD_CTRL then
+                    clip_paste()
                 elif $ckey equ 's' and $mod equ $MOD_CTRL then
                     var all_buf = ""
 
@@ -649,6 +1141,10 @@ while true then
 
                 else
                     if $ckey neq '\0' then
+                        if $sel_on then
+                            sel_delete()
+                            $len = string.len($buffer)
+                        end
                         if $len > $actual_x then
                             ascii_entered_middle($ckey, $len)
                         else
@@ -659,9 +1155,17 @@ while true then
                 end
             elif types.is_int($ckey) then
                 if $ckey equ $KEY_BACKSPACE then
-                    backspace_b()
+                    if $sel_on then
+                        sel_delete()
+                    else
+                        backspace_b()
+                    end
      
 				elif $ckey equ $KEY_TAB then
+					if $sel_on then
+						sel_delete()
+						$len = string.len($buffer)
+					end
 					var spaces = "\t"
 					var left = ""
 					var right = ""
@@ -690,12 +1194,24 @@ while true then
 						List.push($lines, $buffer)
 					end
 					$smellslikeyouchangedsomethingspirit = 1
+				elif $ckey equ $KEY_F4 then
+					clip_paste()
+				elif $ckey equ $KEY_F3 then
+					if string.len($search_query) equ 0 then
+						search_open()
+					else
+						search_next()
+					end
 				elif $ckey equ $KEY_F2 then
 					editor_help()
 				elif $ckey equ $KEY_F6 then
 					# Running SL CODE!
 					run_code($file_name)	
                 elif $ckey equ $KEY_ENTER then
+                    if $sel_on then
+                        sel_delete()
+                        $len = string.len($buffer)
+                    end
                     var middle = false
 
                     if $len > $actual_x then
