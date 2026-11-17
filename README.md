@@ -1,18 +1,19 @@
 # $L
-  
-SL is a simple scripting language for C.  
-  
-Language Reference: `PROJECT_TREE/docs/language_ref.txt`  
-Standard Library Reference: `PROJECT_TREE/docs/standard_library_ref.txt`  
-  
-## Features
-- `if` support.
-- `while` loop support.
-- `def` function support.
-- `var` dynamic variables.
-- All math expressions except assignments. Check wiki if you wanna know why.
 
-## Usage 
+SL is a simple scripting language for C.
+
+Language Reference: `PROJECT\_TREE/docs/sl.txt` or SL.pdf  
+Standard Library Reference: `PROJECT\_TREE/docs/standard\standard_library.txt`
+
+## Features
+
+* `if` support.
+* `while` loop support.
+* `def` function support.
+* `var` dynamic variables.
+* All math expressions except assignments. Check wiki if you wanna know why.
+
+## Usage
 
 ```bash
 git clone https://github.com/0l3d/sl
@@ -26,65 +27,70 @@ make
 
 *(Pre-built binaries are provided, so you don't need to build from source using GitHub. You are also free to modify the source code and build it for your own platform, if supported. For the best experience, it is recommended to build from the source code included in the official releases rather than the latest development code, as each release represents a tested and working version.)*
 
-[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/0l3d/sl/releases)
-[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=F0F0F0)](https://github.com/0l3d/sl/releases)
-[![Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11&logoColor=white)](https://github.com/0l3d/sl/releases)
-[![FreeBSD](https://img.shields.io/badge/FreeBSD-AB2B28?logo=freebsd&logoColor=white)](https://github.com/0l3d/sl/releases)
-[![OpenBSD](https://img.shields.io/badge/OpenBSD-F2CA30?logo=openbsd&logoColor=black)](https://github.com/0l3d/sl/releases)
-[![NetBSD](https://img.shields.io/badge/NetBSD-FF6600?logo=netbsd&logoColor=white)](https://github.com/0l3d/sl/releases)
-  
+[!\[Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux\&logoColor=black)](https://github.com/0l3d/sl/releases)
+[!\[macOS](https://img.shields.io/badge/macOS-000000?logo=apple\&logoColor=F0F0F0)](https://github.com/0l3d/sl/releases)
+[!\[Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11\&logoColor=white)](https://github.com/0l3d/sl/releases)
+[!\[FreeBSD](https://img.shields.io/badge/FreeBSD-AB2B28?logo=freebsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
+[!\[OpenBSD](https://img.shields.io/badge/OpenBSD-F2CA30?logo=openbsd\&logoColor=black)](https://github.com/0l3d/sl/releases)
+[!\[NetBSD](https://img.shields.io/badge/NetBSD-FF6600?logo=netbsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
+
 # Extra
-  
-You can edit SL files with basic syntax highlighting without using an external editor:  
+
+You can edit SL files with basic syntax highlighting without using an external editor:
+
 ```
 ./sl examples/editor.sl examples/brainfuck.sl # or your path 
 # Cross Platform editor for SL.
 ```
-  
+
 For supported scripts (run the program first, if there's no output, it's not supported),  
-you can use the following command to generate reference docs or comment docs explaining how the script works:  
+you can use the following command to generate reference docs or comment docs explaining how the script works:
+
 ```
-sl examples/ex_doc.sl file.sl
+sl examples/ex\_doc.sl file.sl
 ```  
-The output is automatically styled with headings, plain text, and blinking text.  
-   
+
+The output is automatically styled with headings, plain text, and blinking text.
+
 ### Useful tools in the Examples folder
-  
-Even though the Examples folder is mostly for testing the language, a lot of the scripts are actually small tools that might come in handy.  
-  
-Here are a few of them:  
-  
-- `basic_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)  
-- `brainfuck.sl`: a complete Brainfuck interpreter.  
-- `ex_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER  
-- `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary. 
-- `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.  
-- `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.  
-- `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
-- `pong.sl`: A two-player Pong game in the terminal.
-  
-## Platform compatibility 
-  
+
+Even though the Examples folder is mostly for testing the language, a lot of the scripts are actually small tools that might come in handy.
+
+Here are a few of them:
+
+* `basic\_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)
+* `brainfuck.sl`: a complete Brainfuck interpreter.
+* `ex\_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER
+* `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary.
+* `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.
+* `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.
+* `guessing\_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
+* `pong.sl`: A two-player Pong game in the terminal.
+
+## Platform compatibility
+
 `sl.c` and `sl.h` (the main library sources) are written in Standard C.  
-(No POSIX, WinAPI, or other OS specific APIs are used.)  
-  
-However, `stdlib.h` may change in the future, but I aim to implement it for as many operating systems as possible.  
-  
+(No POSIX, WinAPI, or other OS specific APIs are used.)
+
+However, `stdlib.h` may change in the future, but I aim to implement it for as many operating systems as possible.
+
 The Console API and Network API are supported on both posix and windows.
 
 ### Dynamic Loading (standard library dyn api)
-  
-Huge thanks to everyone who worked on dyncall and made such a great library.  
-  
-SL's dynamic loading support follows the same platforms supported by dyncall. I chose dyncall because libffi was too heavy for this project and would have been harder to embed into the repository, while dyncall is minimal and has very little impact on the binary size. Thanks to dyncall, you can load raylib functions and make games, use OpenGL, call system libraries, and pretty much anything else you can think of. Keep in mind that dynamic loading is unsafe and requires you to deal with C's memory management. you'll need to use the free functions provided by the library you're working with.  
-  
+
+Huge thanks to everyone who worked on dyncall and made such a great library.
+
+SL's dynamic loading support follows the same platforms supported by dyncall. I chose dyncall because libffi was too heavy for this project and would have been harder to embed into the repository, while dyncall is minimal and has very little impact on the binary size. Thanks to dyncall, you can load raylib functions and make games, use OpenGL, call system libraries, and pretty much anything else you can think of. Keep in mind that dynamic loading is unsafe and requires you to deal with C's memory management. you'll need to use the free functions provided by the library you're working with.
+
 ## API
-  
-Check Language REF for API.  
-  
+
+Check Language REF for API.
+
 ## License
 
 This project is licensed under the BSD3-Clause License.
 
-# Author 
+# Author
+
 Created by **0l3d**
+
