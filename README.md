@@ -2,8 +2,8 @@
 
 SL is a simple scripting language for C.
 
-Language Reference: `PROJECT\_TREE/docs/sl.txt` or SL.pdf  
-Standard Library Reference: `PROJECT\_TREE/docs/standard\standard_library.txt`
+Language Reference: `PROJECT_TREE/docs/sl.txt` or SL.pdf  
+Standard Library Reference: `PROJECT_TREE/docs/standard\standard_library.txt`
 
 ## Features
 
@@ -47,7 +47,7 @@ For supported scripts (run the program first, if there's no output, it's not sup
 you can use the following command to generate reference docs or comment docs explaining how the script works:
 
 ```
-sl examples/ex\_doc.sl file.sl
+sl examples/ex_doc.sl file.sl
 ```  
 
 The output is automatically styled with headings, plain text, and blinking text.
@@ -58,13 +58,13 @@ Even though the Examples folder is mostly for testing the language, a lot of the
 
 Here are a few of them:
 
-* `basic\_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)
+* `basic_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)
 * `brainfuck.sl`: a complete Brainfuck interpreter.
-* `ex\_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER
+* `ex_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER
 * `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary.
 * `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.
 * `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.
-* `guessing\_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
+* `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
 * `pong.sl`: A two-player Pong game in the terminal.
 
 ## Platform compatibility
