@@ -3,7 +3,7 @@
 SL is a simple scripting language for C.
 
 Language Reference: `PROJECT_TREE/docs/sl.txt` or SL.pdf  
-Standard Library Reference: `PROJECT_TREE/docs/standard\standard_library.txt`
+Standard Library Reference: `PROJECT_TREE/docs/standard_library.txt`
 
 ## Features
 
