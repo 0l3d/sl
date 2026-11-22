@@ -2,8 +2,8 @@
 
 SL is a simple scripting language for C.
 
-Language Reference: `PROJECT\_TREE/docs/sl.txt` or SL.pdf  
-Standard Library Reference: `PROJECT\_TREE/docs/standard\standard_library.txt`
+Language Reference: `PROJECT_TREE/docs/sl.txt` or SL.pdf  
+Standard Library Reference: `PROJECT_TREE/docs/standard_library.txt`
 
 ## Features
 
@@ -12,7 +12,33 @@ Standard Library Reference: `PROJECT\_TREE/docs/standard\standard_library.txt`
 * `def` function support.
 * `var` dynamic variables.
 * All math expressions except assignments. Check wiki if you wanna know why.
-
+  
+# Example Code
+```js
+use("io", "string", "list")
+var i = -1 while ({ $i = $i + 1 return $i < 1000}) then
+   io.print("i: ", $i, "\n")
+end
+var name = "" 
+io.print("Your names are \n", {$name = io.input("Enter your names: ")}) 
+$name 
+|> string.split(" ")
+|> $name |> {
+	while List.iter($name) then
+		var item = List.next($name)
+		io.print($item, ":","\n")
+		if $item equ "0l3d" then  
+   			io.print("M/D/C/G: 16G/512G/I5 12450HX/ARC A530M\n")
+		elif $item equ "unknown" then 
+			":D" |> io.print
+		else
+			io.print("No name? Get one.\n")
+		end
+	end
+}
+```
+*Pipes and scope expressions come from ``sl_lang.c``, not the base language. See Hackability (chapter 3).*
+    
 ## Usage
 
 ```bash
@@ -27,12 +53,12 @@ make
 
 *(Pre-built binaries are provided, so you don't need to build from source using GitHub. You are also free to modify the source code and build it for your own platform, if supported. For the best experience, it is recommended to build from the source code included in the official releases rather than the latest development code, as each release represents a tested and working version.)*
 
-[!\[Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux\&logoColor=black)](https://github.com/0l3d/sl/releases)
-[!\[macOS](https://img.shields.io/badge/macOS-000000?logo=apple\&logoColor=F0F0F0)](https://github.com/0l3d/sl/releases)
-[!\[Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11\&logoColor=white)](https://github.com/0l3d/sl/releases)
-[!\[FreeBSD](https://img.shields.io/badge/FreeBSD-AB2B28?logo=freebsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
-[!\[OpenBSD](https://img.shields.io/badge/OpenBSD-F2CA30?logo=openbsd\&logoColor=black)](https://github.com/0l3d/sl/releases)
-[!\[NetBSD](https://img.shields.io/badge/NetBSD-FF6600?logo=netbsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux\&logoColor=black)](https://github.com/0l3d/sl/releases)
+[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple\&logoColor=F0F0F0)](https://github.com/0l3d/sl/releases)
+[![Windows](https://custom-icon-badges.demolab.com/badge/Windows-0078D6?logo=windows11\&logoColor=white)](https://github.com/0l3d/sl/releases)
+[![FreeBSD](https://img.shields.io/badge/FreeBSD-AB2B28?logo=freebsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
+[![OpenBSD](https://img.shields.io/badge/OpenBSD-F2CA30?logo=openbsd\&logoColor=black)](https://github.com/0l3d/sl/releases)
+[![NetBSD](https://img.shields.io/badge/NetBSD-FF6600?logo=netbsd\&logoColor=white)](https://github.com/0l3d/sl/releases)
 
 # Extra
 
@@ -47,7 +73,7 @@ For supported scripts (run the program first, if there's no output, it's not sup
 you can use the following command to generate reference docs or comment docs explaining how the script works:
 
 ```
-sl examples/ex\_doc.sl file.sl
+sl examples/ex_doc.sl file.sl
 ```  
 
 The output is automatically styled with headings, plain text, and blinking text.
@@ -58,13 +84,13 @@ Even though the Examples folder is mostly for testing the language, a lot of the
 
 Here are a few of them:
 
-* `basic\_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)
+* `basic_calculator.sl`: a single-line plain text math evaluator without parenthesis support (for example: 100 / 5 + 1)
 * `brainfuck.sl`: a complete Brainfuck interpreter.
-* `ex\_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER
+* `ex_doc.sl`: a tool that generates documentation from specially formatted comments in .sl scripts. For example: ## HEADER
 * `letsconvert.sl`: converts a decimal number to hexadecimal, octal and binary.
 * `editor.sl`: a TUI editor built specifically for SL, with syntax highlighting for both SL and C.
 * `todo.sl`: a simple CLI task manager that uses SL's built-in database modules.
-* `guessing\_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
+* `guessing_game.sl`: a number guessing game where you try to guess a randomly generated number between 0 and 100.
 * `pong.sl`: A two-player Pong game in the terminal.
 
 ## Platform compatibility

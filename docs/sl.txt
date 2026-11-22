@@ -595,7 +595,7 @@ Just like custom expressions, the handler emits bytecode, it doesnt calculate an
 Higher precedence binds tighter. Built in operators are multiplied by 10 internally, so you can slot yours between them:
 -----------
 || &&          10
-== != < >      20  (comparisons)
+(comparisons)  20  
 |              30
 ^              40
 &              50
@@ -632,7 +632,7 @@ io.print(10 + 5 |> add(1), "\n")   # same as add(10 + 5, 1), prints 16
 
 # Wrong way
 |> add(5)                          # nothing on the left
-10 |> 20                           # right side must be a function
+10 |> 20                           # right side must be a function or variable
 10 |> add(5) + 1                   # tokens after the stage are not allowed
 ---------
 The right side must be a function name, with or without `( )`. Wrap the whole pipe in parentheses if you need to do math with its result: `(10 |> add(5)) + 1`.
